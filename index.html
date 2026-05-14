@@ -622,8 +622,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <select class="fs" id="bill-ins">
             <option value="Anthem_MLTC">Anthem MLTC — HEALTHPLUS 45302</option>
             <option value="Anthem_MAP">Anthem MAP — HEALTHPLUS 45302</option>
-            <option value="CLP">Centerlight PACE — Payer 미정</option>
-            <option value="SWH">Senior Whole Health — Payer 미정</option>
+            <option value="CLP">Centerlight PACE — 13360 (CMS-1500)</option>
+            <option value="SWH">Senior Whole Health — SWHNY (CMS-1500)</option>
           </select>
         </div>
         <button class="btn-full btn-primary" onclick="generateBilling()">리포트 생성</button>
@@ -634,8 +634,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div style="background:#fff;border-radius:12px;padding:10px 8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:20px;font-weight:800;color:#D85A30" id="bill-stat-total">—</div><div style="font-size:10px;color:#8E8E93;margin-top:3px">총 청구액</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div style="background:#E6F1FB;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#0C447C" id="bill-stat-s5105">—</div><div style="font-size:10px;color:#185FA5">S5105 ($60×1)</div></div>
-        <div style="background:#E1F5EE;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#085041" id="bill-stat-a0100">—</div><div style="font-size:10px;color:#0F6E56">A0100 ($12.5×2)</div></div>
+        <div style="background:#E6F1FB;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#0C447C" id="bill-stat-s5105">—</div><div style="font-size:10px;color:#185FA5" id="bill-label-s5">S5105</div></div>
+        <div style="background:#E1F5EE;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#085041" id="bill-stat-a0100">—</div><div style="font-size:10px;color:#0F6E56" id="bill-label-a0">A0100</div></div>
       </div>
       <div style="font-size:11px;color:#8E8E93;background:#F2F2F7;padding:8px 11px;border-radius:9px;margin-bottom:10px" id="bill-summary">기간을 선택하고 리포트 생성을 눌러주세요</div>
       <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -648,7 +648,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <div style="background:#FFF3EE;border:1.5px solid #FECDB8;border-radius:13px;padding:14px">
         <div style="font-size:14px;font-weight:700;color:#D85A30;margin-bottom:4px">Claim.MD 업로드용 CSV (UB-04)</div>
-        <div style="font-size:12px;color:#B84520;line-height:1.5;margin-bottom:10px">Anthem MLTC/MAP → UB-04 (HEALTHPLUS 45302) · Centerlight/SWH → CMS-1500</div>
+        <div style="font-size:12px;color:#B84520;line-height:1.5;margin-bottom:10px">Anthem → UB-04 (45302) · Centerlight → CMS-1500 (13360) · SWH → CMS-1500 (SWHNY) · Taxonomy: 261QA0600X</div>
         <button class="btn-full btn-primary" onclick="exportBillingCSV()" style="margin-bottom:8px">CSV 다운로드 (UB-04 — Anthem)</button>
         <button class="btn-full" onclick="exportCMS1500CSV()" style="padding:12px;border-radius:11px;background:#E6F1FB;color:#0C447C;border:1.5px solid #85B7EB;font-size:14px;font-weight:700;cursor:pointer;width:100%">CSV 다운로드 (CMS-1500 — Centerlight/SWH)</button>
       </div>
@@ -1247,21 +1247,38 @@ async function uploadMembersToSheets(){
 
 // ── 빌링 ─────────────────────────────────────────────────────
 var BILLING_CONFIG={
-  NPI:'1154194504',providerName:'NUMBER ONE ADULT DAYCARE',
-  providerAddr:'161-22 NORTHERN BLVD 1FL, FLUSHING, NY 11358',
-  ein:'93-4271990',taxonomy:'261QA0600X',revenueCode:'3104',pcn:'1057',
+  NPI:'1154194504',
+  providerName:'NUMBER ONE ADULT DAYCARE',
+  providerAddr:'161-22 NORTHERN BLVD FL 1, FLUSHING, NY 11358',
+  ein:'93-4271990',
+  taxonomy:'261QA0600X',
+  revenueCode:'3104',
+  pcn:'1057',
+  pos:'99',
   payers:{
-    Anthem_MLTC:{name:'HEALTHPLUS',payerId:'45302'},
-    Anthem_MAP:{name:'HEALTHPLUS',payerId:'45302'},
-    CLP:{name:'',payerId:''},SWH:{name:'',payerId:''},
+    Anthem_MLTC:{name:'HEALTHPLUS',     payerId:'45302', form:'UB04'},
+    Anthem_MAP: {name:'HEALTHPLUS',     payerId:'45302', form:'UB04'},
+    CLP:        {name:'CENTERLIGHT HEALTHCARE', payerId:'13360', form:'CMS1500'},
+    SWH:        {name:'SENIOR WHOLE HEALTH OF NEW YORK', payerId:'SWHNY', form:'CMS1500'},
   },
   codes:{
-    Anthem_MLTC:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
-    Anthem_MAP:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
-    CLP:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
-    SWH:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
+    Anthem_MLTC:[
+      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},
+      {code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}
+    ],
+    Anthem_MAP:[
+      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},
+      {code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}
+    ],
+    CLP:[
+      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:100,units:1},
+      {code:'T2003',desc:'NONEMERGENCY TRANSPORTATION ENCOUNTER/TRIP',charge:15,units:2}
+    ],
+    SWH:[
+      {code:'S5102',desc:'DAYCARE SERVICES ADULT PER DIEM',charge:90,units:1}
+    ],
   }
-};
+}
 var _billFrom='',_billTo='',_billIns='Anthem_MLTC',_billView='member',_billData=[];
 function initBilling(){
   var t=new Date(),day=t.getDay(),mon=new Date(t);mon.setDate(t.getDate()-day+1);
@@ -1292,8 +1309,11 @@ function generateBilling(){
   var mems=new Set(_billData.map(function(r){return r.member.id;}));
   var sdays=new Set(_billData.filter(function(r){return r.code==='S5105';}).map(function(r){return r.member.id+'_'+r.date;}));
   var tot=parseFloat(_billData.reduce(function(a,r){return a+r.total;},0).toFixed(2));
-  var s5=parseFloat(_billData.filter(function(r){return r.code==='S5105';}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
-  var a0=parseFloat(_billData.filter(function(r){return r.code==='A0100';}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
+  var codes2=BILLING_CONFIG.codes[_billIns]||[];
+  var code1=codes2[0]?codes2[0].code:'S5105';
+  var code2=codes2[1]?codes2[1].code:'';
+  var s5=parseFloat(_billData.filter(function(r){return r.code===code1;}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
+  var a0=parseFloat(_billData.filter(function(r){return r.code===code2;}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
   var el=function(id){return document.getElementById(id);};
   if(el('bill-stat-members'))el('bill-stat-members').textContent=mems.size+'명';
   if(el('bill-stat-days'))el('bill-stat-days').textContent=sdays.size+'일';
@@ -1301,6 +1321,9 @@ function generateBilling(){
   if(el('bill-stat-a0100'))el('bill-stat-a0100').textContent='$'+a0.toLocaleString();
   if(el('bill-stat-total'))el('bill-stat-total').textContent='$'+tot.toLocaleString();
   if(el('bill-summary'))el('bill-summary').textContent=_billFrom+' ~ '+_billTo+' · '+mems.size+'명 · '+sdays.size+'일 · $'+tot.toLocaleString();
+  var c2=BILLING_CONFIG.codes[_billIns]||[];
+  if(el('bill-label-s5'))el('bill-label-s5').textContent=(c2[0]?c2[0].code+' ($'+c2[0].charge+'×'+c2[0].units+')':'—');
+  if(el('bill-label-a0'))el('bill-label-a0').textContent=(c2[1]?c2[1].code+' ($'+c2[1].charge+'×'+c2[1].units+')':'없음');
   renderBillingTable();
 }
 function setBillingView(v,btn){
@@ -1335,7 +1358,7 @@ function exportBillingCSV(){
   var p=BILLING_CONFIG.payers[_billIns]||{};
   var hdrs=['NPI','Provider Name','Provider Address','FED TAX NO','PCN','Patient Last Name','Patient First Name','Date of Birth','Medicaid ID','Insurance ID (MLTC)','Payer Name','Payer ID','Revenue Code','Date of Service From','Date of Service To','HCPCS Code','Description','Units','Unit Charge','Total Charge','Taxonomy'];
   var rows=_billData.map(function(r){var np=r.member.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();return[BILLING_CONFIG.NPI,'"'+BILLING_CONFIG.providerName+'"','"'+BILLING_CONFIG.providerAddr+'"',BILLING_CONFIG.ein,BILLING_CONFIG.pcn,last,first,r.member.dob||'',r.member.medicaid,r.member.mltc,p.name||'',p.payerId||'','3104',r.date,r.date,r.code,'"'+r.desc+'"',r.units,r.charge,r.total.toFixed(2),BILLING_CONFIG.taxonomy].join(',');});
-  var csv='\uFEFF'+[hdrs.join(',')].concat(rows).join('\n');
+  var sep2=String.fromCharCode(13,10);var csv=String.fromCharCode(0xFEFF)+[hdrs.join(',')].concat(rows).join(sep2);
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='billing_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);
 }
@@ -2587,110 +2610,36 @@ th{background:#f0f0f0;font-weight:bold;text-align:left}
 }
 
 // ── CMS-1500 Billing (Centerlight, SWH) ──────────────────────
-function exportCMS1500CSV() {
+function exportCMS1500CSV(){
   if(!_billData.length){alert('먼저 리포트를 생성해주세요.');return;}
   var p=BILLING_CONFIG.payers[_billIns]||{};
-  // CMS-1500 형식
-  var hdrs=[
-    'NPI','Provider Name','Provider Address','Tax ID',
-    'Patient Last Name','Patient First Name','Date of Birth','Sex',
-    'Patient ID (Medicaid)','Insurance ID','Insured Name',
-    'Payer Name','Payer ID',
-    'Date of Service From','Date of Service To',
-    'Place of Service','CPT/HCPCS Code','Modifier',
-    'Diagnosis Pointer','Charges','Units','Rendering Provider NPI'
-  ];
-  var rows=_billData.map(function(r){
-    var np=r.member.en.split(',');
-    var last=(np[0]||'').trim();var first=(np[1]||'').trim();
-    return[
-      BILLING_CONFIG.NPI,
-      '"'+BILLING_CONFIG.providerName+'"',
-      '"'+BILLING_CONFIG.providerAddr+'"',
-      BILLING_CONFIG.ein,
-      last,first,
-      r.member.dob||'',
-      'F',
-      r.member.medicaid,
-      r.member.mltc,
-      r.member.en,
-      p.name||'',
-      p.payerId||'',
-      r.date,r.date,
-      '99',
-      r.code,
-      '',
-      '1',
-      r.total.toFixed(2),
-      r.units,
-      BILLING_CONFIG.NPI
-    ].join(',');
+  var hdrs=['1.PAYER NAME','PAYER ID','1a.INSURED ID','2.PATIENT LAST NAME','2.PATIENT FIRST NAME','3.DOB','3.SEX','5.PATIENT ADDRESS','CITY','STATE','ZIP','21.DIAGNOSIS A','24A.DATE FROM','24A.DATE TO','24B.POS','24D.CPT CODE','24E.DIAG PTR','24F.CHARGES','24G.UNITS','25.TAX ID','26.PATIENT ACCT','27.ACCEPT ASSIGN','28.TOTAL CHARGE','33.BILLING PROVIDER','33.ADDRESS','33.CITY','33.STATE','33.ZIP','33.NPI','33.TAXONOMY'];
+  var byMemberDate={};
+  _billData.forEach(function(r){
+    var key=r.member.id+'_'+r.date;
+    if(!byMemberDate[key])byMemberDate[key]={member:r.member,date:r.date,codes:[]};
+    byMemberDate[key].codes.push(r);
   });
-  var csv='\uFEFF'+[hdrs.join(',')].concat(rows).join('\n');
+  var rows=[];
+  Object.values(byMemberDate).forEach(function(g){
+    var m=g.member;
+    var np=m.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();
+    var addrParts=(m.addr||'').split(',');
+    var street=(addrParts[0]||'').trim();
+    var city2=(addrParts[1]||'').trim();
+    var stateZip=(addrParts[2]||'').trim().split(' ');
+    var state=stateZip[0]||'NY';var zip=stateZip[1]||'';
+    g.codes.forEach(function(r){
+      rows.push(['"'+p.name+'"',p.payerId,m.mltc,last,first,m.dob||'','F','"'+street+'"',city2,state,zip,'M150',r.date,r.date,BILLING_CONFIG.pos,r.code,'A',r.total.toFixed(2),r.units,BILLING_CONFIG.ein,m.id,'YES','','"'+BILLING_CONFIG.providerName+'"','"161-22 NORTHERN BLVD FL 1"','FLUSHING','NY','11358',BILLING_CONFIG.NPI,BILLING_CONFIG.taxonomy].join(','));
+    });
+  });
+  var sep=String.fromCharCode(13,10);
+  var csv=String.fromCharCode(0xFEFF)+[hdrs.join(',')].concat(rows).join(sep);
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);var a=document.createElement('a');
-  a.href=url;a.download='cms1500_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';
-  a.click();URL.revokeObjectURL(url);
+  a.href=url;a.download='cms1500_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);
 }
 
-// ── INIT RENDER ───────────────────────────────────────────────
-loadFromStorage();
-setTimeout(function(){var el=document.getElementById("storage-info");if(el)el.textContent=showStorageInfo();},100);
-updateDN();renderDash();renderPCSPList();renderStaff();
-renderIncidents();renderActivities();renderCases();
-setTimeout(initBilling,100);
-// Sheets에서 최신 데이터 로드
-if(apiUrl){loadFromSheets().then(function(ok){if(ok){renderDash();renderAtt();filterM();renderStaff();}});}
-document.getElementById('rpt-from').value=weekAgoISO;
-document.getElementById('rpt-to').value=todayISO;
 </script>
-
-<div id="loading-overlay">
-  <div class="loading-spinner"></div>
-  <div class="loading-msg">로딩 중...</div>
-</div>
-<div class="ov" id="ov-status" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';"></div>
-<div class="modal" id="modal-ov-status" style="display:none" onclick="event.stopPropagation()">
-  <div class="modal-handle"></div>
-  <div class="modal-title"><span id="sm-name">상태 변경</span><button class="modal-close" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">&#10005;</button></div>
-  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
-    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
-  </div>
-  <div id="sm-date-wrap" style="display:none;margin-bottom:10px">
-    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">Disenroll 날짜</div>
-    <input class="m-input" type="date" id="sm-date" style="margin-bottom:10px">
-    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">메모 (사유)</div>
-    <input class="m-input" id="sm-note" placeholder="타 센터로 이동, 입원 등">
-  </div>
-  <div style="font-size:11px;color:#B35900;background:#FFF3E0;padding:8px 11px;border-radius:9px;margin-bottom:12px">&#9888; Disenrolled 날짜까지 서비스 제공 및 Medicaid 청구 가능합니다.</div>
-  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">취소</button><button class="mbt mbt-save" onclick="saveStatus()">저장</button></div>
-</div>
-<div class="ov" id="ov-medit" onclick="closeOv('ov-medit')"></div>
-<div class="modal" id="modal-ov-medit" style="display:none" onclick="event.stopPropagation()">
-  <div class="modal-handle"></div>
-  <div class="modal-title"><span id="medit-title">멤버 정보 수정</span><button class="modal-close" onclick="closeOv('ov-medit')">&#10005;</button></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="me-en"></div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div></div>
-  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div><select class="m-select" id="me-ins"><option value="Anthem_MLTC">Anthem MLTC</option><option value="Anthem_MAP">Anthem MAP</option><option value="CLP">Centerlight PACE</option><option value="SWH">Senior Whole Health</option></select></div></div>
-  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
-  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div><textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea></div>
-  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button><button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button></div>
-</div>
-<div class="ov" id="ov-staff-edit" onclick="closeOv('ov-staff-edit')"></div>
-<div class="modal" id="modal-ov-staff-edit" style="display:none" onclick="event.stopPropagation()">
-  <div class="modal-handle"></div>
-  <div class="modal-title"><span id="staff-modal-title">스태프 추가</span><button class="modal-close" onclick="closeOv('ov-staff-edit')">&#10005;</button></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="sf-namekr" placeholder="정지윤"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="sf-name" placeholder="Zoey Jeong"></div></div>
-  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">직책</div><input class="m-input" id="sf-role" placeholder="Program Director"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화</div><input class="m-input" type="tel" id="sf-phone"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">이메일</div><input class="m-input" type="email" id="sf-email"></div></div>
-  <div style="margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="fl" style="font-size:11px">자격증</div><button onclick="addStaffCert()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E5E5EA;background:#F2F2F7;cursor:pointer">➕ 추가</button></div>
-    <div id="sf-certs-list"></div>
-  </div>
-  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-staff-edit')">취소</button><button class="mbt mbt-save" onclick="saveStaffEdit()">저장</button></div>
-</div>
 </body>
 </html>
