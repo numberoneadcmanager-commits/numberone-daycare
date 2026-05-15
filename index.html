@@ -331,7 +331,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="tab" onclick="goTab('staff',this)">스태프</div>
     <div class="tab" onclick="goTab('report',this)">보고서</div>
     <div class="tab" onclick="goTab('billing',this)">빌링</div>
-    <div class="tab" onclick="goTab('forms',this)">폼</div>
     <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
   </div>
 
@@ -622,8 +621,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <select class="fs" id="bill-ins">
             <option value="Anthem_MLTC">Anthem MLTC — HEALTHPLUS 45302</option>
             <option value="Anthem_MAP">Anthem MAP — HEALTHPLUS 45302</option>
-            <option value="CLP">Centerlight PACE — 13360 (CMS-1500)</option>
-            <option value="SWH">Senior Whole Health — SWHNY (CMS-1500)</option>
+            <option value="CLP">Centerlight PACE — Payer 미정</option>
+            <option value="SWH">Senior Whole Health — Payer 미정</option>
           </select>
         </div>
         <button class="btn-full btn-primary" onclick="generateBilling()">리포트 생성</button>
@@ -634,8 +633,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div style="background:#fff;border-radius:12px;padding:10px 8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:20px;font-weight:800;color:#D85A30" id="bill-stat-total">—</div><div style="font-size:10px;color:#8E8E93;margin-top:3px">총 청구액</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div style="background:#E6F1FB;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#0C447C" id="bill-stat-s5105">—</div><div style="font-size:10px;color:#185FA5" id="bill-label-s5">S5105</div></div>
-        <div style="background:#E1F5EE;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#085041" id="bill-stat-a0100">—</div><div style="font-size:10px;color:#0F6E56" id="bill-label-a0">A0100</div></div>
+        <div style="background:#E6F1FB;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#0C447C" id="bill-stat-s5105">—</div><div style="font-size:10px;color:#185FA5">S5105 ($60×1)</div></div>
+        <div style="background:#E1F5EE;border-radius:12px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:#085041" id="bill-stat-a0100">—</div><div style="font-size:10px;color:#0F6E56">A0100 ($12.5×2)</div></div>
       </div>
       <div style="font-size:11px;color:#8E8E93;background:#F2F2F7;padding:8px 11px;border-radius:9px;margin-bottom:10px" id="bill-summary">기간을 선택하고 리포트 생성을 눌러주세요</div>
       <div style="display:flex;gap:6px;margin-bottom:10px">
@@ -648,91 +647,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <div style="background:#FFF3EE;border:1.5px solid #FECDB8;border-radius:13px;padding:14px">
         <div style="font-size:14px;font-weight:700;color:#D85A30;margin-bottom:4px">Claim.MD 업로드용 CSV (UB-04)</div>
-        <div style="font-size:12px;color:#B84520;line-height:1.5;margin-bottom:10px">Anthem → UB-04 (45302) · Centerlight → CMS-1500 (13360) · SWH → CMS-1500 (SWHNY) · Taxonomy: 261QA0600X</div>
-        <button class="btn-full btn-primary" onclick="exportBillingCSV()" style="margin-bottom:8px">CSV 다운로드 (UB-04 — Anthem)</button>
-        <button class="btn-full" onclick="exportCMS1500CSV()" style="padding:12px;border-radius:11px;background:#E6F1FB;color:#0C447C;border:1.5px solid #85B7EB;font-size:14px;font-weight:700;cursor:pointer;width:100%">CSV 다운로드 (CMS-1500 — Centerlight/SWH)</button>
-      </div>
-    </div>
-
-
-    <div class="panel" id="panel-forms">
-      <!-- 폼 선택 -->
-      <div style="background:#fff;border-radius:13px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📋 서명 폼</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #E5E5EA;background:#F9F9F9;text-align:left;cursor:pointer;font-size:13px;font-weight:600" onclick="showFormSection('hipaa')">
-            📄 HIPAA Authorization (OCA Form 960)
-            <div style="font-size:11px;color:#8E8E93;font-weight:400;margin-top:2px">Authorization for Release of Health Information</div>
-          </button>
-          <button style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #E5E5EA;background:#F9F9F9;text-align:left;cursor:pointer;font-size:13px;font-weight:600" onclick="showFormSection('member-rights')">
-            📄 Participant's Bill of Rights
-            <div style="font-size:11px;color:#8E8E93;font-weight:400;margin-top:2px">참여자 권리 장전 (영문+한국어)</div>
-          </button>
-          <button style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #E5E5EA;background:#F9F9F9;text-align:left;cursor:pointer;font-size:13px;font-weight:600" onclick="showFormSection('nutrition')">
-            🥗 Nutrition Screening
-            <div style="font-size:11px;color:#8E8E93;font-weight:400;margin-top:2px">영양 스크리닝 (회원 + 스태프 서명)</div>
-          </button>
-          <button style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #E5E5EA;background:#F9F9F9;text-align:left;cursor:pointer;font-size:13px;font-weight:600;opacity:0.5" disabled>
-            📄 Admission Agreement (준비 중)
-          </button>
-          <button style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #E5E5EA;background:#F9F9F9;text-align:left;cursor:pointer;font-size:13px;font-weight:600;opacity:0.5" disabled>
-            📄 Emergency Contact Authorization (준비 중)
-          </button>
-        </div>
-      </div>
-
-      <!-- HIPAA 폼 섹션 -->
-      <div id="form-hipaa" style="display:none">
-        <div style="background:#fff;border-radius:13px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div style="font-size:14px;font-weight:700">HIPAA Authorization</div>
-            <button onclick="showFormSection(null)" style="font-size:12px;color:#8E8E93;background:none;border:none;cursor:pointer">← 뒤로</button>
-          </div>
-
-          <!-- 멤버 선택 -->
-          <div style="margin-bottom:12px">
-            <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">멤버 선택</div>
-            <select class="fs" id="hipaa-member-select" onchange="selectHipaaMember(this.value)">
-              <option value="">-- 멤버를 선택해주세요 --</option>
-            </select>
-          </div>
-
-          <!-- 선택된 멤버 정보 -->
-          <div id="hipaa-member-info" style="display:none;background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px">
-            <div style="font-weight:700" id="hipaa-info-name"></div>
-            <div style="color:#8E8E93;margin-top:2px" id="hipaa-info-dob"></div>
-            <div style="color:#8E8E93" id="hipaa-info-addr"></div>
-          </div>
-
-          <!-- 날짜 -->
-          <div style="margin-bottom:12px">
-            <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">서명 날짜</div>
-            <input class="fi" type="date" id="hipaa-date">
-          </div>
-
-          <!-- 서명 패드 -->
-          <div style="margin-bottom:12px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-              <div style="font-size:11px;font-weight:700;color:#3C3C43">환자 서명</div>
-              <button onclick="clearHipaaSignature()" style="font-size:11px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
-            </div>
-            <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:12px;overflow:hidden;background:#FAFAFA;touch-action:none">
-              <canvas id="hipaa-sig-canvas" width="600" height="160" style="width:100%;height:160px;display:block;cursor:crosshair" onclick="initHipaaCanvas()"></canvas>
-              <div id="hipaa-sig-empty" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#C7C7CC;font-size:13px;pointer-events:none;text-align:center">
-                <div>✍️</div>
-                <div style="margin-top:4px">여기에 서명하세요</div>
-              </div>
-            </div>
-          </div>
-
-          <div style="font-size:11px;color:#8E8E93;background:#F2F2F7;padding:8px 11px;border-radius:9px;margin-bottom:12px">
-            ℹ️ 서명 후 PDF가 생성됩니다. 인쇄하거나 파일로 저장하세요.
-          </div>
-
-          <button class="btn-full btn-primary" onclick="generateHipaaPDF()" style="padding:14px;font-size:14px">
-            📄 PDF 생성 및 저장
-          </button>
-        </div>
+        <div style="font-size:12px;color:#B84520;line-height:1.5;margin-bottom:10px">NPI: 1154194504 · EIN: 93-4271990 · Revenue Code: 3104 · HEALTHPLUS 45302</div>
+        <button class="btn-full btn-primary" onclick="exportBillingCSV()">CSV 다운로드</button>
       </div>
     </div>
 
@@ -1247,38 +1163,21 @@ async function uploadMembersToSheets(){
 
 // ── 빌링 ─────────────────────────────────────────────────────
 var BILLING_CONFIG={
-  NPI:'1154194504',
-  providerName:'NUMBER ONE ADULT DAYCARE',
-  providerAddr:'161-22 NORTHERN BLVD FL 1, FLUSHING, NY 11358',
-  ein:'93-4271990',
-  taxonomy:'261QA0600X',
-  revenueCode:'3104',
-  pcn:'1057',
-  pos:'99',
+  NPI:'1154194504',providerName:'NUMBER ONE ADULT DAYCARE',
+  providerAddr:'161-22 NORTHERN BLVD 1FL, FLUSHING, NY 11358',
+  ein:'93-4271990',taxonomy:'261QA0600X',revenueCode:'3104',pcn:'1057',
   payers:{
-    Anthem_MLTC:{name:'HEALTHPLUS',     payerId:'45302', form:'UB04'},
-    Anthem_MAP: {name:'HEALTHPLUS',     payerId:'45302', form:'UB04'},
-    CLP:        {name:'CENTERLIGHT HEALTHCARE', payerId:'13360', form:'CMS1500'},
-    SWH:        {name:'SENIOR WHOLE HEALTH OF NEW YORK', payerId:'SWHNY', form:'CMS1500'},
+    Anthem_MLTC:{name:'HEALTHPLUS',payerId:'45302'},
+    Anthem_MAP:{name:'HEALTHPLUS',payerId:'45302'},
+    CLP:{name:'',payerId:''},SWH:{name:'',payerId:''},
   },
   codes:{
-    Anthem_MLTC:[
-      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},
-      {code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}
-    ],
-    Anthem_MAP:[
-      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},
-      {code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}
-    ],
-    CLP:[
-      {code:'S5105',desc:'DAYCARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:100,units:1},
-      {code:'T2003',desc:'NONEMERGENCY TRANSPORTATION ENCOUNTER/TRIP',charge:15,units:2}
-    ],
-    SWH:[
-      {code:'S5102',desc:'DAYCARE SERVICES ADULT PER DIEM',charge:90,units:1}
-    ],
+    Anthem_MLTC:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
+    Anthem_MAP:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
+    CLP:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
+    SWH:[{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
   }
-}
+};
 var _billFrom='',_billTo='',_billIns='Anthem_MLTC',_billView='member',_billData=[];
 function initBilling(){
   var t=new Date(),day=t.getDay(),mon=new Date(t);mon.setDate(t.getDate()-day+1);
@@ -1309,11 +1208,8 @@ function generateBilling(){
   var mems=new Set(_billData.map(function(r){return r.member.id;}));
   var sdays=new Set(_billData.filter(function(r){return r.code==='S5105';}).map(function(r){return r.member.id+'_'+r.date;}));
   var tot=parseFloat(_billData.reduce(function(a,r){return a+r.total;},0).toFixed(2));
-  var codes2=BILLING_CONFIG.codes[_billIns]||[];
-  var code1=codes2[0]?codes2[0].code:'S5105';
-  var code2=codes2[1]?codes2[1].code:'';
-  var s5=parseFloat(_billData.filter(function(r){return r.code===code1;}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
-  var a0=parseFloat(_billData.filter(function(r){return r.code===code2;}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
+  var s5=parseFloat(_billData.filter(function(r){return r.code==='S5105';}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
+  var a0=parseFloat(_billData.filter(function(r){return r.code==='A0100';}).reduce(function(a,r){return a+r.total;},0).toFixed(2));
   var el=function(id){return document.getElementById(id);};
   if(el('bill-stat-members'))el('bill-stat-members').textContent=mems.size+'명';
   if(el('bill-stat-days'))el('bill-stat-days').textContent=sdays.size+'일';
@@ -1321,9 +1217,6 @@ function generateBilling(){
   if(el('bill-stat-a0100'))el('bill-stat-a0100').textContent='$'+a0.toLocaleString();
   if(el('bill-stat-total'))el('bill-stat-total').textContent='$'+tot.toLocaleString();
   if(el('bill-summary'))el('bill-summary').textContent=_billFrom+' ~ '+_billTo+' · '+mems.size+'명 · '+sdays.size+'일 · $'+tot.toLocaleString();
-  var c2=BILLING_CONFIG.codes[_billIns]||[];
-  var ls=document.getElementById('bill-label-s5');if(ls)ls.textContent=(c2[0]?c2[0].code+' ($'+c2[0].charge+'x'+c2[0].units+')':'—');
-  var la=document.getElementById('bill-label-a0');if(la)la.textContent=(c2[1]?c2[1].code+' ($'+c2[1].charge+'x'+c2[1].units+')':'없음');
   renderBillingTable();
 }
 function setBillingView(v,btn){
@@ -1358,7 +1251,7 @@ function exportBillingCSV(){
   var p=BILLING_CONFIG.payers[_billIns]||{};
   var hdrs=['NPI','Provider Name','Provider Address','FED TAX NO','PCN','Patient Last Name','Patient First Name','Date of Birth','Medicaid ID','Insurance ID (MLTC)','Payer Name','Payer ID','Revenue Code','Date of Service From','Date of Service To','HCPCS Code','Description','Units','Unit Charge','Total Charge','Taxonomy'];
   var rows=_billData.map(function(r){var np=r.member.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();return[BILLING_CONFIG.NPI,'"'+BILLING_CONFIG.providerName+'"','"'+BILLING_CONFIG.providerAddr+'"',BILLING_CONFIG.ein,BILLING_CONFIG.pcn,last,first,r.member.dob||'',r.member.medicaid,r.member.mltc,p.name||'',p.payerId||'','3104',r.date,r.date,r.code,'"'+r.desc+'"',r.units,r.charge,r.total.toFixed(2),BILLING_CONFIG.taxonomy].join(',');});
-  var sep2=String.fromCharCode(13,10);var csv=String.fromCharCode(0xFEFF)+[hdrs.join(',')].concat(rows).join(sep2);
+  var csv='\uFEFF'+[hdrs.join(',')].concat(rows).join('\n');
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='billing_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);
 }
@@ -1381,7 +1274,7 @@ let allR={}, curDate=new Date(), popId=null, popDate=null, mCurSt=null, editId=n
 let mFilt=[...MEMBERS], mPage=0; const PER=10;
 let selDays=new Set(), curStep=0;
 let incidents=[], activities=[], cases=[];
-// apiUrl declared in script 1
+let apiUrl=localStorage.getItem('api_url')||'https://script.google.com/macros/s/AKfycbxDMnntxjBm-6zmbdRcCKBGEd6LObX7dRyEo9vW63Tcw7xJEwfkJd4UduXUxWOCKSwB/exec';
 const todayISO=new Date().toISOString().slice(0,10);
 const weekAgoISO=(()=>{const d=new Date();d.setDate(d.getDate()-7);return d.toISOString().slice(0,10);})();
 
@@ -1455,7 +1348,6 @@ function getList(iso){const q=(document.getElementById('asearch')||{}).value||''
 function badgeHTML(s){const info=SI[s];return info?`<span class="badge ${info.badge}">${info.icon} ${info.label}</span>`:'<span class="badge b-gray">미확인</span>';}
 
 function renderAtt(){
-  if(!document.getElementById('att-in'))return;
   updateDN();
   const iso=toISO(curDate),list=getList(iso),recs=getRec(iso),past=iso<todayISO;
   let inC=0,trC=0,pC=0;
@@ -1501,8 +1393,8 @@ function qMemo(iso,mid,val){const ex=(getRec(iso)[mid])||{},past=iso<todayISO,up
 
 // ── DASHBOARD ────────────────────────────────────────────────
 function updateDashNow(){
-  if(!document.getElementById('ds-in'))return;
-  if(typeof isActive!=="undefined"&&MEMBERS&&MEMBERS.length){var dc=MEMBERS.filter(function(m){return !isActive(m);}).length;var elDis=document.getElementById("ds-dis");if(elDis)elDis.textContent=dc;}
+  var dc=MEMBERS.filter(function(m){return !isActive(m);}).length;
+  var el=document.getElementById("ds-dis");if(el)el.textContent=dc;
 
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
   let inC=0,trC=0,hC=0;
@@ -1513,7 +1405,6 @@ function updateDashNow(){
   document.getElementById('day-count').textContent='출석 '+inC+'명';
 }
 function renderDash(){
-  if(!document.getElementById('ds-in'))return;
   updateDashNow();
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
   // today followup cases
@@ -1949,699 +1840,161 @@ async function syncToSheets(iso){
 }
 async function syncLog(sheet,data){if(!apiUrl)return;try{await apiCall({},{action:editId?'update':'append',sheet,id:editId,data});}catch(e){}}
 
-
-// ══════════════════════════════════════════════════════════════
-// HIPAA Form
-// ══════════════════════════════════════════════════════════════
-var hipaaSelectedMember = null;
-var hipaaSignatureData = null;
-
-function openHipaaForm(mid) {
-  if (mid) {
-    var m = MEMBERS.find(function(x){ return x.id === mid; });
-    if (m) {
-      hipaaSelectedMember = m;
-      document.getElementById('hipaa-member-name').textContent = m.kr + ' (' + m.en + ')';
-    }
-  }
-  // 날짜 자동
-  document.getElementById('hipaa-date').value = new Date().toISOString().slice(0,10);
-  // 서명 캔버스 초기화
-  clearHipaaSignature();
-  openOv('ov-hipaa');
-}
-
-function clearHipaaSignature() {
-  var canvas = document.getElementById('hipaa-sig-canvas');
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  hipaaSignatureData = null;
-  document.getElementById('hipaa-sig-empty').style.display = 'block';
-}
-
-function initHipaaCanvas() {
-  var canvas = document.getElementById('hipaa-sig-canvas');
-  if (!canvas || canvas._initialized) return;
-  canvas._initialized = true;
-  var ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#1a1a1a';
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  var drawing = false;
-  var lastX = 0, lastY = 0;
-
-  function getPos(e) {
-    var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
-    if (e.touches) {
-      return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY
-      };
-    }
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
-  }
-
-  function start(e) {
-    e.preventDefault();
-    drawing = true;
-    var pos = getPos(e);
-    lastX = pos.x; lastY = pos.y;
-    document.getElementById('hipaa-sig-empty').style.display = 'none';
-  }
-  function draw(e) {
-    if (!drawing) return;
-    e.preventDefault();
-    var pos = getPos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastX = pos.x; lastY = pos.y;
-  }
-  function stop(e) {
-    if (!drawing) return;
-    drawing = false;
-    hipaaSignatureData = canvas.toDataURL('image/png');
-  }
-
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', draw);
-  canvas.addEventListener('mouseup', stop);
-  canvas.addEventListener('mouseleave', stop);
-  canvas.addEventListener('touchstart', start, {passive:false});
-  canvas.addEventListener('touchmove', draw, {passive:false});
-  canvas.addEventListener('touchend', stop);
-}
-
-function generateHipaaPDF() {
-  if (!hipaaSelectedMember) { alert('멤버를 선택해주세요.'); return; }
-  if (!hipaaSignatureData) { alert('서명을 해주세요.'); return; }
-
-  var m = hipaaSelectedMember;
-  var dateStr = document.getElementById('hipaa-date').value;
-  var dateFormatted = dateStr ? new Date(dateStr+'T00:00:00').toLocaleDateString('en-US') : '';
-  var dobFormatted = m.dob ? new Date(m.dob+'T00:00:00').toLocaleDateString('en-US') : '';
-
-  // HTML → PDF (브라우저 print 방식)
-  var w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>HIPAA Authorization - ${m.en}</title>
-<style>
-  @page { size: letter; margin: 0.75in; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 10px; color: #000; }
-  .header { text-align: center; margin-bottom: 12px; }
-  .header .oca { font-size: 9px; text-align: right; }
-  .header h2 { font-size: 13px; font-weight: bold; margin: 4px 0 2px; }
-  .header h3 { font-size: 10px; font-weight: normal; margin-bottom: 8px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  td, th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
-  .no-border td { border: none; padding: 2px 0; }
-  p { margin-bottom: 6px; line-height: 1.4; font-size: 9.5px; }
-  .bold { font-weight: bold; }
-  .item-label { font-weight: bold; font-size: 9.5px; margin-bottom: 3px; }
-  .sig-line { border-bottom: 1px solid #000; margin-top: 30px; width: 60%; }
-  .sig-img { max-height: 60px; max-width: 250px; }
-  .checkbox { display: inline-block; width: 10px; height: 10px; border: 1px solid #000; margin-right: 4px; vertical-align: middle; }
-  .checked { background: #000; }
-  .section { margin-bottom: 8px; }
-  .initials-line { display: inline-block; border-bottom: 1px solid #000; width: 60px; margin: 0 4px; }
-  .seal { width: 40px; height: 40px; }
-  .footer { font-size: 8.5px; margin-top: 10px; font-style: italic; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="oca">OCA Official Form No.: 960</div>
-  <h2>AUTHORIZATION FOR RELEASE OF HEALTH INFORMATION PURSUANT TO HIPAA</h2>
-  <h3>[This form has been approved by the New York State Department of Health]</h3>
-</div>
-
-<table>
-  <tr>
-    <td style="width:50%"><b>Patient Name</b><br>${m.en}</td>
-    <td style="width:25%"><b>Date of Birth</b><br>${dobFormatted}</td>
-    <td style="width:25%"><b>Social Security Number</b><br>&nbsp;</td>
-  </tr>
-  <tr>
-    <td colspan="3"><b>Patient Address</b><br>${m.addr||''}</td>
-  </tr>
-</table>
-
-<p>I, or my authorized representative, request that health information regarding my care and treatment be released as set forth on this form:</p>
-<p>In accordance with New York State Law and the Privacy Rule of the Health Insurance Portability and Accountability Act of 1996 (HIPAA), I understand that:</p>
-
-<p>1. This authorization may include disclosure of information relating to <b>ALCOHOL and DRUG ABUSE, MENTAL HEALTH TREATMENT</b>, except psychotherapy notes, and <b>CONFIDENTIAL HIV* RELATED INFORMATION</b> only if I place my initials on the appropriate line in Item 9(a). In the event the health information described below includes any of these types of information, and I initial the line on the box in Item 9(a), I specifically authorize release of such information to the person(s) indicated in Item 8.</p>
-<p>2. If I am authorizing the release of HIV-related, alcohol or drug treatment, or mental health treatment information, the recipient is prohibited from redisclosing such information without my authorization unless permitted to do so under federal or state law. I understand that I have the right to request a list of people who may receive or use my HIV-related information without authorization. If I experience discrimination because of the release or disclosure of HIV-related information, I may contact the New York State Division of Human Rights at (212) 480-2493 or the New York City Commission of Human Rights at (212) 306-7450. These agencies are responsible for protecting my rights.</p>
-<p>3. I have the right to revoke this authorization at any time by writing to the health care provider listed below. I understand that I may revoke this authorization except to the extent that action has already been taken based on this authorization.</p>
-<p>4. I understand that signing this authorization is voluntary. My treatment, payment, enrollment in a health plan, or eligibility for benefits will not be conditioned upon my authorization of this disclosure.</p>
-<p>5. Information disclosed under this authorization might be redisclosed by the recipient (except as noted above in Item 2), and this redisclosure may no longer be protected by federal or state law.</p>
-<p class="bold">6. THIS AUTHORIZATION DOES NOT AUTHORIZE YOU TO DISCUSS MY HEALTH INFORMATION OR MEDICAL CARE WITH ANYONE OTHER THAN THE ATTORNEY OR GOVERNMENTAL AGENCY SPECIFIED IN ITEM 9 (b).</p>
-
-<table>
-  <tr><td><b>7. Name and address of health provider or entity to release this information:</b><br>NUMBER ONE ADULT DAYCARE<br>161-22 Northern Blvd 1FL, Flushing, NY 11358<br>Phone: (718) 799-0248 &nbsp;&nbsp; NPI: 1154194504</td></tr>
-  <tr><td><b>8. Name and address of person(s) or category of person to whom this information will be sent:</b><br>NUMBER ONE ADULT DAYCARE<br>161-22 Northern Blvd 1FL, Flushing, NY 11358<br>(For internal records and compliance purposes)</td></tr>
-</table>
-
-<table>
-  <tr>
-    <td colspan="2"><b>9(a). Specific information to be released:</b><br>
-      <span class="checkbox checked"></span> Entire Medical Record, including patient histories, office notes (except psychotherapy notes), test results, radiology studies, films, referrals, consults, billing records, insurance records, and records sent to you by other health care providers.<br><br>
-      Include: (<i>Indicate by Initialing</i>)<br>
-      <span class="initials-line"></span> Alcohol/Drug Treatment<br>
-      <span class="initials-line"></span> Mental Health Information<br>
-      <span class="initials-line"></span> HIV-Related Information<br><br>
-      <b>Authorization to Discuss Health Information</b><br>
-      (b) <span class="checkbox"></span> By initialing here <span class="initials-line"></span> I authorize <span class="initials-line" style="width:180px"></span><br>
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Name of individual health care provider<br>
-      to discuss my health information with my attorney, or a governmental agency, listed here:<br>
-      <span style="border-bottom:1px solid #000;display:block;width:100%;margin-top:4px">&nbsp;</span>
-      (Attorney/Firm Name or Governmental Agency Name)
-    </td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td style="width:50%"><b>10. Reason for release of information:</b><br>
-      <span class="checkbox checked"></span> At request of individual<br>
-      <span class="checkbox"></span> Other:
-    </td>
-    <td style="width:50%"><b>11. Date or event on which this authorization will expire:</b><br>
-      Upon Disenrollment
-    </td>
-  </tr>
-  <tr>
-    <td style="width:50%"><b>12. If not the patient, name of person signing form:</b><br>&nbsp;</td>
-    <td style="width:50%"><b>13. Authority to sign on behalf of patient:</b><br>&nbsp;</td>
-  </tr>
-</table>
-
-<p>All items on this form have been completed and my questions about this form have been answered. In addition, I have been provided a copy of the form.</p>
-
-<table class="no-border">
-  <tr>
-    <td style="width:60%;padding-top:10px">
-      <img src="${hipaaSignatureData}" class="sig-img"><br>
-      <div style="border-top:1px solid #000;margin-top:2px;font-size:9px">Signature of patient or representative authorized by law.</div>
-    </td>
-    <td style="width:40%;padding-top:10px;vertical-align:bottom">
-      Date: ${dateFormatted}
-    </td>
-  </tr>
-</table>
-
-<p class="footer">* Human Immunodeficiency Virus that causes AIDS. The New York State Public Health Law protects information which reasonably could identify someone as having HIV symptoms or infection and information regarding a person's contacts.</p>
-
-</body>
-</html>`);
-  w.document.close();
-  setTimeout(function(){
-    w.print();
-    // Sheets에 서명 완료 기록
-    if(apiUrl){
-      apiCall({},{action:'append',sheet:'PCSP',data:{
-        'ID':'HIPAA'+Date.now(),
-        '작성일':dateStr,
-        '멤버ID':m.id,
-        '한글이름':m.kr,
-        '작성자':'Staff',
-        '상태':'HIPAA Signed',
-        '목표1':'HIPAA Authorization signed on '+dateStr
-      }}).catch(function(e){});
-    }
-  }, 500);
-}
-
-
-function showFormSection(name) {
-  document.getElementById('form-hipaa').style.display = name === 'hipaa' ? 'block' : 'none';
-  var mrEl = document.getElementById('form-member-rights');
-  if(mrEl) mrEl.style.display = name === 'member-rights' ? 'block' : 'none';
-  var nsEl = document.getElementById('form-nutrition');
-  if(nsEl) nsEl.style.display = name === 'nutrition' ? 'block' : 'none';
-  if (name === 'member-rights') {
-    var sel = document.getElementById('mr-member-select');
-    if(sel){sel.innerHTML='<option value="">-- 멤버를 선택해주세요 --</option>';
-    MEMBERS.filter(function(m){return isActive(m);}).forEach(function(m){
-      var o=document.createElement('option');o.value=m.id;o.textContent=m.en+' ('+m.kr+')';sel.appendChild(o);});}
-    document.getElementById('mr-date').value=new Date().toISOString().slice(0,10);
-    clearMRSignature();mrSelectedMember=null;
-    document.getElementById('mr-member-info').style.display='none';
-    setTimeout(initMemberRightsCanvas,100);
-  }
-  if (name === 'nutrition') {
-    var sel2=document.getElementById('ns-member-select');
-    if(sel2){sel2.innerHTML='<option value="">-- 멤버를 선택해주세요 --</option>';
-    MEMBERS.filter(function(m){return isActive(m);}).forEach(function(m){
-      var o=document.createElement('option');o.value=m.id;o.textContent=m.en+' ('+m.kr+')';sel2.appendChild(o);});}
-    document.getElementById('ns-date').value=new Date().toISOString().slice(0,10);
-    clearNSSig('member');clearNSSig('staff');nsSelectedMember=null;
-    document.getElementById('ns-member-info').style.display='none';
-    setTimeout(function(){initNutritionCanvas('member');initNutritionCanvas('staff');},100);
-  }
-  if (name === 'hipaa') {
-    // 멤버 드롭다운 채우기
-    var sel = document.getElementById('hipaa-member-select');
-    sel.innerHTML = '<option value="">-- 멤버를 선택해주세요 --</option>';
-    MEMBERS.filter(function(m){ return isActive(m); }).forEach(function(m){
-      var opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.en + ' (' + m.kr + ')';
-      sel.appendChild(opt);
-    });
-    // 캔버스 초기화
-    setTimeout(initHipaaCanvas, 100);
-    document.getElementById('hipaa-date').value = new Date().toISOString().slice(0,10);
-    clearHipaaSignature();
-    hipaaSelectedMember = null;
-    document.getElementById('hipaa-member-info').style.display = 'none';
-  }
-}
-
-function selectHipaaMember(mid) {
-  if (!mid) {
-    hipaaSelectedMember = null;
-    document.getElementById('hipaa-member-info').style.display = 'none';
-    return;
-  }
-  var m = MEMBERS.find(function(x){ return x.id === mid; });
-  if (!m) return;
-  hipaaSelectedMember = m;
-  document.getElementById('hipaa-member-info').style.display = 'block';
-  document.getElementById('hipaa-info-name').textContent = m.en + ' (' + m.kr + ')';
-  document.getElementById('hipaa-info-dob').textContent = 'DOB: ' + (m.dob || '—');
-  document.getElementById('hipaa-info-addr').textContent = m.addr || '';
-}
-
-
-// ── Member Rights Form ────────────────────────────────────────
-var mrSelectedMember = null;
-var mrSignatureData = null;
-
-function initMemberRightsCanvas() {
-  var canvas = document.getElementById('mr-sig-canvas');
-  if (!canvas || canvas._initialized) return;
-  canvas._initialized = true;
-  var ctx = canvas.getContext('2d');
-  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  var drawing = false, lastX = 0, lastY = 0;
-  function getPos(e) {
-    var rect = canvas.getBoundingClientRect();
-    var sx = canvas.width/rect.width, sy = canvas.height/rect.height;
-    if (e.touches) return {x:(e.touches[0].clientX-rect.left)*sx,y:(e.touches[0].clientY-rect.top)*sy};
-    return {x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};
-  }
-  function start(e){e.preventDefault();drawing=true;var p=getPos(e);lastX=p.x;lastY=p.y;document.getElementById('mr-sig-empty').style.display='none';}
-  function draw(e){if(!drawing)return;e.preventDefault();var p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;}
-  function stop(){if(!drawing)return;drawing=false;mrSignatureData=canvas.toDataURL('image/png');}
-  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);
-  canvas.addEventListener('mouseup',stop);canvas.addEventListener('mouseleave',stop);
-  canvas.addEventListener('touchstart',start,{passive:false});
-  canvas.addEventListener('touchmove',draw,{passive:false});
-  canvas.addEventListener('touchend',stop);
-}
-
-function clearMRSignature() {
-  var canvas = document.getElementById('mr-sig-canvas');
-  if (!canvas) return;
-  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
-  mrSignatureData = null;
-  document.getElementById('mr-sig-empty').style.display = 'block';
-}
-
-function selectMRMember(mid) {
-  if (!mid) { mrSelectedMember=null; document.getElementById('mr-member-info').style.display='none'; return; }
-  var m = MEMBERS.find(function(x){return x.id===mid;});
-  if (!m) return;
-  mrSelectedMember = m;
-  document.getElementById('mr-member-info').style.display = 'block';
-  document.getElementById('mr-info-name').textContent = m.en + ' (' + m.kr + ')';
-  document.getElementById('mr-info-dob').textContent = 'DOB: ' + (m.dob||'—');
-}
-
-function generateMemberRightsPDF() {
-  if (!mrSelectedMember) { alert('멤버를 선택해주세요.'); return; }
-  if (!mrSignatureData) { alert('서명을 해주세요.'); return; }
-  var m = mrSelectedMember;
-  var dateStr = document.getElementById('mr-date').value;
-  var dateFormatted = dateStr ? new Date(dateStr+'T00:00:00').toLocaleDateString('en-US') : '';
-  var dobFormatted = m.dob ? new Date(m.dob+'T00:00:00').toLocaleDateString('en-US') : '';
-
-  var w = window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Participant Bill of Rights - ${m.en}</title>
-<style>
-@page{size:letter;margin:0.75in}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:10px;color:#000}
-.header{text-align:center;margin-bottom:14px}
-h1{font-size:14px;font-weight:bold;margin-bottom:2px}
-h2{font-size:12px;font-weight:bold;margin:10px 0 4px}
-h3{font-size:11px;font-weight:bold;margin:8px 0 3px;color:#222}
-p{margin-bottom:4px;line-height:1.5;font-size:9.5px}
-.info-box{border:1px solid #000;padding:6px 10px;margin-bottom:10px;font-size:10px}
-.section{margin-bottom:8px;padding-left:8px;border-left:3px solid #333}
-.bullet{margin-bottom:3px;padding-left:10px;font-size:9.5px;line-height:1.4}
-.bullet b{font-weight:bold}
-.kr{color:#444;font-size:9px;margin-top:1px;padding-left:10px}
-.sig-area{margin-top:16px;border-top:2px solid #000;padding-top:10px}
-.sig-line{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px}
-.sig-img{max-height:55px;max-width:220px}
-.divider{border:none;border-top:1px solid #ccc;margin:12px 0}
-.footer{font-size:8px;color:#666;margin-top:10px;font-style:italic}
-</style></head><body>
-
-<div class="header">
-  <img src="data:image/svg+xml;base64,..." style="height:40px;margin-bottom:6px"><br>
-  <h1>NUMBER ONE ADULT DAYCARE</h1>
-  <h1>PARTICIPANT'S BILL OF RIGHTS</h1>
-  <p style="font-size:10px;color:#555">넘버원 어덜트 데이케어 — 사용자 권리 장전</p>
-</div>
-
-<div class="info-box">
-  <b>Participant Name:</b> ${m.en} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Date of Birth:</b> ${dobFormatted} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Date:</b> ${dateFormatted}
-</div>
-
-<p style="margin-bottom:8px;font-size:9.5px">As a participant of Number One Adult Daycare (NOAD), you have the right to:</p>
-
-<div class="section">
-<h3>I. Fundamental Rights: Dignity, Safety, and Freedom</h3>
-<p class="bullet"><b>Non-Discrimination and Respect:</b> You have the right not to be discriminated against by race, skin color, or national origin. You have the right to respect and treatment as an adult, and to personal treatment and help.</p>
-<p class="kr">차별 금지 및 존중: 인종, 피부색 또는 국가의 차별을 받지 않을 권리가 있습니다.</p>
-<p class="bullet"><b>Dignity and Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint, including chemical, physical, or mechanical restraints used for purposes of discipline or convenience. You have the right to be free from abuse, neglect, intimidation, coercion, and seclusion.</p>
-<p class="kr">존엄성 및 안전: 프라이버시, 존엄성 및 존중을 받을 권리가 있으며, 모든 형태의 억제와 학대로부터 자유로울 권리가 있습니다.</p>
-<p class="bullet"><b>Environment:</b> You have the right to a safe and pleasant environment and to receive help and services in a comfortable environment with careful attention.</p>
-<p class="kr">환경: 안전하고 쾌적한 환경에서 서비스를 받을 권리가 있습니다.</p>
-</div>
-
-<div class="section">
-<h3>II. Rights to Control and Self-Determination</h3>
-<p class="bullet"><b>Service Choice:</b> You have the right to choose your own daycare services and activities, and to direct or lead your service plan.</p>
-<p class="kr">서비스 선택: 서비스 및 활동을 선택하고 자신의 서비스 계획을 주도적으로 결정할 권리가 있습니다.</p>
-<p class="bullet"><b>Program Involvement:</b> You have the right to participate in the organization and operation of the program.</p>
-<p class="kr">프로그램 참여: 프로그램 구성과 운용에 참여할 권리가 있습니다.</p>
-<p class="bullet"><b>Personal Control:</b> You have control over personal finances, money, and funds. You have control over your daily schedule and activities, including the right to participate with modifications if needed.</p>
-<p class="kr">개인 통제: 개인 재정 및 일일 일정을 통제할 권리가 있습니다.</p>
-<p class="bullet"><b>Staff and Withdrawal:</b> You have the right to request your preferred staff and to stop the adult day care program at any time.</p>
-<p class="kr">직원 및 중단: 선호 직원을 요청하고 언제든지 프로그램을 중단할 권리가 있습니다.</p>
-</div>
-
-<div class="section">
-<h3>III. Rights to Communication, Privacy, and Information</h3>
-<p class="bullet"><b>Private Space:</b> You have access to a private space for dining, speaking on the phone, and meeting with visitors.</p>
-<p class="kr">사적 공간: 식사, 전화 통화, 방문객과의 만남을 위한 사적 공간에 접근할 권리가 있습니다.</p>
-<p class="bullet"><b>Communication:</b> You have the right to exchange and communicate with other participants and the community.</p>
-<p class="kr">소통: 다른 참여자 및 커뮤니티와 소통할 권리가 있습니다.</p>
-<p class="bullet"><b>Information Access:</b> You have the right to information about your rights and to confirm consent forms related to personal information.</p>
-<p class="kr">정보 접근: 권리에 대한 정보 및 개인정보 동의서를 확인할 권리가 있습니다.</p>
-<p class="bullet"><b>Grievance:</b> You have the right to request correction of injustice regarding discriminatory treatment.</p>
-<p class="kr">고충 처리: 차별적 대우에 관한 부당함을 수정 요청할 권리가 있습니다.</p>
-</div>
-
-<div class="section">
-<h3>IV. Rights to Opportunities and Choices</h3>
-<p class="bullet"><b>Opportunities:</b> You have opportunities to seek employment or volunteer opportunities.</p>
-<p class="kr">기회: 고용 또는 자원봉사 기회를 모색할 권리가 있습니다.</p>
-<p class="bullet"><b>Choices:</b> You have choices of services and visitors; choices of meals and flexibility in mealtimes; choices of alternatives to services, meals, and activities; choices of community integration activities; and choices of attending appointments and social opportunities.</p>
-<p class="kr">선택: 서비스, 식사, 활동, 지역사회 통합 활동 및 사회적 기회 참석을 선택할 권리가 있습니다.</p>
-</div>
-
-<hr class="divider">
-
-<div class="sig-area">
-  <p style="margin-bottom:10px;font-size:9.5px"><b>Acknowledgment of Participant Rights / 참여자 권리 확인</b><br>
-  I, the undersigned, have received, read, and/or had the Participant's Bill of Rights explained to me in a language I understand. I acknowledge that I understand my rights and expectations as a participant at Number One Adult Daycare.<br>
-  <span style="font-size:9px;color:#444">본인은 본인의 권리에 관한 내용을 이해할 수 있는 언어로 제공받았으며, 이를 읽고 충분히 이해하였음을 확인합니다.</span></p>
-
-  <div class="sig-line">
-    <div>
-      <img src="${mrSignatureData}" class="sig-img"><br>
-      <div style="border-top:1px solid #000;width:280px;font-size:9px;padding-top:2px">Participant Signature / 참여자 서명</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:11px;margin-bottom:20px">Date: ${dateFormatted}</div>
-    </div>
-  </div>
-
-  <div style="margin-top:10px">
-    <div style="border-top:1px solid #000;width:280px;font-size:9px;padding-top:2px">Authorized Representative/Guardian (if applicable) / 대리인/보호자</div>
-    <div style="margin-top:4px;font-size:9px">Representative Relationship: __________________ &nbsp;&nbsp; Date: ______________</div>
-  </div>
-</div>
-
-<p class="footer">This document has been prepared in accordance with the Number One Adult Daycare Policies and Procedures manual. / 이 문서는 넘버원 어덜트 데이케어의 정책 및 절차 매뉴얼에 따라 작성되었습니다.</p>
-</body></html>`);
-  w.document.close();
-  setTimeout(function(){
-    w.print();
-    if(apiUrl){
-      apiCall({},{action:'append',sheet:'PCSP',data:{
-        'ID':'MR'+Date.now(),'작성일':dateStr,'멤버ID':m.id,
-        '한글이름':m.kr,'작성자':'Staff','상태':'Member Rights Signed',
-        '목표1':'Member Rights signed on '+dateStr
-      }}).catch(function(e){});
-    }
-  },500);
-}
-
-// ── Nutrition Screening Form ──────────────────────────────────
-var nsSelectedMember = null;
-var nsMemberSigData = null;
-var nsStaffSigData = null;
-var nsActiveSig = 'member'; // 'member' or 'staff'
-
-function initNutritionCanvas(type) {
-  var id = type==='member' ? 'ns-member-sig-canvas' : 'ns-staff-sig-canvas';
-  var canvas = document.getElementById(id);
-  if (!canvas || canvas._initialized) return;
-  canvas._initialized = true;
-  var ctx = canvas.getContext('2d');
-  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
-  var drawing=false,lastX=0,lastY=0;
-  function getPos(e){
-    var rect=canvas.getBoundingClientRect();
-    var sx=canvas.width/rect.width,sy=canvas.height/rect.height;
-    if(e.touches)return{x:(e.touches[0].clientX-rect.left)*sx,y:(e.touches[0].clientY-rect.top)*sy};
-    return{x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};
-  }
-  function start(e){e.preventDefault();drawing=true;var p=getPos(e);lastX=p.x;lastY=p.y;
-    document.getElementById(type==='member'?'ns-member-sig-empty':'ns-staff-sig-empty').style.display='none';}
-  function draw(e){if(!drawing)return;e.preventDefault();var p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;}
-  function stop(){if(!drawing)return;drawing=false;
-    if(type==='member')nsMemberSigData=canvas.toDataURL('image/png');
-    else nsStaffSigData=canvas.toDataURL('image/png');}
-  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);
-  canvas.addEventListener('mouseup',stop);canvas.addEventListener('mouseleave',stop);
-  canvas.addEventListener('touchstart',start,{passive:false});
-  canvas.addEventListener('touchmove',draw,{passive:false});
-  canvas.addEventListener('touchend',stop);
-}
-
-function clearNSSig(type) {
-  var id=type==='member'?'ns-member-sig-canvas':'ns-staff-sig-canvas';
-  var emptyId=type==='member'?'ns-member-sig-empty':'ns-staff-sig-empty';
-  var canvas=document.getElementById(id);
-  if(canvas)canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
-  if(type==='member')nsMemberSigData=null; else nsStaffSigData=null;
-  document.getElementById(emptyId).style.display='block';
-}
-
-function calcBMI() {
-  var h=parseFloat(document.getElementById('ns-height').value);
-  var w=parseFloat(document.getElementById('ns-weight').value);
-  if(h&&w){
-    var hm=h*0.0254;var bmi=(w/(hm*hm)).toFixed(1);
-    document.getElementById('ns-bmi').value=bmi;
-    var assess='Normal';
-    if(bmi<18.5)assess='Underweight';
-    else if(bmi>=25&&bmi<30)assess='Overweight';
-    else if(bmi>=30)assess='Obese';
-    document.getElementById('ns-assess-'+assess.toLowerCase()).checked=true;
-  }
-}
-
-function selectNSMember(mid) {
-  if(!mid){nsSelectedMember=null;document.getElementById('ns-member-info').style.display='none';return;}
-  var m=MEMBERS.find(function(x){return x.id===mid;});if(!m)return;
-  nsSelectedMember=m;
-  document.getElementById('ns-member-info').style.display='block';
-  document.getElementById('ns-info-name').textContent=m.en+' ('+m.kr+')';
-  document.getElementById('ns-info-dob').textContent='DOB: '+(m.dob||'—');
-}
-
-function generateNutritionPDF() {
-  if(!nsSelectedMember){alert('멤버를 선택해주세요.');return;}
-  if(!nsMemberSigData&&!nsStaffSigData){alert('서명이 필요합니다.');return;}
-  var m=nsSelectedMember;
-  var dateStr=document.getElementById('ns-date').value;
-  var dateF=dateStr?new Date(dateStr+'T00:00:00').toLocaleDateString('en-US'):'';
-  var dobF=m.dob?new Date(m.dob+'T00:00:00').toLocaleDateString('en-US'):'';
-  var height=document.getElementById('ns-height').value||'';
-  var weight=document.getElementById('ns-weight').value||'';
-  var bmi=document.getElementById('ns-bmi').value||'';
-
-  // Checkboxes
-  function chk(id){return document.getElementById(id)&&document.getElementById(id).checked?'☑':'☐';}
-  function radio(name,val){
-    var els=document.querySelectorAll('input[name="'+name+'"]');
-    var sel='';els.forEach(function(e){if(e.checked)sel=e.value;});
-    return sel===val?'●':'○';
-  }
-
-  var w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Nutrition Screening - ${m.en}</title>
-<style>
-@page{size:letter;margin:0.75in}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:10px;color:#000}
-.header{text-align:center;margin-bottom:12px}
-h1{font-size:14px;font-weight:bold}
-table{width:100%;border-collapse:collapse;margin-bottom:8px}
-td,th{border:1px solid #000;padding:4px 6px;font-size:9.5px;vertical-align:top}
-th{background:#f0f0f0;font-weight:bold;text-align:left}
-.nb td{border:none;padding:2px 0}
-.sig-img{max-height:50px;max-width:200px}
-.kr{color:#555;font-size:9px}
-.row{display:flex;gap:10px;margin-bottom:6px}
-.field{flex:1}
-.label{font-size:9px;color:#666;margin-bottom:2px}
-.value{font-size:10px;border-bottom:1px solid #000;padding-bottom:1px;min-height:14px}
-</style></head><body>
-
-<div class="header">
-  <h1>NUMBER ONE ADULT DAYCARE</h1>
-  <h1>Nutrition Screening / 영양 스크리닝</h1>
-</div>
-
-<table>
-  <tr>
-    <td><b>Name(이름):</b> ${m.en}</td>
-    <td><b>DOB(생년월일):</b> ${dobF}</td>
-    <td><b>Gender(성별):</b> ${m.dob?'':'—'}</td>
-    <td><b>Date(날짜):</b> ${dateF}</td>
-  </tr>
-  <tr>
-    <td><b>Height(키):</b> ${height} in</td>
-    <td><b>Weight(체중):</b> ${weight} lbs</td>
-    <td colspan="2"><b>BMI:</b> ${bmi}</td>
-  </tr>
-</table>
-
-<table>
-  <tr><th colspan="4">Assessment(체중진단)</th></tr>
-  <tr>
-    <td>${chk('ns-assess-normal')} Normal(정상)</td>
-    <td>${chk('ns-assess-underweight')} Underweight(미달)</td>
-    <td>${chk('ns-assess-overweight')} Overweight(과체중)</td>
-    <td>${chk('ns-assess-obese')} Obese(비만)</td>
-  </tr>
-</table>
-
-<table>
-  <tr><th colspan="4">Diagnosis(진단)</th></tr>
-  <tr>
-    <td>${chk('ns-dx-htn')} Hypertension(고혈압)</td>
-    <td>${chk('ns-dx-hld')} Hyperlipidemia(고지혈증)</td>
-    <td>${chk('ns-dx-dm')} Diabetes(당뇨)</td>
-    <td>${chk('ns-dx-ckd')} Kidney Disease(신부전)</td>
-  </tr>
-</table>
-
-<table>
-  <tr><th colspan="3">Current Diet(현재식단)</th></tr>
-  <tr>
-    <td>${chk('ns-diet-na')} 2gm Na(저염)</td>
-    <td>${chk('ns-diet-lf')} Low fat/cholesterol(저지방)</td>
-    <td>${chk('ns-diet-carb')} Consistent Carb.(저탄)</td>
-  </tr>
-  <tr>
-    <td>${chk('ns-diet-renal')} Renal(신장)</td>
-    <td colspan="2">Others(기타): ${document.getElementById('ns-diet-other').value||''}</td>
-  </tr>
-</table>
-
-<p style="margin-bottom:6px"><b>Food Allergies/Intolerance(음식 알레르기):</b> ${chk('ns-allergy-no')} No(아니오) &nbsp; ${chk('ns-allergy-yes')} Yes(예) &nbsp; Specify(설명): ${document.getElementById('ns-allergy-specify').value||''}</p>
-
-<table>
-  <tr><th>질문 (Check Yes/No)</th><th>No(아니오)</th><th>Yes(예)</th></tr>
-  <tr><td>1. Underweight(저체중) BMI &lt;18</td><td>${chk('ns-q1-no')}</td><td>${chk('ns-q1-yes')}</td></tr>
-  <tr><td>2. Obese(비만) BMI &gt;30</td><td>${chk('ns-q2-no')}</td><td>${chk('ns-q2-yes')}</td></tr>
-  <tr><td>3. Unintentional Weight Loss(급격한 체중감소)</td><td>${chk('ns-q3-no')}</td><td>${chk('ns-q3-yes')}</td></tr>
-  <tr><td>4. Diabetes or HgbA1c &gt;5.7%(당뇨)</td><td>${chk('ns-q4-no')}</td><td>${chk('ns-q4-yes')}</td></tr>
-  <tr><td>5. Chronic Kidney Disease(신부전증)</td><td>${chk('ns-q5-no')}</td><td>${chk('ns-q5-yes')}</td></tr>
-</table>
-
-<p style="margin-bottom:8px;font-size:9px;font-style:italic">If one or more of the above risk factors are identified, referral to registered dietitian is strongly recommended. / 해당사항이 있다면 전문 영양사에게 상담하세요.</p>
-
-<p style="margin-bottom:10px"><b>Nutrition Counselling(영양 상담):</b> &nbsp; ${chk('ns-counsel-accept')} Accepted(승인) &nbsp; ${chk('ns-counsel-decline')} Declined(거부)</p>
-
-<table class="nb">
-  <tr>
-    <td style="width:50%;padding-right:10px">
-      ${nsMemberSigData?'<img src="'+nsMemberSigData+'" class="sig-img"><br>':'<div style="height:50px"></div>'}
-      <div style="border-top:1px solid #000;font-size:9px;padding-top:2px">Member Signature / 회원 서명</div>
-    </td>
-    <td style="width:50%">
-      ${nsStaffSigData?'<img src="'+nsStaffSigData+'" class="sig-img"><br>':'<div style="height:50px"></div>'}
-      <div style="border-top:1px solid #000;font-size:9px;padding-top:2px">Completed by / 스태프 서명</div>
-    </td>
-  </tr>
-  <tr><td colspan="2" style="padding-top:4px"><b>Date(날짜):</b> ${dateF}</td></tr>
-</table>
-
-</body></html>`);
-  w.document.close();
-  setTimeout(function(){w.print();},500);
-}
-
-// ── CMS-1500 Billing (Centerlight, SWH) ──────────────────────
-function exportCMS1500CSV(){
-  if(!_billData.length){alert('먼저 리포트를 생성해주세요.');return;}
-  var p=BILLING_CONFIG.payers[_billIns]||{};
-  var hdrs=['1.PAYER NAME','PAYER ID','1a.INSURED ID','2.PATIENT LAST NAME','2.PATIENT FIRST NAME','3.DOB','3.SEX','5.PATIENT ADDRESS','CITY','STATE','ZIP','21.DIAGNOSIS A','24A.DATE FROM','24A.DATE TO','24B.POS','24D.CPT CODE','24E.DIAG PTR','24F.CHARGES','24G.UNITS','25.TAX ID','26.PATIENT ACCT','27.ACCEPT ASSIGN','28.TOTAL CHARGE','33.BILLING PROVIDER','33.ADDRESS','33.CITY','33.STATE','33.ZIP','33.NPI','33.TAXONOMY'];
-  var byMemberDate={};
-  _billData.forEach(function(r){
-    var key=r.member.id+'_'+r.date;
-    if(!byMemberDate[key])byMemberDate[key]={member:r.member,date:r.date,codes:[]};
-    byMemberDate[key].codes.push(r);
-  });
-  var rows=[];
-  Object.values(byMemberDate).forEach(function(g){
-    var m=g.member;
-    var np=m.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();
-    var addrParts=(m.addr||'').split(',');
-    var street=(addrParts[0]||'').trim();
-    var city2=(addrParts[1]||'').trim();
-    var stateZip=(addrParts[2]||'').trim().split(' ');
-    var state=stateZip[0]||'NY';var zip=stateZip[1]||'';
-    g.codes.forEach(function(r){
-      rows.push(['"'+p.name+'"',p.payerId,m.mltc,last,first,m.dob||'','F','"'+street+'"',city2,state,zip,'M150',r.date,r.date,BILLING_CONFIG.pos,r.code,'A',r.total.toFixed(2),r.units,BILLING_CONFIG.ein,m.id,'YES','','"'+BILLING_CONFIG.providerName+'"','"161-22 NORTHERN BLVD FL 1"','FLUSHING','NY','11358',BILLING_CONFIG.NPI,BILLING_CONFIG.taxonomy].join(','));
-    });
-  });
-  var sep=String.fromCharCode(13,10);
-  var csv=String.fromCharCode(0xFEFF)+[hdrs.join(',')].concat(rows).join(sep);
-  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');
-  a.href=url;a.download='cms1500_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);
-}
-
+// ── INIT RENDER ───────────────────────────────────────────────
+loadFromStorage();
+setTimeout(function(){var el=document.getElementById("storage-info");if(el)el.textContent=showStorageInfo();},100);
+updateDN();renderDash();renderPCSPList();renderStaff();
+renderIncidents();renderActivities();renderCases();
+setTimeout(initBilling,100);
+// Sheets에서 최신 데이터 로드
+if(apiUrl){loadFromSheets().then(function(ok){if(ok){renderDash();renderAtt();filterM();renderStaff();}});}
+document.getElementById('rpt-from').value=weekAgoISO;
+document.getElementById('rpt-to').value=todayISO;
 </script>
+
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-msg">로딩 중...</div>
+</div>
+<div class="ov" id="ov-status" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';"></div>
+<div class="modal" id="modal-ov-status" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="sm-name">상태 변경</span><button class="modal-close" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">&#10005;</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
+  </div>
+  <div id="sm-date-wrap" style="display:none;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">Disenroll 날짜</div>
+    <input class="m-input" type="date" id="sm-date" style="margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">메모 (사유)</div>
+    <input class="m-input" id="sm-note" placeholder="타 센터로 이동, 입원 등">
+  </div>
+  <div style="font-size:11px;color:#B35900;background:#FFF3E0;padding:8px 11px;border-radius:9px;margin-bottom:12px">&#9888; Disenrolled 날짜까지 서비스 제공 및 Medicaid 청구 가능합니다.</div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">취소</button><button class="mbt mbt-save" onclick="saveStatus()">저장</button></div>
+</div>
+<div class="ov" id="ov-medit" onclick="closeOv('ov-medit')"></div>
+<div class="modal" id="modal-ov-medit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="medit-title">멤버 정보 수정</span><button class="modal-close" onclick="closeOv('ov-medit')">&#10005;</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="me-en"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div><select class="m-select" id="me-ins"><option value="Anthem_MLTC">Anthem MLTC</option><option value="Anthem_MAP">Anthem MAP</option><option value="CLP">Centerlight PACE</option><option value="SWH">Senior Whole Health</option></select></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div><textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea></div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button><button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button></div>
+</div>
+<div class="ov" id="ov-staff-edit" onclick="closeOv('ov-staff-edit')"></div>
+<div class="modal" id="modal-ov-staff-edit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="staff-modal-title">스태프 추가</span><button class="modal-close" onclick="closeOv('ov-staff-edit')">&#10005;</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="sf-namekr" placeholder="정지윤"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="sf-name" placeholder="Zoey Jeong"></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">직책</div><input class="m-input" id="sf-role" placeholder="Program Director"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화</div><input class="m-input" type="tel" id="sf-phone"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">이메일</div><input class="m-input" type="email" id="sf-email"></div></div>
+  <div style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="fl" style="font-size:11px">자격증</div><button onclick="addStaffCert()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E5E5EA;background:#F2F2F7;cursor:pointer">➕ 추가</button></div>
+    <div id="sf-certs-list"></div>
+  </div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-staff-edit')">취소</button><button class="mbt mbt-save" onclick="saveStaffEdit()">저장</button></div>
+</div>
+
+<div id="loading-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px">
+  <div style="width:40px;height:40px;border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;border-radius:50%;animation:spin 1s linear infinite"></div>
+  <div class="loading-msg" style="color:#fff;font-size:14px;font-weight:600">로딩 중...</div>
+</div>
+
+<div class="ov" id="ov-status" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';"></div>
+<div class="modal" id="modal-ov-status" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="sm-name">상태 변경</span><button class="modal-close" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">&#10005;</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
+  </div>
+  <div id="sm-date-wrap" style="display:none;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">Disenroll 날짜</div>
+    <input class="m-input" type="date" id="sm-date" style="margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">메모 (사유)</div>
+    <input class="m-input" id="sm-note" placeholder="타 센터로 이동, 입원 등">
+  </div>
+  <div style="font-size:11px;color:#B35900;background:#FFF3E0;padding:8px 11px;border-radius:9px;margin-bottom:12px">&#9888; Disenrolled 날짜까지 서비스 제공 및 Medicaid 청구 가능합니다.</div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">취소</button><button class="mbt mbt-save" onclick="saveStatus()">저장</button></div>
+</div>
+
+<div class="ov" id="ov-medit" onclick="closeOv('ov-medit')"></div>
+<div class="modal" id="modal-ov-medit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="medit-title">멤버 정보 수정</span><button class="modal-close" onclick="closeOv('ov-medit')">&#10005;</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="me-en"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div>
+  </div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div>
+      <select class="m-select" id="me-ins">
+        <option value="Anthem_MLTC">Anthem MLTC</option>
+        <option value="Anthem_MAP">Anthem MAP</option>
+        <option value="CLP">Centerlight PACE</option>
+        <option value="SWH">Senior Whole Health</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button>
+      <button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button>
+      <button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button>
+      <button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button>
+      <button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button>
+      <button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button>
+      <button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button>
+    </div>
+  </div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div>
+    <textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea>
+  </div>
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button>
+    <button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-staff-edit" onclick="closeOv('ov-staff-edit')"></div>
+<div class="modal" id="modal-ov-staff-edit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="staff-modal-title">스태프 추가</span><button class="modal-close" onclick="closeOv('ov-staff-edit')">&#10005;</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="sf-namekr" placeholder="정지윤"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="sf-name" placeholder="Zoey Jeong"></div>
+  </div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">직책</div><input class="m-input" id="sf-role" placeholder="Program Director"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">전화</div><input class="m-input" type="tel" id="sf-phone"></div>
+    <div><div class="fl" style="font-size:11px;margin-bottom:4px">이메일</div><input class="m-input" type="email" id="sf-email"></div>
+  </div>
+  <div style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="fl" style="font-size:11px">자격증</div>
+      <button onclick="addStaffCert()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E5E5EA;background:#F2F2F7;cursor:pointer">➕ 추가</button>
+    </div>
+    <div id="sf-certs-list"></div>
+  </div>
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-staff-edit')">취소</button>
+    <button class="mbt mbt-save" onclick="saveStaffEdit()">저장</button>
+  </div>
+</div>
 </body>
 </html>
