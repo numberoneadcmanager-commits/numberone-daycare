@@ -1322,8 +1322,8 @@ function generateBilling(){
   if(el('bill-stat-total'))el('bill-stat-total').textContent='$'+tot.toLocaleString();
   if(el('bill-summary'))el('bill-summary').textContent=_billFrom+' ~ '+_billTo+' · '+mems.size+'명 · '+sdays.size+'일 · $'+tot.toLocaleString();
   var c2=BILLING_CONFIG.codes[_billIns]||[];
-  if(el('bill-label-s5'))el('bill-label-s5').textContent=(c2[0]?c2[0].code+' ($'+c2[0].charge+'×'+c2[0].units+')':'—');
-  if(el('bill-label-a0'))el('bill-label-a0').textContent=(c2[1]?c2[1].code+' ($'+c2[1].charge+'×'+c2[1].units+')':'없음');
+  var ls=document.getElementById('bill-label-s5');if(ls)ls.textContent=(c2[0]?c2[0].code+' ($'+c2[0].charge+'x'+c2[0].units+')':'—');
+  var la=document.getElementById('bill-label-a0');if(la)la.textContent=(c2[1]?c2[1].code+' ($'+c2[1].charge+'x'+c2[1].units+')':'없음');
   renderBillingTable();
 }
 function setBillingView(v,btn){
@@ -1500,8 +1500,7 @@ function qMemo(iso,mid,val){const ex=(getRec(iso)[mid])||{},past=iso<todayISO,up
 
 // ── DASHBOARD ────────────────────────────────────────────────
 function updateDashNow(){
-  var dc=MEMBERS.filter(function(m){return !isActive(m);}).length;
-  var el=document.getElementById("ds-dis");if(el)el.textContent=dc;
+  if(typeof isActive!=="undefined"&&MEMBERS&&MEMBERS.length){var dc=MEMBERS.filter(function(m){return !isActive(m);}).length;var elDis=document.getElementById("ds-dis");if(elDis)elDis.textContent=dc;}
 
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
   let inC=0,trC=0,hC=0;
