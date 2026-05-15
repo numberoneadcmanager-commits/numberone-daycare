@@ -1455,6 +1455,7 @@ function getList(iso){const q=(document.getElementById('asearch')||{}).value||''
 function badgeHTML(s){const info=SI[s];return info?`<span class="badge ${info.badge}">${info.icon} ${info.label}</span>`:'<span class="badge b-gray">미확인</span>';}
 
 function renderAtt(){
+  if(!document.getElementById('att-in'))return;
   updateDN();
   const iso=toISO(curDate),list=getList(iso),recs=getRec(iso),past=iso<todayISO;
   let inC=0,trC=0,pC=0;
@@ -1500,6 +1501,7 @@ function qMemo(iso,mid,val){const ex=(getRec(iso)[mid])||{},past=iso<todayISO,up
 
 // ── DASHBOARD ────────────────────────────────────────────────
 function updateDashNow(){
+  if(!document.getElementById('ds-in'))return;
   if(typeof isActive!=="undefined"&&MEMBERS&&MEMBERS.length){var dc=MEMBERS.filter(function(m){return !isActive(m);}).length;var elDis=document.getElementById("ds-dis");if(elDis)elDis.textContent=dc;}
 
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
@@ -1511,6 +1513,7 @@ function updateDashNow(){
   document.getElementById('day-count').textContent='출석 '+inC+'명';
 }
 function renderDash(){
+  if(!document.getElementById('ds-in'))return;
   updateDashNow();
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
   // today followup cases
