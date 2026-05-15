@@ -1320,7 +1320,7 @@ let allR={}, curDate=new Date(), popId=null, popDate=null, mCurSt=null, editId=n
 let mFilt=[...MEMBERS], mPage=0; const PER=10;
 let selDays=new Set(), curStep=0;
 let incidents=[], activities=[], cases=[];
-let apiUrl=localStorage.getItem('api_url')||'https://script.google.com/macros/s/AKfycbxDMnntxjBm-6zmbdRcCKBGEd6LObX7dRyEo9vW63Tcw7xJEwfkJd4UduXUxWOCKSwB/exec';
+// apiUrl declared above
 const todayISO=new Date().toISOString().slice(0,10);
 const weekAgoISO=(()=>{const d=new Date();d.setDate(d.getDate()-7);return d.toISOString().slice(0,10);})();
 
