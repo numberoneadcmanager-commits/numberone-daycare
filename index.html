@@ -924,6 +924,7 @@ function openMemberEdit(mid){
   window._meditMid=mid;
   var m=MEMBERS.find(function(x){return x.id===mid;});if(!m)return;
   document.getElementById('medit-title').textContent=m.kr+' — 정보 수정';
+  var chartEl=document.getElementById('me-chartno');if(chartEl)chartEl.value=m.chartNo||'';
   document.getElementById('me-kr').value=m.kr||'';
   document.getElementById('me-en').value=m.en||'';
   document.getElementById('me-dob').value=m.dob||'';
@@ -960,6 +961,7 @@ async function saveMemberEdit(){
   }else{
     m=MEMBERS.find(function(x){return x.id===window._meditMid;});if(!m)return;
   }
+  var chartEl2=document.getElementById('me-chartno');if(chartEl2)m.chartNo=chartEl2.value.trim();
   m.kr=document.getElementById('me-kr').value.trim();
   m.en=document.getElementById('me-en').value.trim().toUpperCase();
   m.dob=document.getElementById('me-dob').value;
@@ -976,7 +978,7 @@ async function saveMemberEdit(){
     apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{
       'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,
       '주치의':m.pcp,'출석요일':m.days.join(','),'전화':m.phone,'주소':m.addr,
-      '생년월일':m.dob||'','보험사':m.ins,'상태':m.status||'active',
+      '생년월일':m.dob||'','차트번호':m.chartNo||'','보험사':m.ins,'상태':m.status||'active',
       'Disenroll날짜':m.disenrollDate||'','메모':m.memo||''
     }}).catch(function(e){console.log(e);});
   }
@@ -1076,7 +1078,7 @@ async function loadFromSheets(){
           medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),
           pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],
           phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||''),
-          ins:String(r['보험사']||'Anthem_MLTC'),status:String(r['상태']||'active'),
+          ins:String(r['보험사']||'Anthem_MLTC'),chartNo:String(r['차트번호']||''),status:String(r['상태']||'active'),
           disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),
           avBg:clr.bg,avColor:clr.color
         });
@@ -1510,11 +1512,9 @@ function renderMG(){
     <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
     <div style="flex:1;min-width:0"><div class="mc-name">${m.kr}</div><div class="mc-en">${m.en}</div></div></div>
     <div class="mc-grid">
-      <span class="mc-lbl">생년월일</span><span class="mc-val">${m.dob||'—'}</span>
+      <span class="mc-lbl">차트번호</span><span class="mc-val" style="color:#D85A30;font-weight:800">${m.chartNo||'—'}</span>
       <span class="mc-lbl">생년월일</span><span class="mc-val">${m.dob||'—'}</span>
       <span class="mc-lbl">Medicaid</span><span class="mc-val">${m.medicaid}</span>
-      <span class="mc-lbl">보험사</span><span class="mc-val">${insBadge(m.ins||'Anthem_MLTC')}</span>
-      <span class="mc-lbl">상태</span><span class="mc-val">${statusBadge(m)}</span>
       <span class="mc-lbl">보험사</span><span class="mc-val">${insBadge(m.ins||'Anthem_MLTC')}</span>
       <span class="mc-lbl">상태</span><span class="mc-val">${statusBadge(m)}</span>
       <span class="mc-lbl">주치의</span><span class="mc-val">${m.pcp||'—'}</span>
@@ -1949,7 +1949,7 @@ var _meEditDays=new Set();
 function openAddMember(){
   window._meditMid=null;
   document.getElementById('medit-title').textContent='새 멤버 추가';
-  ['me-kr','me-en','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['me-kr','me-en','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo','me-chartno'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('me-dob').value='';
   document.getElementById('me-ins').value='Anthem_MLTC';
   _meEditDays=new Set();
@@ -1960,6 +1960,7 @@ function openMemberEdit(mid){
   window._meditMid=mid;
   var m=MEMBERS.find(function(x){return x.id===mid;});if(!m)return;
   document.getElementById('medit-title').textContent=m.kr+' — 정보 수정';
+  var chartEl=document.getElementById('me-chartno');if(chartEl)chartEl.value=m.chartNo||'';
   document.getElementById('me-kr').value=m.kr||'';
   document.getElementById('me-en').value=m.en||'';
   document.getElementById('me-dob').value=m.dob||'';
@@ -1986,6 +1987,7 @@ async function saveMemberEdit(){
     m={id:newId,status:'active',disenrollDate:'',disenrollNote:'',memo:'',avBg:clr.bg,avColor:clr.color};
     MEMBERS.push(m);
   }else{m=MEMBERS.find(function(x){return x.id===window._meditMid;});if(!m)return;}
+  var chartEl2=document.getElementById('me-chartno');if(chartEl2)m.chartNo=chartEl2.value.trim();
   m.kr=document.getElementById('me-kr').value.trim();
   m.en=document.getElementById('me-en').value.trim().toUpperCase();
   m.dob=document.getElementById('me-dob').value;
@@ -1998,7 +2000,7 @@ async function saveMemberEdit(){
   var memoEl=document.getElementById('me-memo');if(memoEl)m.memo=memoEl.value.trim();
   var ord=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   m.days=ord.filter(function(d){return _meEditDays.has(d);});
-  if(apiUrl){apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,'주치의':m.pcp,'출석요일':m.days.join(','),'전화':m.phone,'주소':m.addr,'생년월일':m.dob||'','보험사':m.ins,'상태':m.status||'active','Disenroll날짜':m.disenrollDate||'','메모':m.memo||''}}).catch(function(e){console.log(e);});}
+  if(apiUrl){apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,'주치의':m.pcp,'출석요일':m.days.join(','),'전화':m.phone,'주소':m.addr,'생년월일':m.dob||'','차트번호':m.chartNo||'','보험사':m.ins,'상태':m.status||'active','Disenroll날짜':m.disenrollDate||'','메모':m.memo||''}}).catch(function(e){console.log(e);});}
   saveToStorage();closeOv('ov-medit');filterM();renderAtt();alert((isNew?'새 멤버 추가: ':'')+m.kr+' 저장됨');
 }
 function openAddStaff(){
@@ -2054,7 +2056,7 @@ async function loadFromSheets(){
         var id=String(r['ID']||'');if(!id)return;
         var COLORS=[{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'},{bg:'#FAEEDA',color:'#854F0B'},{bg:'#FBEAF0',color:'#72243E'},{bg:'#EAF3DE',color:'#3B6D11'},{bg:'#E6F1FB',color:'#0C447C'}];
         var n=0;for(var i=0;i<id.length;i++)n+=id.charCodeAt(i);var clr=COLORS[n%COLORS.length];
-        MEMBERS.push({id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||''),ins:String(r['보험사']||'Anthem_MLTC'),status:String(r['상태']||'active'),disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),avBg:clr.bg,avColor:clr.color});
+        MEMBERS.push({id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||''),ins:String(r['보험사']||'Anthem_MLTC'),chartNo:String(r['차트번호']||''),status:String(r['상태']||'active'),disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),avBg:clr.bg,avColor:clr.color});
       });
       mFilt=[...MEMBERS];
     }
@@ -2124,6 +2126,7 @@ document.getElementById('rpt-to').value=todayISO;
 <div class="modal" id="modal-ov-medit" style="display:none" onclick="event.stopPropagation()">
   <div class="modal-handle"></div>
   <div class="modal-title"><span id="medit-title">멤버 정보 수정</span><button class="modal-close" onclick="closeOv('ov-medit')">&#10005;</button></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📋 차트번호 (센터 내부 ID)</div><input class="m-input" id="me-chartno" placeholder="1002" style="font-size:16px;font-weight:700;color:#D85A30"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="me-en"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div></div>
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
