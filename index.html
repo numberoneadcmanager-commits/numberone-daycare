@@ -296,6 +296,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .loading-msg{color:#fff;font-size:14px;font-weight:600}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
+
+<script>
+// goTab 프록시 - JS 로드 전 클릭 방지
+function goTab(tab,el){
+  // JS가 로드되면 실제 함수로 교체됨
+  console.log('goTab proxy called:', tab);
+}
+</script>
 </head>
 <body>
 <div id="app">
@@ -793,6 +801,44 @@ var apiUrl = localStorage.getItem('api_url') || 'https://script.google.com/macro
 var MEMBERS = MEMBERS_DATA.map(function(m){ return Object.assign({}, m); });
 var STAFF = [];
 </script>
+
+<script>
+// ── 핵심 라우팅 함수 (early load) ─────────────────────────
+function goTab(tab,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  if(el)el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  var panel=document.getElementById('panel-'+tab);
+  if(panel)panel.classList.add('active');
+  if(typeof closeModal==='function')closeModal();
+  if(tab==='attendance'&&typeof renderAtt==='function')renderAtt();
+  if(tab==='dashboard'&&typeof renderDash==='function')renderDash();
+  if(tab==='members'&&typeof filterM==='function')filterM();
+  if(tab==='absence'&&typeof renderAbsence==='function')renderAbsence();
+  if(tab==='logs'&&typeof renderIncidents==='function')renderIncidents();
+  if(tab==='staff'&&typeof renderStaff==='function')renderStaff();
+  if(tab==='report'&&typeof renderReport==='function')renderReport();
+  if(tab==='billing'&&typeof initBilling==='function')initBilling();
+  if(tab==='settings'){}
+}
+function openOv(id){
+  var ov=document.getElementById(id);
+  var modal=document.getElementById(id.replace(/^ov-/,'modal-ov-'));
+  if(ov)ov.classList.add('open');
+  if(modal)modal.style.display='block';
+}
+function closeOv(id){
+  var ov=document.getElementById(id);
+  var modal=document.getElementById(id.replace(/^ov-/,'modal-ov-'));
+  if(ov)ov.classList.remove('open');
+  if(modal)modal.style.display='none';
+}
+function closeModal(){
+  document.querySelectorAll('.ov.open').forEach(function(o){o.classList.remove('open');});
+  document.querySelectorAll('.modal').forEach(function(m){m.style.display='none';});
+}
+</script>
+
 <script>
 
 // ══════════════════════════════════════════════════════════════
