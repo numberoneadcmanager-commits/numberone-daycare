@@ -1014,13 +1014,15 @@ async function loadFromSheets(){
       MEMBERS.length=0;
       mRes.data.forEach(function(r){
         var id=String(r['ID']||'');if(!id)return;
+        var existM=MEMBERS.find(function(x){return x.id===id;});
         var COLORS=[{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'},{bg:'#FAEEDA',color:'#854F0B'},{bg:'#FBEAF0',color:'#72243E'},{bg:'#EAF3DE',color:'#3B6D11'},{bg:'#E6F1FB',color:'#0C447C'}];
         var n=0;for(var i=0;i<id.length;i++)n+=id.charCodeAt(i);var clr=COLORS[n%COLORS.length];
         MEMBERS.push({
           id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),
           medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),
           pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],
-          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||''),
+          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||existM&&existM.dob||''),
+          chartNo:String(r['차트번호']||existM&&existM.chartNo||String(r['ID']||'')),
           ins:String(r['보험사']||'Anthem_MLTC'),status:String(r['상태']||'active'),
           disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),
           avBg:clr.bg,avColor:clr.color
