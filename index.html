@@ -921,7 +921,7 @@ async function saveMemberEdit(){
     apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{
       'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,
       '주치의':m.pcp,'출석요일':m.days.join(','),'전화':m.phone,'주소':m.addr,
-      '생년월일':m.dob||'','보험사':m.ins,'상태':m.status||'active',
+      '생년월일':m.dob?m.dob.slice(0,10):'','차트번호':m.chartNo||'','보험사':m.ins,'상태':m.status||'active',
       'Disenroll날짜':m.disenrollDate||'','메모':m.memo||''
     }}).catch(function(e){console.log(e);});
   }
@@ -1021,7 +1021,7 @@ async function loadFromSheets(){
           id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),
           medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),
           pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],
-          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:String(r['생년월일']||existM&&existM.dob||''),
+          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:(String(r['생년월일']||'').slice(0,10))||existM&&existM.dob||'',
           chartNo:String(r['차트번호']||existM&&existM.chartNo||String(r['ID']||'')),
           ins:String(r['보험사']||'Anthem_MLTC'),status:String(r['상태']||'active'),
           disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),
@@ -1154,7 +1154,7 @@ async function uploadMembersToSheets(){
       await apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{
         'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,
         '주치의':m.pcp||'','출석요일':(m.days||[]).join(','),'전화':m.phone||'',
-        '주소':m.addr||'','생년월일':m.dob||'','보험사':m.ins||'',
+        '주소':m.addr||'','생년월일':m.dob?m.dob.slice(0,10):'','차트번호':m.chartNo||m.id||'','보험사':m.ins||'',
         '상태':m.status||'active','Disenroll날짜':m.disenrollDate||'','메모':m.memo||''
       }});ok++;
     }catch(e){}
@@ -1456,7 +1456,7 @@ function renderMG(){
     <div style="flex:1;min-width:0"><div class="mc-name">${m.kr}</div><div class="mc-en">${m.en}</div></div></div>
     <div class="mc-grid">
       <span class="mc-lbl">차트번호</span><span class="mc-val" style="color:#D85A30;font-weight:800">${m.chartNo||m.id||'—'}</span>
-      <span class="mc-lbl">생년월일</span><span class="mc-val">${m.dob||'—'}</span>
+      <span class="mc-lbl">생년월일</span><span class="mc-val">${m.dob?(m.dob.slice(0,10)):'—'}</span>
       <span class="mc-lbl">Medicaid</span><span class="mc-val">${m.medicaid}</span>
       <span class="mc-lbl">보험사</span><span class="mc-val">${insBadge(m.ins||'Anthem_MLTC')}</span>
       <span class="mc-lbl">상태</span><span class="mc-val">${statusBadge(m)}</span>
