@@ -1894,11 +1894,16 @@ function goAssessStep(n) {
   steps.forEach(function(s,i){ s.style.display = i===n?'block':'none'; });
   var tabs = document.querySelectorAll('.as-tab');
   tabs.forEach(function(t,i){ t.className = 'as-tab'+(i===n?' active':i<n?' done':''); });
-  document.getElementById('as-pctr').textContent = (n+1)+' / '+steps.length;
-  document.getElementById('as-prev').style.visibility = n===0?'hidden':'visible';
-  document.getElementById('as-next').textContent = n===steps.length-1?'PDF 생성':'다음';
-  document.getElementById('as-pf').style.width = Math.round((n+1)/steps.length*100)+'%';
-  document.querySelector('.content').scrollTop = 0;
+  var pctr = document.getElementById('as-pctr');
+  if(pctr) pctr.textContent = (n+1)+' / '+steps.length;
+  var prev = document.getElementById('as-prev');
+  if(prev) prev.style.visibility = n===0?'hidden':'visible';
+  var next = document.getElementById('as-next');
+  if(next) next.textContent = n===steps.length-1?'PDF 생성':'다음';
+  var pf = document.getElementById('as-pf');
+  if(pf) pf.style.width = Math.round((n+1)/steps.length*100)+'%';
+  var content = document.querySelector('.content');
+  if(content) content.scrollTop = 0;
 }
 
 function nextAssessStep() {
