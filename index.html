@@ -295,6 +295,10 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .loading-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;border-radius:50%;animation:spin 1s linear infinite}
 .loading-msg{color:#fff;font-size:14px;font-weight:600}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.as-tab{flex-shrink:0;padding:8px 12px;font-size:10px;font-weight:600;color:#8E8E93;cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap}
+.as-tab.active{color:#D85A30;border-bottom-color:#D85A30}
+.as-tab.done{color:#34C759}
 </style>
 </head>
 <body>
@@ -330,6 +334,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="tab" onclick="goTab('logs',this)">로그</div>
     <div class="tab" onclick="goTab('staff',this)">스태프</div>
     <div class="tab" onclick="goTab('report',this)">보고서</div>
+    <div class="tab" onclick="goTab('forms',this)">폼</div>
     <div class="tab" onclick="goTab('billing',this)">빌링</div>
     <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
   </div>
@@ -1021,9 +1026,9 @@ async function loadFromSheets(){
           id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),
           medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),
           pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],
-          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:(String(r['생년월일']||'').slice(0,10))||existM&&existM.dob||'',
+          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:(String(r['생년월일']||'').slice(0,10).replace('T','').substring(0,10))||(existM&&existM.dob)||'',
           chartNo:String(r['차트번호']||existM&&existM.chartNo||String(r['ID']||'')),
-          ins:String(r['보험사']||'Anthem_MLTC'),status:String(r['상태']||'active'),
+          ins:String(r['보험사']&&r['보험사']!=='Anthem_MLTC'?r['보험사']:existM&&existM.ins?existM.ins:'Anthem_MLTC'),status:String(r['상태']||'active'),
           disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),
           avBg:clr.bg,avColor:clr.color
         });
@@ -1844,6 +1849,376 @@ async function syncToSheets(iso){
   try{const recs=getRec(iso);Object.entries(recs).forEach(([mid,r])=>{apiCall({},{action:'upsert',sheet:'출결',key:'날짜',value:iso+'_'+mid,data:{날짜:iso,멤버ID:mid,...r}});});}catch(e){}
 }
 async function syncLog(sheet,data){if(!apiUrl)return;try{await apiCall({},{action:editId?'update':'append',sheet,id:editId,data});}catch(e){}}
+
+
+// ══════════════════════════════════════════════════════════════
+// ASSESSMENT FORM
+// ══════════════════════════════════════════════════════════════
+var _asmt = {
+  mid: null, type: 'Initial', step: 0,
+  info: {}, functional: {}, communication: {}, housing: {},
+  psychosocial: {}, nutrition: {}, health: {}, discharge: {},
+  supports: {}, personal: {}, contacts: {}
+};
+
+function initFormsTab() {
+  document.getElementById('frm-list').style.display = 'block';
+  document.getElementById('frm-assessment').style.display = 'none';
+}
+
+function openAssessmentForm(mid) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if (!m) return;
+  _asmt = {mid:mid, type:'Initial', step:0, info:{}, functional:{}, communication:{}, housing:{}, psychosocial:{}, nutrition:{}, health:{}, discharge:{}, supports:{}, personal:{}, contacts:{}};
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-assessment').style.display = 'block';
+
+  // 기본정보 자동입력
+  document.getElementById('as-name-kr').textContent = m.kr;
+  document.getElementById('as-name-en').textContent = m.en;
+  document.getElementById('as-dob').value = m.dob||'';
+  document.getElementById('as-medicaid').value = m.medicaid||'';
+  document.getElementById('as-phone').value = m.phone||'';
+  document.getElementById('as-addr').value = m.addr||'';
+  document.getElementById('as-pcp').value = m.pcp||'';
+  document.getElementById('as-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('as-gender-f').checked = true;
+
+  goAssessStep(0);
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function goAssessStep(n) {
+  _asmt.step = n;
+  var steps = document.querySelectorAll('.as-step');
+  steps.forEach(function(s,i){ s.style.display = i===n?'block':'none'; });
+  var tabs = document.querySelectorAll('.as-tab');
+  tabs.forEach(function(t,i){ t.className = 'as-tab'+(i===n?' active':i<n?' done':''); });
+  document.getElementById('as-pctr').textContent = (n+1)+' / '+steps.length;
+  document.getElementById('as-prev').style.visibility = n===0?'hidden':'visible';
+  document.getElementById('as-next').textContent = n===steps.length-1?'PDF 생성':'다음';
+  document.getElementById('as-pf').style.width = Math.round((n+1)/steps.length*100)+'%';
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function nextAssessStep() {
+  var steps = document.querySelectorAll('.as-step');
+  if (_asmt.step < steps.length-1) goAssessStep(_asmt.step+1);
+  else generateAssessmentPDF();
+}
+function prevAssessStep() { if (_asmt.step > 0) goAssessStep(_asmt.step-1); }
+
+function adlVal(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+function chkVal(id) {
+  var el = document.getElementById(id);
+  return el && el.checked ? '✓' : '☐';
+}
+function radioVal(name) {
+  var el = document.querySelector('input[name="'+name+'"]:checked');
+  return el ? el.value : '';
+}
+function txtVal(id) {
+  var el = document.getElementById(id);
+  return el ? (el.value||'') : '';
+}
+
+function generateAssessmentPDF() {
+  var mid = _asmt.mid;
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if (!m) return;
+
+  var asType = document.querySelector('input[name="as-type"]:checked');
+  var typeStr = asType ? asType.value : 'Initial';
+  var assessorName = txtVal('as-assessor');
+  var dateStr = txtVal('as-date');
+  var dateF = dateStr ? new Date(dateStr+'T00:00:00').toLocaleDateString('en-US') : '';
+  var dobF = m.dob ? new Date(m.dob+'T00:00:00').toLocaleDateString('en-US') : '';
+
+  // ADL 데이터
+  var adls = [
+    {act:'Bathing',st:adlVal('adl-bathing-st'),met:chkVal('adl-bathing-met'),by:txtVal('adl-bathing-by')},
+    {act:'Personal Hygiene',st:adlVal('adl-hygiene-st'),met:chkVal('adl-hygiene-met'),by:txtVal('adl-hygiene-by')},
+    {act:'Dressing',st:adlVal('adl-dressing-st'),met:chkVal('adl-dressing-met'),by:txtVal('adl-dressing-by')},
+    {act:'Mobility',st:adlVal('adl-mobility-st'),met:chkVal('adl-mobility-met'),by:txtVal('adl-mobility-by')},
+    {act:'Transferring',st:adlVal('adl-transfer-st'),met:chkVal('adl-transfer-met'),by:txtVal('adl-transfer-by')},
+    {act:'Eating',st:adlVal('adl-eating-st'),met:chkVal('adl-eating-met'),by:txtVal('adl-eating-by')},
+    {act:'Toileting',st:adlVal('adl-toilet-st'),met:chkVal('adl-toilet-met'),by:txtVal('adl-toilet-by')},
+  ];
+  var iadls = [
+    {act:'Housework/Cleaning',st:adlVal('iadl-house-st'),met:chkVal('iadl-house-met'),by:txtVal('iadl-house-by')},
+    {act:'Shopping',st:adlVal('iadl-shop-st'),met:chkVal('iadl-shop-met'),by:txtVal('iadl-shop-by')},
+    {act:'Laundry',st:adlVal('iadl-laundry-st'),met:chkVal('iadl-laundry-met'),by:txtVal('iadl-laundry-by')},
+    {act:'Use Transportation',st:adlVal('iadl-trans-st'),met:chkVal('iadl-trans-met'),by:txtVal('iadl-trans-by')},
+    {act:'Prepare and Cook Meals',st:adlVal('iadl-cook-st'),met:chkVal('iadl-cook-met'),by:txtVal('iadl-cook-by')},
+    {act:'Prepare Light Meals/Reheat',st:adlVal('iadl-light-st'),met:chkVal('iadl-light-met'),by:txtVal('iadl-light-by')},
+    {act:'Handle Personal Business/Finances',st:adlVal('iadl-fin-st'),met:chkVal('iadl-fin-met'),by:txtVal('iadl-fin-by')},
+    {act:'Use Telephone',st:adlVal('iadl-phone-st'),met:chkVal('iadl-phone-met'),by:txtVal('iadl-phone-by')},
+  ];
+
+  var w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Assessment - ${m.en}</title>
+<style>
+@page{size:letter;margin:0.6in}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:9.5px;color:#000;line-height:1.4}
+.header{text-align:center;margin-bottom:10px;border-bottom:2px solid #000;padding-bottom:8px}
+h1{font-size:13px;font-weight:bold}
+h2{font-size:11px;font-weight:bold;text-align:center;margin:10px 0 6px;text-decoration:underline}
+h3{font-size:10px;font-weight:bold;margin:8px 0 4px}
+table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:9px}
+td,th{border:1px solid #000;padding:3px 5px;vertical-align:top}
+th{background:#f0f0f0;font-weight:bold;text-align:left}
+.info-table td{padding:4px 6px}
+.section{margin-bottom:10px}
+.field{display:flex;margin-bottom:3px}
+.lbl{font-weight:bold;min-width:120px;font-size:9px}
+.val{border-bottom:1px solid #000;flex:1;font-size:9px;padding-left:3px}
+.cb-row{display:flex;gap:15px;margin-bottom:4px;font-size:9px;flex-wrap:wrap}
+.sig-area{margin-top:15px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sig-line{border-top:1px solid #000;padding-top:3px;font-size:9px;margin-top:30px}
+.comments{border:1px solid #000;min-height:35px;padding:4px;margin-top:4px;font-size:9px}
+.note{font-size:8.5px;font-style:italic;margin-bottom:6px}
+</style></head><body>
+
+<div class="header">
+  <h1>넘버원 어덜트 데이케어 / NUMBER ONE ADULT DAYCARE</h1>
+  <div style="font-size:10px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</div>
+  <h1 style="margin-top:6px">ADULT DAY SERVICES PARTICIPANT ASSESSMENT</h1>
+</div>
+
+<h2>ASSESSMENT INFORMATION</h2>
+<table class="info-table">
+  <tr><td><b>Reason for Assessment:</b> ${chkVal('as-type-initial')} Initial &nbsp;&nbsp; ${chkVal('as-type-re')} Reassessment &nbsp;&nbsp; ${chkVal('as-type-other')} Other</td></tr>
+  <tr><td><b>Date:</b> ${dateF}</td></tr>
+  <tr><td><b>Source of Information:</b> ${chkVal('as-src-pt')} Participant &nbsp; ${chkVal('as-src-sp')} Spouse &nbsp; ${chkVal('as-src-dr')} Physician &nbsp; ${chkVal('as-src-ff')} Family/Friends &nbsp; ${chkVal('as-src-ot')} Other</td></tr>
+  <tr><td><b>Assessor Name:</b> ${assessorName}</td></tr>
+</table>
+
+<h2>BASIC PARTICIPANT DATA</h2>
+<table class="info-table">
+  <tr>
+    <td><b>Name:</b> ${m.en}</td>
+    <td><b>Telephone #:</b> ${m.phone||''}</td>
+  </tr>
+  <tr><td colspan="2"><b>Address:</b> ${m.addr||''}</td></tr>
+  <tr><td><b>Elevator:</b> ${chkVal('as-elevator-y')} Yes &nbsp; ${chkVal('as-elevator-n')} No</td><td></td></tr>
+  <tr>
+    <td><b>Social Security #:</b> ${txtVal('as-ssn')}</td>
+    <td><b>DOB:</b> ${dobF} &nbsp;&nbsp; <b>Gender:</b> ${radioVal('as-gender')}</td>
+  </tr>
+  <tr>
+    <td><b>Medicare #:</b> ${txtVal('as-medicare')}</td>
+    <td><b>Medicaid #:</b> ${m.medicaid||''}</td>
+  </tr>
+  <tr><td><b>Marital Status:</b> ${txtVal('as-marital')}</td><td><b>Race/Ethnicity:</b> ${txtVal('as-race')}</td></tr>
+  <tr><td><b>U.S. Citizen?</b> ${chkVal('as-citizen-y')} Yes &nbsp; ${chkVal('as-citizen-n')} No</td><td></td></tr>
+  <tr><td><b>Primary/Native Language:</b> ${txtVal('as-lang1')} &nbsp; Speaks ${chkVal('as-lang1-sp')} Reads ${chkVal('as-lang1-rd')} Understands ${chkVal('as-lang1-un')} Writes ${chkVal('as-lang1-wr')}</td><td></td></tr>
+  <tr><td><b>Secondary Language:</b> ${txtVal('as-lang2')} &nbsp; Speaks ${chkVal('as-lang2-sp')} Reads ${chkVal('as-lang2-rd')} Understands ${chkVal('as-lang2-un')} Writes ${chkVal('as-lang2-wr')}</td><td></td></tr>
+</table>
+
+<h2>FUNCTIONAL STATUS (ADLs & IADLs)</h2>
+<p class="note">Coding: 1=Totally able 2=Needs some assistance 3=Needs maximal assistance 4=Unwilling to perform</p>
+<table>
+  <tr><th>ACTIVITY</th><th>STATUS</th><th>NEEDS MET AT HOME (Y/N)</th><th>BY WHOM</th></tr>
+  ${adls.map(function(a){return '<tr><td>'+a.act+'</td><td style="text-align:center">'+a.st+'</td><td style="text-align:center">'+a.met+'</td><td>'+a.by+'</td></tr>';}).join('')}
+</table>
+<div style="font-size:9px;margin-bottom:4px">
+  <b>Incontinence:</b> Urine: ${chkVal('inc-urine-nev')} Never ${chkVal('inc-urine-occ')} Occasionally ${chkVal('inc-urine-usu')} Usually &nbsp;&nbsp;
+  Bowel: ${chkVal('inc-bowel-nev')} Never ${chkVal('inc-bowel-occ')} Occasionally ${chkVal('inc-bowel-usu')} Usually
+</div>
+<div style="font-size:9px;margin-bottom:4px"><b>Transferring Assistance On/Off Toilet?</b> ${chkVal('toilet-assist-n')} No ${chkVal('toilet-assist-y')} Yes</div>
+<div style="font-size:9px;margin-bottom:6px"><b>Special Devices?</b> ${chkVal('devices-n')} No ${chkVal('devices-y')} Yes (specify): ${txtVal('devices-spec')}</div>
+<div class="comments"><b>COMMENTS:</b> ${txtVal('adl-comments')}</div>
+
+<table style="margin-top:6px">
+  <tr><th>IADLs</th><th>STATUS</th><th>NEEDS MET AT HOME</th><th>BY WHOM</th></tr>
+  ${iadls.map(function(a){return '<tr><td>'+a.act+'</td><td style="text-align:center">'+a.st+'</td><td style="text-align:center">'+a.met+'</td><td>'+a.by+'</td></tr>';}).join('')}
+</table>
+<div class="comments"><b>COMMENTS:</b> ${txtVal('iadl-comments')}</div>
+
+<h2>COMMUNICATION/HEARING</h2>
+<table class="info-table">
+  <tr><td><b>Hearing:</b> ${chkVal('hear-adeq')} Adequate ${chkVal('hear-min')} Minimal Difficulty ${chkVal('hear-some')} Sometimes Understood ${chkVal('hear-imp')} Highly Impaired</td></tr>
+  <tr><td><b>Making Self Understood:</b> ${chkVal('comm-easy')} Easily Understood ${chkVal('comm-some')} Sometimes Understood ${chkVal('comm-usu')} Usually Understands ${chkVal('comm-rare')} Rarely/Never</td></tr>
+  <tr><td><b>Ability To Understand Others:</b> ${chkVal('und-yes')} Understands ${chkVal('und-some')} Sometimes ${chkVal('und-usu')} Usually ${chkVal('und-rare')} Rarely/Never</td></tr>
+  <tr><td><div class="comments"><b>COMMENTS:</b> ${txtVal('comm-comments')}</div></td></tr>
+</table>
+
+<h2>HOUSING/NEIGHBORHOOD SAFETY</h2>
+<table class="info-table">
+  <tr><td><b>Home includes:</b> ${chkVal('house-lock')} Special locks ${chkVal('house-rail')} Bathroom rails ${chkVal('house-smoke')} Smoke alarm ${chkVal('house-door')} Doorman</td></tr>
+  <tr><td><b>Neighborhood Safe?</b> ${txtVal('house-safe')}</td></tr>
+  <tr><td><div class="comments"><b>COMMENTS:</b> ${txtVal('house-comments')}</div></td></tr>
+</table>
+
+<h2>PSYCHO/SOCIAL CONDITION</h2>
+<p class="note">Circle H if exhibited more than 5 times in last month at home. Circle P if at program.</p>
+<table style="font-size:8.5px">
+  <tr>
+    <td>Short-Term Memory Deficit: H &nbsp; P</td>
+    <td>Indicators of Delirium: H &nbsp; P</td>
+  </tr>
+  <tr><td>Sadness/Depression: H &nbsp; P</td><td>Anger: H &nbsp; P</td></tr>
+  <tr><td>Anxiety: H &nbsp; P</td><td>Withdrawal: H &nbsp; P</td></tr>
+  <tr><td>Recurrent Crying: H &nbsp; P</td><td>Wandering: H &nbsp; P</td></tr>
+  <tr><td>Impaired Decision-Making: H &nbsp; P</td><td>Physically Aggressive: H &nbsp; P</td></tr>
+  <tr><td>Verbally Abusive: H &nbsp; P</td><td>Disruptive Behavior: H &nbsp; P</td></tr>
+  <tr><td>Hallucinations: H &nbsp; P</td><td>Diminished Interpersonal Skills: H &nbsp; P</td></tr>
+  <tr><td>Evidence of Substance Abuse: H &nbsp; P</td><td>Isolation: H &nbsp; P</td></tr>
+  <tr><td>Resistance To Care: H &nbsp; P</td><td>Separation Anxiety: H &nbsp; P</td></tr>
+</table>
+<div style="font-size:9px;margin-top:4px">
+  <b>Mental health treatment history?</b> ${chkVal('psych-tx-n')} No ${chkVal('psych-tx-y')} Yes &nbsp;&nbsp;
+  <b>Diagnosed mental health problem?</b> ${chkVal('psych-dx-n')} No ${chkVal('psych-dx-y')} Yes
+</div>
+<div style="font-size:9px;margin-top:3px">
+  <b>Aware of illness/diagnosis?</b> ${chkVal('psych-aware-n')} No ${chkVal('psych-aware-y')} Yes ${chkVal('psych-aware-na')} N/A &nbsp;&nbsp;
+  <b>Medical Alert/Safe Return?</b> ${chkVal('psych-alert-n')} No ${chkVal('psych-alert-y')} Yes
+</div>
+<div style="font-size:9px;margin-top:3px"><b>Stressful life events:</b> ${txtVal('psych-stress')}</div>
+<div class="comments"><b>COMMENTS:</b> ${txtVal('psych-comments')}</div>
+
+<h2>NUTRITION</h2>
+<table class="info-table">
+  <tr>
+    <td><b>Height:</b> ${txtVal('nut-height')}</td>
+    <td><b>Weight:</b> ${txtVal('nut-weight')}</td>
+    <td><b>Weight change in last 6 months?</b> ${txtVal('nut-wtchange')}</td>
+  </tr>
+  <tr><td colspan="3"><b>Participant appears:</b> ${chkVal('nut-over')} Overweight ${chkVal('nut-under')} Underweight ${chkVal('nut-normal')} Normal</td></tr>
+  <tr><td colspan="3"><b>Check if Problem:</b> ${chkVal('nut-app')} Appetite ${chkVal('nut-chew')} Chewing/Swallowing ${chkVal('nut-dental')} Dental</td></tr>
+  <tr><td colspan="3"><b>Check if Needed:</b> ${chkVal('nut-puree')} Pureed Food ${chkVal('nut-supp')} Nutritional Supplements ${chkVal('nut-cut')} Cut-up Food</td></tr>
+  <tr><td colspan="3"><b>Food Allergies:</b> ${txtVal('nut-allergy')}</td></tr>
+  <tr>
+    <td><b>Special Diet?</b> ${chkVal('nut-diet-y')} Yes ${chkVal('nut-diet-n')} No</td>
+    <td><b>Participant follows diet?</b> ${chkVal('nut-follow-y')} Yes ${chkVal('nut-follow-n')} No ${chkVal('nut-follow-na')} N/A</td>
+    <td><b>Specify:</b> ${txtVal('nut-diet-spec')}</td>
+  </tr>
+</table>
+
+<h2>HEALTH</h2>
+<table class="info-table">
+  <tr><td><b>Medical Provider:</b> ${m.pcp||''}</td></tr>
+  <tr><td><b>Non-Food Allergies:</b> ${chkVal('health-allergy-n')} No ${chkVal('health-allergy-y')} Yes: ${txtVal('health-allergy-spec')}</td></tr>
+  <tr><td><b>Sees Doctor Regularly?</b> ${chkVal('health-dr-y')} Yes ${chkVal('health-dr-n')} No &nbsp;&nbsp; <b>Date last seen:</b> ${txtVal('health-dr-date')}</td></tr>
+  <tr><td><b>Hospitalized within last year?</b> ${chkVal('health-hosp-n')} No ${chkVal('health-hosp-y')} Yes &nbsp;&nbsp; <b>Place/Dates/Reason:</b> ${txtVal('health-hosp-detail')}</td></tr>
+  <tr><td><b>Participant uses:</b> ${chkVal('dev-cane')} Cane ${chkVal('dev-walker')} Walker ${chkVal('dev-wc')} Wheelchair ${chkVal('dev-glasses')} Eyeglasses ${chkVal('dev-dentures')} Dentures ${chkVal('dev-hearing')} Hearing Aid</td></tr>
+  <tr><td><b>Requires cueing to take medication?</b> ${chkVal('med-cue-y')} Yes ${chkVal('med-cue-n')} No</td></tr>
+  <tr><td><b>Sleeping Problems?</b> ${txtVal('health-sleep')}</td></tr>
+  <tr><td><b>Chronic Health Problems:</b> ${chkVal('ch-heart')} Heart Disease ${chkVal('ch-cancer')} Cancer ${chkVal('ch-dm')} Diabetes ${chkVal('ch-arth')} Arthritis ${chkVal('ch-asthma')} Asthma ${chkVal('ch-alz')} Alzheimer's ${chkVal('ch-htn')} Hypertension ${chkVal('ch-copd')} COPD ${chkVal('ch-hiv')} HIV ${chkVal('ch-park')} Parkinson's ${chkVal('ch-osteo')} Osteoporosis ${chkVal('ch-dem')} Dementia ${chkVal('ch-cvd')} Cardiovascular</td></tr>
+</table>
+<h3>Current Medications</h3>
+<table>
+  <tr><th>Medication</th><th>Dose/Frequency</th><th>Reason/Comments</th></tr>
+  <tr><td>${txtVal('med-1-name')}</td><td>${txtVal('med-1-dose')}</td><td>${txtVal('med-1-reason')}</td></tr>
+  <tr><td>${txtVal('med-2-name')}</td><td>${txtVal('med-2-dose')}</td><td>${txtVal('med-2-reason')}</td></tr>
+  <tr><td>${txtVal('med-3-name')}</td><td>${txtVal('med-3-dose')}</td><td>${txtVal('med-3-reason')}</td></tr>
+  <tr><td>${txtVal('med-4-name')}</td><td>${txtVal('med-4-dose')}</td><td>${txtVal('med-4-reason')}</td></tr>
+  <tr><td>${txtVal('med-5-name')}</td><td>${txtVal('med-5-dose')}</td><td>${txtVal('med-5-reason')}</td></tr>
+</table>
+<div class="comments"><b>COMMENTS (Impairments):</b> ${txtVal('health-comments')}</div>
+
+<h2>INFORMAL AND FORMAL SUPPORTS</h2>
+<table class="info-table">
+  <tr><td colspan="2"><b>PRIMARY CAREGIVER:</b> ${chkVal('care-none')} None</td></tr>
+  <tr><td><b>Name:</b> ${txtVal('care-name')}</td><td><b>Relationship:</b> ${txtVal('care-rel')}</td></tr>
+  <tr><td colspan="2"><b>Address:</b> ${txtVal('care-addr')}</td></tr>
+  <tr><td><b>Home Phone:</b> ${txtVal('care-hphone')}</td><td><b>Work Phone:</b> ${txtVal('care-wphone')}</td></tr>
+  <tr><td colspan="2"><b>Language:</b> ${txtVal('care-lang')}</td></tr>
+  <tr><td colspan="2"><b>Other informal supports:</b> ${txtVal('care-other')} ${chkVal('care-other-none')} None</td></tr>
+</table>
+
+<h2>BASIC PARTICIPANT DATA (CONTINUED)</h2>
+<table class="info-table">
+  <tr><td colspan="2"><b>EMERGENCY CONTACT 1:</b></td></tr>
+  <tr><td><b>Name:</b> ${txtVal('ec1-name')}</td><td><b>Relationship:</b> ${txtVal('ec1-rel')}</td></tr>
+  <tr><td colspan="2"><b>Address:</b> ${txtVal('ec1-addr')}</td></tr>
+  <tr><td><b>Home Phone:</b> ${txtVal('ec1-hphone')}</td><td><b>Work Phone:</b> ${txtVal('ec1-wphone')}</td></tr>
+  <tr><td colspan="2"><b>EMERGENCY CONTACT 2:</b></td></tr>
+  <tr><td><b>Name:</b> ${txtVal('ec2-name')}</td><td><b>Relationship:</b> ${txtVal('ec2-rel')}</td></tr>
+  <tr><td><b>Home Phone:</b> ${txtVal('ec2-hphone')}</td><td><b>Work Phone:</b> ${txtVal('ec2-wphone')}</td></tr>
+  <tr><td colspan="2"><b>LEGAL CONTACT/HEALTH CARE PROXY:</b></td></tr>
+  <tr><td><b>Name:</b> ${txtVal('legal-name')}</td><td><b>Relationship:</b> ${txtVal('legal-rel')}</td></tr>
+  <tr><td><b>Home Phone:</b> ${txtVal('legal-hphone')}</td><td><b>Work Phone:</b> ${txtVal('legal-wphone')}</td></tr>
+  <tr><td colspan="2"><b>PARTICIPANT'S LIVING ARRANGEMENTS:</b> ${txtVal('living-arr')}</td></tr>
+  <tr><td><b># in Household:</b> ${txtVal('living-num')}</td><td><b>Veteran?</b> ${chkVal('vet-y')} Yes ${chkVal('vet-n')} No</td></tr>
+</table>
+
+<h2>PERSONAL HISTORY</h2>
+<table class="info-table">
+  <tr><td><b>Work Background:</b> ${txtVal('ph-work')}</td></tr>
+  <tr><td><b>Education:</b> ${txtVal('ph-edu')}</td></tr>
+  <tr><td><b>Recreation, Hobbies and Interests:</b> ${txtVal('ph-hobbies')}</td></tr>
+  <tr><td><b>Religious Preference:</b> ${txtVal('ph-religion')}</td></tr>
+  <tr><td><b>Birthplace:</b> ${txtVal('ph-birth')}</td></tr>
+  <tr><td><b>Participant Drives:</b> ${chkVal('ph-drive-n')} No ${chkVal('ph-drive-y')} Yes &nbsp;&nbsp; <b>Smokes:</b> ${chkVal('ph-smoke-n')} No ${chkVal('ph-smoke-y')} Yes</td></tr>
+  <tr><td><b>Children:</b> ${txtVal('ph-children')}</td></tr>
+  <tr><td><b>What are the participant's hopes for program?</b> ${txtVal('ph-hopes')}</td></tr>
+</table>
+
+<div class="sig-area">
+  <div>
+    <div class="sig-line">Assessor Signature</div>
+    <div style="font-size:9px;margin-top:4px">${assessorName}</div>
+  </div>
+  <div>
+    <div class="sig-line">Date</div>
+    <div style="font-size:9px;margin-top:4px">${dateF}</div>
+  </div>
+</div>
+
+<div style="margin-top:10px;font-size:8.5px;text-align:center;border-top:1px solid #ccc;padding-top:6px">
+  Number One Adult Daycare · 161-22 Northern Blvd 1FL, Flushing, NY 11358 · NPI: 1154194504
+</div>
+
+</body></html>`);
+  w.document.close();
+  setTimeout(function(){
+    w.print();
+    // Sheets에 Assessment 날짜 저장
+    var m2 = MEMBERS.find(function(x){return x.id===mid;});
+    if(m2) {
+      m2.lastAssessment = dateStr;
+      m2.nextAssessment = new Date(new Date(dateStr).setFullYear(new Date(dateStr).getFullYear()+1)).toISOString().slice(0,10);
+      saveToStorage();
+    }
+  }, 800);
+}
+
+
+function filterFrmMembers() {
+  var q = (document.getElementById('frm-search')||{}).value||'';
+  var list = q ? MEMBERS.filter(function(m){
+    return m.kr.includes(q)||m.en.toLowerCase().includes(q.toLowerCase());
+  }) : MEMBERS.filter(function(m){return isActive(m);});
+  var el = document.getElementById('frm-member-list');
+  if (!el) return;
+  var soon = new Date(Date.now()+30*24*3600*1000).toISOString().slice(0,10);
+  var html2 = '';
+  list.slice(0,30).forEach(function(m) {
+    var lastAs = m.lastAssessment ? '마지막: '+m.lastAssessment : '기록 없음';
+    var nextAs = m.nextAssessment ? ' · 다음: '+m.nextAssessment : '';
+    var warn = !!(m.nextAssessment && m.nextAssessment <= soon);
+    var div = document.createElement('div');
+    div.className = 'mc';
+    if (warn) div.style.border = '1.5px solid #FF9500';
+    div.innerHTML = '<div class="mc-top">'
+      +'<div class="mc-av" style="background:'+m.avBg+';color:'+m.avColor+'">'+m.kr[0]+'</div>'
+      +'<div><div class="mc-name">'+m.kr+'</div><div class="mc-en">'+m.en+'</div></div></div>'
+      +'<div style="font-size:11px;color:#8E8E93;margin-top:4px">'+lastAs+nextAs+'</div>'
+      +(warn?'<div style="font-size:11px;color:#FF9500;margin-top:3px">⚠️ Reassessment 필요</div>':'')
+      +'<button class="btn-full btn-primary" style="margin-top:8px;padding:10px;font-size:13px">📋 Assessment 시작 →</button>';
+    div.querySelector('button').addEventListener('click', function(e){
+      e.stopPropagation(); openAssessmentForm(m.id);
+    });
+    div.addEventListener('click', function(){ openAssessmentForm(m.id); });
+    el.appendChild(div);
+  });
+}
 
 // ── INIT RENDER ───────────────────────────────────────────────
 loadFromStorage();
