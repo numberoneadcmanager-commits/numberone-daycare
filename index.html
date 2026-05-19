@@ -620,6 +620,36 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="section-lbl">멤버를 선택하고 Assessment를 작성하세요</div>
         <div id="frm-member-list"></div>
       </div>
+      
+      <!-- Nutrition Screening 폼 -->
+      <div id="frm-nutrition" style="display:none">
+        <button class="back-btn" onclick="document.getElementById('frm-nutrition').style.display='none';document.getElementById('frm-list').style.display='block';">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px">🥗 Nutrition Screening / 영양 스크리닝</div>
+          <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px"><div style="font-size:13px;font-weight:700" id="ns-name"></div><div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="ns-dob"></span></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">날짜</div><input class="fi" type="date" id="ns-date"></div><div><div class="fl">Height (inches)</div><input class="fi" type="number" id="ns-height" placeholder="60" oninput="calcNSBMI()"></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">Weight (lbs)</div><input class="fi" type="number" id="ns-weight" placeholder="140" oninput="calcNSBMI()"></div><div><div class="fl">BMI (자동계산)</div><input class="fi" type="text" id="ns-bmi" readonly style="background:#F2F2F7;font-weight:700;font-size:16px"></div></div>
+          <div class="fg"><div class="fl">Assessment(체중진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-assess-normal"> Normal(정상)</label><label><input type="checkbox" id="ns-assess-under"> Underweight(미달)</label><label><input type="checkbox" id="ns-assess-over"> Overweight(과체중)</label><label><input type="checkbox" id="ns-assess-obese"> Obese(비만)</label></div></div>
+          <div class="fg"><div class="fl">Diagnosis(진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-dx-htn"> Hypertension(고혈압)</label><label><input type="checkbox" id="ns-dx-hld"> Hyperlipidemia(고지혈증)</label><label><input type="checkbox" id="ns-dx-dm"> Diabetes(당뇨)</label><label><input type="checkbox" id="ns-dx-ckd"> Kidney Disease(신부전)</label><label><input type="checkbox" id="ns-dx-other"> Others</label></div></div>
+          <div class="fg"><div class="fl">Current Diet(현재식단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-diet-na"> 2gm Na(저염)</label><label><input type="checkbox" id="ns-diet-lf"> Low fat(저지방)</label><label><input type="checkbox" id="ns-diet-carb"> Consistent Carb.</label><label><input type="checkbox" id="ns-diet-renal"> Renal(신장)</label></div><input class="fi" id="ns-diet-other" placeholder="Others 설명" style="margin-top:6px"></div>
+          <div class="fg"><div class="fl">Food Allergies(음식 알레르기)</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="ns-allergy-no"> No</label><label style="font-size:13px"><input type="checkbox" id="ns-allergy-yes"> Yes</label><input class="fi" id="ns-allergy-spec" placeholder="Specify" style="flex:1;min-width:120px;margin:0"></div></div>
+          <div class="fl" style="margin-bottom:8px">Yes/No Questions</div>
+          <div style="border:1.5px solid #E5E5EA;border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">1. Underweight(저체중) BMI &lt;18</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q1-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q1-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">2. Obese(비만) BMI &gt;30</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q2-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q2-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">3. Unintentional Weight Loss(급격한 체중감소)</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q3-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q3-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">4. Diabetes or HgbA1c &gt;5.7%</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q4-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q4-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px"><span style="font-size:12px">5. Chronic Kidney Disease(신부전증)</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q5-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q5-yes"> Yes</label></div></div>
+          </div>
+          <div class="fg"><div class="fl">Nutrition Counselling(영양 상담)</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-counsel-accept"> Accepted(승인)</label><label><input type="checkbox" id="ns-counsel-decline"> Declined(거부)</label></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:11px;font-weight:700;color:#3C3C43">회원 서명</div><button onclick="clearNSSig('member')" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div><div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="ns-member-canvas" width="300" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas><div id="ns-member-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:12px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>회원 서명</div></div></div></div>
+            <div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:11px;font-weight:700;color:#3C3C43">스태프 서명</div><button onclick="clearNSSig('staff')" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div><div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="ns-staff-canvas" width="300" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas><div id="ns-staff-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:12px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>스태프 서명</div></div></div></div>
+          </div>
+          <button class="btn-full btn-primary" onclick="generateNutritionPDF()" style="padding:14px;font-size:14px">🥗 PDF 생성 및 인쇄</button>
+        </div>
+      </div>
+
       <div id="frm-assessment" style="display:none">
         <button class="back-btn" onclick="initFormsTab();filterFrmMembers()">← 목록으로</button>
         <div style="background:#fff;border-radius:13px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)">
@@ -2476,12 +2506,12 @@ th{background:#f0f0f0;font-weight:bold;text-align:left}
 function filterFrmMembers() {
   var q = (document.getElementById('frm-search')||{}).value||'';
   var list = q ? MEMBERS.filter(function(m){
-    return m.kr.includes(q)||m.en.toLowerCase().includes(q.toLowerCase());
+    return m.kr.includes(q)||m.en.toLowerCase().includes(q.toLowerCase())||m.medicaid.toLowerCase().includes(q.toLowerCase());
   }) : MEMBERS.filter(function(m){return isActive(m);});
   var el = document.getElementById('frm-member-list');
   if (!el) return;
+  el.innerHTML = '';
   var soon = new Date(Date.now()+30*24*3600*1000).toISOString().slice(0,10);
-  var html2 = '';
   list.slice(0,30).forEach(function(m) {
     var lastAs = m.lastAssessment ? '마지막: '+m.lastAssessment : '기록 없음';
     var nextAs = m.nextAssessment ? ' · 다음: '+m.nextAssessment : '';
@@ -2493,15 +2523,25 @@ function filterFrmMembers() {
       +'<div class="mc-av" style="background:'+m.avBg+';color:'+m.avColor+'">'+m.kr[0]+'</div>'
       +'<div><div class="mc-name">'+m.kr+'</div><div class="mc-en">'+m.en+'</div></div></div>'
       +'<div style="font-size:11px;color:#8E8E93;margin-top:4px">'+lastAs+nextAs+'</div>'
-      +(warn?'<div style="font-size:11px;color:#FF9500;margin-top:3px">⚠️ Reassessment 필요</div>':'')
-      +'<button class="btn-full btn-primary" style="margin-top:8px;padding:10px;font-size:13px">📋 Assessment 시작 →</button>';
-    div.querySelector('button').addEventListener('click', function(e){
-      e.stopPropagation(); openAssessmentForm(m.id);
-    });
-    div.addEventListener('click', function(){ openAssessmentForm(m.id); });
+      +(warn?'<div style="font-size:11px;color:#FF9500;margin-top:3px">⚠️ Reassessment 필요</div>':'');
+    var btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px';
+    var btnAs = document.createElement('button');
+    btnAs.style.cssText = 'width:100%;padding:10px;font-size:12px;border-radius:10px;background:#D85A30;color:#fff;border:none;font-weight:700;cursor:pointer';
+    btnAs.textContent = '📋 Assessment';
+    btnAs.addEventListener('click', (function(mid){return function(e){e.stopPropagation();openAssessmentForm(mid);};})(m.id));
+    var btnNs = document.createElement('button');
+    btnNs.style.cssText = 'width:100%;padding:10px;font-size:12px;border-radius:10px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-weight:700;cursor:pointer';
+    btnNs.textContent = '🥗 Nutrition';
+    btnNs.addEventListener('click', (function(mid){return function(e){e.stopPropagation();openNutritionForm(mid);};})(m.id));
+    btnWrap.appendChild(btnAs);
+    btnWrap.appendChild(btnNs);
+    div.appendChild(btnWrap);
+    div.addEventListener('click', (function(mid){return function(){openAssessmentForm(mid);};})(m.id));
     el.appendChild(div);
   });
 }
+
 
 
 // ── Assessment → PCSP 자동 채우기 ────────────────────────────
@@ -2622,6 +2662,247 @@ function fillPCSPFromAssessment(mid) {
   openPCSPForm(mid);
 
   alert('✅ Assessment 데이터가 PCSP에 자동으로 채워졌어요!\n나머지 항목을 확인하고 수정해주세요.');
+}
+
+
+// ── Nutrition Screening ───────────────────────────────────────
+var _nsMid = null;
+var _nsMemberSig = null;
+var _nsStaffSig = null;
+
+function openNutritionForm(mid) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if (!m) return;
+  _nsMid = mid;
+  _nsMemberSig = null;
+  _nsStaffSig = null;
+
+  // 기본정보 자동입력
+  var el = document.getElementById('ns-name');
+  if(el) el.textContent = m.kr + ' (' + m.en + ')';
+  el = document.getElementById('ns-dob');
+  if(el) el.textContent = m.dob ? m.dob.slice(0,10) : '—';
+  el = document.getElementById('ns-date');
+  if(el) el.value = new Date().toISOString().slice(0,10);
+  el = document.getElementById('ns-height');
+  if(el) el.value = '';
+  el = document.getElementById('ns-weight');
+  if(el) el.value = '';
+  el = document.getElementById('ns-bmi');
+  if(el) el.value = '';
+  el = document.getElementById('ns-allergy-spec');
+  if(el) el.value = '';
+  el = document.getElementById('ns-diet-other');
+  if(el) el.value = '';
+
+  // 체크박스 초기화
+  ['ns-assess-normal','ns-assess-under','ns-assess-over','ns-assess-obese',
+   'ns-dx-htn','ns-dx-hld','ns-dx-dm','ns-dx-ckd','ns-dx-other',
+   'ns-diet-na','ns-diet-lf','ns-diet-carb','ns-diet-renal',
+   'ns-allergy-no','ns-allergy-yes',
+   'ns-q1-no','ns-q1-yes','ns-q2-no','ns-q2-yes','ns-q3-no','ns-q3-yes',
+   'ns-q4-no','ns-q4-yes','ns-q5-no','ns-q5-yes',
+   'ns-counsel-accept','ns-counsel-decline'
+  ].forEach(function(id){
+    var cb = document.getElementById(id);
+    if(cb) cb.checked = false;
+  });
+
+  // 서명 초기화
+  clearNSSig('member');
+  clearNSSig('staff');
+
+  // 폼 표시
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-nutrition').style.display = 'block';
+  document.getElementById('frm-assessment').style.display = 'none';
+  document.querySelector('.content').scrollTop = 0;
+
+  setTimeout(function(){
+    initNSCanvas('member');
+    initNSCanvas('staff');
+  }, 100);
+}
+
+function calcNSBMI() {
+  var h = parseFloat(document.getElementById('ns-height').value);
+  var w = parseFloat(document.getElementById('ns-weight').value);
+  if(h && w) {
+    var hm = h * 0.0254;
+    var bmi = (w / (hm * hm)).toFixed(1);
+    document.getElementById('ns-bmi').value = bmi;
+    // 자동 체크
+    ['ns-assess-normal','ns-assess-under','ns-assess-over','ns-assess-obese'].forEach(function(id){
+      var el = document.getElementById(id); if(el) el.checked = false;
+    });
+    if(bmi < 18.5) { var u=document.getElementById('ns-assess-under'); if(u)u.checked=true; }
+    else if(bmi >= 30) { var o=document.getElementById('ns-assess-obese'); if(o)o.checked=true; }
+    else if(bmi >= 25) { var ov=document.getElementById('ns-assess-over'); if(ov)ov.checked=true; }
+    else { var n=document.getElementById('ns-assess-normal'); if(n)n.checked=true; }
+  }
+}
+
+function initNSCanvas(type) {
+  var id = type==='member' ? 'ns-member-canvas' : 'ns-staff-canvas';
+  var canvas = document.getElementById(id);
+  if(!canvas || canvas._nsInit) return;
+  canvas._nsInit = true;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  var drawing = false, lx = 0, ly = 0;
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width/rect.width, sy = canvas.height/rect.height;
+    if(e.touches) return {x:(e.touches[0].clientX-rect.left)*sx, y:(e.touches[0].clientY-rect.top)*sy};
+    return {x:(e.clientX-rect.left)*sx, y:(e.clientY-rect.top)*sy};
+  }
+  function start(e){ e.preventDefault(); drawing=true; var p=getPos(e); lx=p.x; ly=p.y;
+    var empty=document.getElementById(type==='member'?'ns-member-empty':'ns-staff-empty');
+    if(empty) empty.style.display='none';
+  }
+  function draw(e){ if(!drawing)return; e.preventDefault(); var p=getPos(e);
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke(); lx=p.x; ly=p.y;
+  }
+  function stop(){ if(!drawing)return; drawing=false;
+    if(type==='member') _nsMemberSig=canvas.toDataURL('image/png');
+    else _nsStaffSig=canvas.toDataURL('image/png');
+  }
+  canvas.addEventListener('mousedown',start);
+  canvas.addEventListener('mousemove',draw);
+  canvas.addEventListener('mouseup',stop);
+  canvas.addEventListener('mouseleave',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});
+  canvas.addEventListener('touchmove',draw,{passive:false});
+  canvas.addEventListener('touchend',stop);
+}
+
+function clearNSSig(type) {
+  var id = type==='member' ? 'ns-member-canvas' : 'ns-staff-canvas';
+  var emptyId = type==='member' ? 'ns-member-empty' : 'ns-staff-empty';
+  var canvas = document.getElementById(id);
+  if(canvas) { canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas._nsInit=false; }
+  if(type==='member') _nsMemberSig=null; else _nsStaffSig=null;
+  var empty = document.getElementById(emptyId);
+  if(empty) empty.style.display='flex';
+}
+
+function chkNS(id) {
+  var el = document.getElementById(id);
+  return el && el.checked ? '☑' : '☐';
+}
+
+function generateNutritionPDF() {
+  if(!_nsMid) return;
+  var m = MEMBERS.find(function(x){return x.id===_nsMid;});
+  if(!m) return;
+  var dateStr = document.getElementById('ns-date').value;
+  var dateF = dateStr ? new Date(dateStr+'T00:00:00').toLocaleDateString('en-US') : '';
+  var dobF = m.dob ? new Date(m.dob.slice(0,10)+'T00:00:00').toLocaleDateString('en-US') : '—';
+  var height = document.getElementById('ns-height').value||'';
+  var weight = document.getElementById('ns-weight').value||'';
+  var bmi = document.getElementById('ns-bmi').value||'';
+  var allergySpec = document.getElementById('ns-allergy-spec').value||'';
+  var dietOther = document.getElementById('ns-diet-other').value||'';
+
+  // 위험 요소 확인
+  var riskCount = 0;
+  ['ns-q1-yes','ns-q2-yes','ns-q3-yes','ns-q4-yes','ns-q5-yes'].forEach(function(id){
+    if(document.getElementById(id)&&document.getElementById(id).checked) riskCount++;
+  });
+
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nutrition Screening - '+m.en+'</title><style>'
+    +'@page{size:letter;margin:0.7in}'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Arial,sans-serif;font-size:10px;color:#000;line-height:1.5}'
+    +'.header{text-align:center;margin-bottom:12px;border-bottom:2px solid #000;padding-bottom:8px}'
+    +'h1{font-size:14px;font-weight:bold}'
+    +'h2{font-size:11px;font-weight:bold;margin:10px 0 6px}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:8px}'
+    +'td,th{border:1px solid #000;padding:4px 6px;font-size:9.5px;vertical-align:top}'
+    +'th{background:#f0f0f0;font-weight:bold}'
+    +'.sig-area{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}'
+    +'.sig-img{max-height:55px;border-bottom:1px solid #000;width:100%;display:block}'
+    +'.sig-lbl{font-size:9px;margin-top:3px}'
+    +'.warn{background:#fff3cd;padding:6px;border-radius:4px;font-size:9.5px;margin:8px 0}'
+    +'</style></head><body>'
+
+    +'<div class="header">'
+    +'<h1>NUMBER ONE ADULT DAYCARE / 넘버원 어덜트 데이케어</h1>'
+    +'<div style="font-size:10px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</div>'
+    +'<h1 style="margin-top:6px">Nutrition Screening / 영양 스크리닝</h1>'
+    +'</div>'
+
+    +'<table><tr>'
+    +'<td><b>Name(이름):</b> '+m.en+'<br><span style="font-size:9px;color:#555">'+m.kr+'</span></td>'
+    +'<td><b>DOB(생년월일):</b> '+dobF+'</td>'
+    +'<td><b>Date(날짜):</b> '+dateF+'</td>'
+    +'</tr><tr>'
+    +'<td><b>Height(키):</b> '+height+' in</td>'
+    +'<td><b>Weight(체중):</b> '+weight+' lbs</td>'
+    +'<td><b>BMI:</b> '+bmi+'</td>'
+    +'</tr></table>'
+
+    +'<table><tr><th colspan="4">Assessment(체중진단)</th></tr><tr>'
+    +'<td>'+chkNS('ns-assess-normal')+' Normal(정상)</td>'
+    +'<td>'+chkNS('ns-assess-under')+' Underweight(미달)</td>'
+    +'<td>'+chkNS('ns-assess-over')+' Overweight(과체중)</td>'
+    +'<td>'+chkNS('ns-assess-obese')+' Obese(비만)</td>'
+    +'</tr></table>'
+
+    +'<table><tr><th colspan="5">Diagnosis(진단)</th></tr><tr>'
+    +'<td>'+chkNS('ns-dx-htn')+' Hypertension(고혈압)</td>'
+    +'<td>'+chkNS('ns-dx-hld')+' Hyperlipidemia(고지혈증)</td>'
+    +'<td>'+chkNS('ns-dx-dm')+' Diabetes(당뇨)</td>'
+    +'<td>'+chkNS('ns-dx-ckd')+' Kidney Disease(신부전)</td>'
+    +'<td>'+chkNS('ns-dx-other')+' Others: '+dietOther+'</td>'
+    +'</tr></table>'
+
+    +'<table><tr><th colspan="3">Current Diet(현재식단)</th></tr><tr>'
+    +'<td>'+chkNS('ns-diet-na')+' 2gm Na(저염)</td>'
+    +'<td>'+chkNS('ns-diet-lf')+' Low fat/cholesterol(저지방)</td>'
+    +'<td>'+chkNS('ns-diet-carb')+' Consistent Carb.(저탄)</td>'
+    +'</tr><tr>'
+    +'<td>'+chkNS('ns-diet-renal')+' Renal(신장)</td>'
+    +'<td colspan="2">Others(기타): '+dietOther+'</td>'
+    +'</tr></table>'
+
+    +'<p style="margin-bottom:8px"><b>Food Allergies(음식 알레르기):</b> '
+    +chkNS('ns-allergy-no')+' No(아니오) &nbsp; '
+    +chkNS('ns-allergy-yes')+' Yes(예) &nbsp; Specify: '+allergySpec+'</p>'
+
+    +'<table><tr><th style="width:60%">질문 (Check Yes/No / 예 아니오로 답하세요)</th><th>No(아니오)</th><th>Yes(예)</th></tr>'
+    +'<tr><td>1. Underweight(저체중) BMI &lt;18</td><td style="text-align:center">'+chkNS('ns-q1-no')+'</td><td style="text-align:center">'+chkNS('ns-q1-yes')+'</td></tr>'
+    +'<tr><td>2. Obese(비만) BMI &gt;30</td><td style="text-align:center">'+chkNS('ns-q2-no')+'</td><td style="text-align:center">'+chkNS('ns-q2-yes')+'</td></tr>'
+    +'<tr><td>3. Unintentional Weight Loss(급격한 체중감소)</td><td style="text-align:center">'+chkNS('ns-q3-no')+'</td><td style="text-align:center">'+chkNS('ns-q3-yes')+'</td></tr>'
+    +'<tr><td>4. Diabetes or HgbA1c &gt;5.7% (당뇨)</td><td style="text-align:center">'+chkNS('ns-q4-no')+'</td><td style="text-align:center">'+chkNS('ns-q4-yes')+'</td></tr>'
+    +'<tr><td>5. Chronic Kidney Disease (신부전증)</td><td style="text-align:center">'+chkNS('ns-q5-no')+'</td><td style="text-align:center">'+chkNS('ns-q5-yes')+'</td></tr>'
+    +'</table>'
+
+    +(riskCount>0?'<div class="warn">⚠️ '+riskCount+'개 위험 요소 확인됨 — If one or more risk factors identified, referral to registered dietitian is strongly recommended. / 해당사항이 있다면 전문 영양사에게 상담하세요.</div>':'')
+
+    +'<p style="margin-bottom:10px"><b>Nutrition Counselling(영양 상담):</b> &nbsp;'
+    +chkNS('ns-counsel-accept')+' Accepted(승인) &nbsp;&nbsp;'
+    +chkNS('ns-counsel-decline')+' Declined(거부)</p>'
+
+    +'<div class="sig-area">'
+    +'<div>'
+    +(_nsMemberSig?'<img src="'+_nsMemberSig+'" class="sig-img">':'<div style="height:55px;border-bottom:1px solid #000"></div>')
+    +'<div class="sig-lbl">Member Signature / 회원 서명 &nbsp;&nbsp; Date: '+dateF+'</div>'
+    +'</div>'
+    +'<div>'
+    +(_nsStaffSig?'<img src="'+_nsStaffSig+'" class="sig-img">':'<div style="height:55px;border-bottom:1px solid #000"></div>')
+    +'<div class="sig-lbl">Completed by / 스태프 서명 &nbsp;&nbsp; Date: '+dateF+'</div>'
+    +'</div>'
+    +'</div>'
+
+    +'<div style="margin-top:12px;font-size:8.5px;text-align:center;border-top:1px solid #ccc;padding-top:6px">'
+    +'Number One Adult Daycare · 161-22 Northern Blvd 1FL, Flushing, NY 11358 · NPI: 1154194504'
+    +'</div>'
+    +'</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 500);
 }
 
 // ── INIT RENDER ───────────────────────────────────────────────
