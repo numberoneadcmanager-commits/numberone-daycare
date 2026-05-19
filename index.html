@@ -613,6 +613,276 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <div class="sbox" style="margin-bottom:10px"><div class="sv" id="rpt-case-count">0</div><div class="sl">전체 Case 건수</div></div>
     </div>
+    <!-- Forms -->
+    <div class="panel" id="panel-forms">
+      <div id="frm-list">
+        <div class="search-wrap"><span>🔍</span><input type="search" id="frm-search" placeholder="멤버 이름으로 검색..." oninput="filterFrmMembers()"></div>
+        <div class="section-lbl">멤버를 선택하고 Assessment를 작성하세요</div>
+        <div id="frm-member-list"></div>
+      </div>
+      <div id="frm-assessment" style="display:none">
+        <button class="back-btn" onclick="initFormsTab();filterFrmMembers()">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="height:3px;background:#E5E5EA"><div id="as-pf" style="height:3px;background:#D85A30;transition:width .3s;width:14%"></div></div>
+          <div style="display:flex;overflow-x:auto;border-bottom:.5px solid #E5E5EA;-webkit-overflow-scrolling:touch">
+            <div class="as-tab active" onclick="goAssessStep(0)">기본정보</div>
+            <div class="as-tab" onclick="goAssessStep(1)">ADL</div>
+            <div class="as-tab" onclick="goAssessStep(2)">소통/주거</div>
+            <div class="as-tab" onclick="goAssessStep(3)">정신/사회</div>
+            <div class="as-tab" onclick="goAssessStep(4)">영양/건강</div>
+            <div class="as-tab" onclick="goAssessStep(5)">지원/연락처</div>
+            <div class="as-tab" onclick="goAssessStep(6)">개인이력</div>
+          </div>
+
+          <!-- Step 0 기본정보 -->
+          <div class="as-step pstep" style="padding:14px">
+            <div style="background:#FFF3EE;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:700;color:#D85A30" id="as-member-header">멤버 정보</div>
+            <div class="frow" style="margin-bottom:10px">
+              <div><div class="fl">작성 유형</div>
+                <div style="display:flex;gap:12px;margin-top:4px;font-size:13px">
+                  <label><input type="radio" name="as-type" id="as-type-initial" value="Initial" checked> Initial</label>
+                  <label><input type="radio" name="as-type" id="as-type-re" value="Reassessment"> Reassessment</label>
+                  <label><input type="radio" name="as-type" id="as-type-other" value="Other"> Other</label>
+                </div>
+              </div>
+              <div><div class="fl">평가일</div><input class="fi" type="date" id="as-date"></div>
+            </div>
+            <div class="fg"><div class="fl">평가자 이름</div><input class="fi" id="as-assessor" placeholder="평가자 이름, 직책"></div>
+            <div class="fg"><div class="fl">정보 출처</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px">
+                <label><input type="checkbox" id="as-src-pt"> Participant</label>
+                <label><input type="checkbox" id="as-src-sp"> Spouse</label>
+                <label><input type="checkbox" id="as-src-dr"> Physician</label>
+                <label><input type="checkbox" id="as-src-ff"> Family/Friends</label>
+                <label><input type="checkbox" id="as-src-ot"> Other</label>
+              </div>
+            </div>
+            <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">참여자</div>
+              <div style="font-size:14px;font-weight:700" id="as-name-kr"></div>
+              <div style="font-size:11px;color:#8E8E93" id="as-name-en"></div>
+            </div>
+            <div class="frow">
+              <div><div class="fl">생년월일</div><input class="fi" type="date" id="as-dob"></div>
+              <div><div class="fl">성별</div>
+                <div style="display:flex;gap:12px;margin-top:8px;font-size:13px">
+                  <label><input type="radio" name="as-gender" id="as-gender-f" value="Female" checked> Female</label>
+                  <label><input type="radio" name="as-gender" id="as-gender-m" value="Male"> Male</label>
+                </div>
+              </div>
+            </div>
+            <div class="fg"><div class="fl">Medicaid #</div><input class="fi" id="as-medicaid"></div>
+            <div class="fg"><div class="fl">Medicare #</div><input class="fi" id="as-medicare"></div>
+            <div class="fg"><div class="fl">전화번호</div><input class="fi" type="tel" id="as-phone"></div>
+            <div class="fg"><div class="fl">주소</div><input class="fi" id="as-addr"></div>
+            <div class="fg"><div class="fl">Elevator</div>
+              <div style="display:flex;gap:12px;margin-top:4px;font-size:13px">
+                <label><input type="checkbox" id="as-elevator-y"> Yes</label>
+                <label><input type="checkbox" id="as-elevator-n"> No</label>
+              </div>
+            </div>
+            <div class="fg"><div class="fl">SSN (마지막 4자리)</div><input class="fi" id="as-ssn" placeholder="XXX-XX-####"></div>
+            <div class="fg"><div class="fl">Marital Status</div><input class="fi" id="as-marital" placeholder="Single / Married / Widowed"></div>
+            <div class="fg"><div class="fl">Race/Ethnicity</div><input class="fi" id="as-race" placeholder="Korean / Asian"></div>
+            <div class="fg"><div class="fl">U.S. Citizen?</div>
+              <div style="display:flex;gap:12px;margin-top:4px;font-size:13px">
+                <label><input type="checkbox" id="as-citizen-y"> Yes</label>
+                <label><input type="checkbox" id="as-citizen-n"> No</label>
+              </div>
+            </div>
+            <div class="fg"><div class="fl">주 언어</div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input class="fi" id="as-lang1" placeholder="Korean" style="width:100px">
+                <label style="font-size:12px"><input type="checkbox" id="as-lang1-sp"> Speaks</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang1-rd"> Reads</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang1-un"> Understands</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang1-wr"> Writes</label>
+              </div>
+            </div>
+            <div class="fg"><div class="fl">제2언어</div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input class="fi" id="as-lang2" placeholder="English" style="width:100px">
+                <label style="font-size:12px"><input type="checkbox" id="as-lang2-sp"> Speaks</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang2-rd"> Reads</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang2-un"> Understands</label>
+                <label style="font-size:12px"><input type="checkbox" id="as-lang2-wr"> Writes</label>
+              </div>
+            </div>
+            <div class="fg"><div class="fl">주치의</div><input class="fi" id="as-pcp"></div>
+          </div>
+
+          <!-- Step 1 ADL -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="info-note" style="margin-bottom:10px">1=완전독립 · 2=약간도움 · 3=많은도움 · 4=참여거부</div>
+            <div style="font-size:12px;font-weight:700;color:#3C3C43;margin-bottom:8px">ADLs (기본 일상생활)</div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">목욕 (Bathing)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-bathing-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-bathing-met"> Met Home</label><input class="fi" id="adl-bathing-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">개인위생 (Hygiene)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-hygiene-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-hygiene-met"> Met Home</label><input class="fi" id="adl-hygiene-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">옷입기 (Dressing)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-dressing-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-dressing-met"> Met Home</label><input class="fi" id="adl-dressing-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">이동 (Mobility)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-mobility-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-mobility-met"> Met Home</label><input class="fi" id="adl-mobility-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">이동보조 (Transferring)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-transfer-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-transfer-met"> Met Home</label><input class="fi" id="adl-transfer-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">식사 (Eating)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-eating-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-eating-met"> Met Home</label><input class="fi" id="adl-eating-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">화장실 (Toileting)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-toilet-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-toilet-met"> Met Home</label><input class="fi" id="adl-toilet-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div class="fg"><div class="fl">실금 - 소변</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="inc-urine-nev"> Never</label><label><input type="checkbox" id="inc-urine-occ"> Occasionally</label><label><input type="checkbox" id="inc-urine-usu"> Usually</label></div></div>
+            <div class="fg"><div class="fl">실금 - 대변</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="inc-bowel-nev"> Never</label><label><input type="checkbox" id="inc-bowel-occ"> Occasionally</label><label><input type="checkbox" id="inc-bowel-usu"> Usually</label></div></div>
+            <div class="fg"><div class="fl">화장실 이동 보조</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="toilet-assist-n"> No</label><label><input type="checkbox" id="toilet-assist-y"> Yes</label></div></div>
+            <div class="fg"><div class="fl">Special Devices</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="devices-n"> No</label><label style="font-size:13px"><input type="checkbox" id="devices-y"> Yes</label><input class="fi" id="devices-spec" placeholder="종류" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">ADL Comments</div><textarea class="fta" id="adl-comments" rows="2"></textarea></div>
+            <div style="font-size:12px;font-weight:700;color:#3C3C43;margin:10px 0 8px">IADLs (도구적 일상생활)</div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">청소 (Housework)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-house-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-house-met"> Met Home</label><input class="fi" id="iadl-house-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">쇼핑 (Shopping)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-shop-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-shop-met"> Met Home</label><input class="fi" id="iadl-shop-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">세탁 (Laundry)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-laundry-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-laundry-met"> Met Home</label><input class="fi" id="iadl-laundry-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">교통수단 (Transportation)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-trans-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-trans-met"> Met Home</label><input class="fi" id="iadl-trans-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">요리 (Cook Meals)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-cook-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-cook-met"> Met Home</label><input class="fi" id="iadl-cook-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">간단조리 (Light Meals)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-light-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-light-met"> Met Home</label><input class="fi" id="iadl-light-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">재정관리 (Finances)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-fin-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-fin-met"> Met Home</label><input class="fi" id="iadl-fin-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">전화사용 (Telephone)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-phone-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-phone-met"> Met Home</label><input class="fi" id="iadl-phone-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div class="fg"><div class="fl">IADL Comments</div><textarea class="fta" id="iadl-comments" rows="2"></textarea></div>
+          </div>
+
+          <!-- Step 2 소통/주거 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">청력 (Hearing)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:13px">
+              <label><input type="checkbox" id="hear-adeq"> Adequate</label>
+              <label><input type="checkbox" id="hear-min"> Minimal Difficulty</label>
+              <label><input type="checkbox" id="hear-some"> Sometimes Understood</label>
+              <label><input type="checkbox" id="hear-imp"> Highly Impaired</label>
+            </div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">의사표현 (Making Self Understood)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:13px">
+              <label><input type="checkbox" id="comm-easy"> Easily Understood</label>
+              <label><input type="checkbox" id="comm-some"> Sometimes Understood</label>
+              <label><input type="checkbox" id="comm-usu"> Usually Understands</label>
+              <label><input type="checkbox" id="comm-rare"> Rarely/Never</label>
+            </div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">타인 이해 (Understanding Others)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:13px">
+              <label><input type="checkbox" id="und-yes"> Understands</label>
+              <label><input type="checkbox" id="und-some"> Sometimes</label>
+              <label><input type="checkbox" id="und-usu"> Usually</label>
+              <label><input type="checkbox" id="und-rare"> Rarely/Never</label>
+            </div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="comm-comments" rows="2"></textarea></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">주거 안전</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin-bottom:8px">
+              <label><input type="checkbox" id="house-lock"> Special locks</label>
+              <label><input type="checkbox" id="house-rail"> Bathroom rails</label>
+              <label><input type="checkbox" id="house-smoke"> Smoke alarm</label>
+              <label><input type="checkbox" id="house-door"> Doorman</label>
+            </div>
+            <div class="fg"><div class="fl">Neighborhood Safe?</div><input class="fi" id="house-safe" placeholder="Yes / No"></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="house-comments" rows="2"></textarea></div>
+          </div>
+
+          <!-- Step 3 정신/사회 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="info-note" style="margin-bottom:10px">지난 1달간 5회 이상: H=자택, P=프로그램</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px">
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Short-Term Memory</div><label><input type="checkbox" id="psych-mem-h"> H</label> <label><input type="checkbox" id="psych-mem-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Depression</div><label><input type="checkbox" id="psych-sad-h"> H</label> <label><input type="checkbox" id="psych-sad-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Anxiety</div><label><input type="checkbox" id="psych-anx-h"> H</label> <label><input type="checkbox" id="psych-anx-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Recurrent Crying</div><label><input type="checkbox" id="psych-cry-h"> H</label> <label><input type="checkbox" id="psych-cry-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Impaired Decision</div><label><input type="checkbox" id="psych-dec-h"> H</label> <label><input type="checkbox" id="psych-dec-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Verbally Abusive</div><label><input type="checkbox" id="psych-verb-h"> H</label> <label><input type="checkbox" id="psych-verb-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Hallucinations</div><label><input type="checkbox" id="psych-hall-h"> H</label> <label><input type="checkbox" id="psych-hall-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Substance Abuse</div><label><input type="checkbox" id="psych-sub-h"> H</label> <label><input type="checkbox" id="psych-sub-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Resistance To Care</div><label><input type="checkbox" id="psych-res-h"> H</label> <label><input type="checkbox" id="psych-res-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Delirium</div><label><input type="checkbox" id="psych-del-h"> H</label> <label><input type="checkbox" id="psych-del-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Anger</div><label><input type="checkbox" id="psych-ang-h"> H</label> <label><input type="checkbox" id="psych-ang-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Withdrawal</div><label><input type="checkbox" id="psych-with-h"> H</label> <label><input type="checkbox" id="psych-with-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Wandering</div><label><input type="checkbox" id="psych-wand-h"> H</label> <label><input type="checkbox" id="psych-wand-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Physically Aggressive</div><label><input type="checkbox" id="psych-agg-h"> H</label> <label><input type="checkbox" id="psych-agg-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Disruptive Behavior</div><label><input type="checkbox" id="psych-dis-h"> H</label> <label><input type="checkbox" id="psych-dis-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Isolation</div><label><input type="checkbox" id="psych-iso-h"> H</label> <label><input type="checkbox" id="psych-iso-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Separation Anxiety</div><label><input type="checkbox" id="psych-sep-h"> H</label> <label><input type="checkbox" id="psych-sep-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Diminished Social Skills</div><label><input type="checkbox" id="psych-int-h"> H</label> <label><input type="checkbox" id="psych-int-p"> P</label></div>
+            </div>
+            <div class="fg"><div class="fl">정신건강 치료 이력</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="psych-tx-n"> No</label><label><input type="checkbox" id="psych-tx-y"> Yes</label></div></div>
+            <div class="fg"><div class="fl">진단된 정신건강 문제</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="psych-dx-n"> No</label><label><input type="checkbox" id="psych-dx-y"> Yes</label></div></div>
+            <div class="fg"><div class="fl">질병 인지?</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="psych-aware-n"> No</label><label><input type="checkbox" id="psych-aware-y"> Yes</label><label><input type="checkbox" id="psych-aware-na"> N/A</label></div></div>
+            <div class="fg"><div class="fl">Medical Alert/Safe Return</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="psych-alert-n"> No</label><label><input type="checkbox" id="psych-alert-y"> Yes</label></div></div>
+            <div class="fg"><div class="fl">최근 스트레스 사건</div><textarea class="fta" id="psych-stress" rows="2"></textarea></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="psych-comments" rows="2"></textarea></div>
+          </div>
+
+          <!-- Step 4 영양/건강 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">영양 (Nutrition)</div>
+            <div class="frow"><div><div class="fl">키</div><input class="fi" id="nut-height" placeholder="5'2&quot;"></div><div><div class="fl">체중</div><input class="fi" id="nut-weight" placeholder="130 lbs"></div></div>
+            <div class="fg"><div class="fl">최근 6개월 체중 변화</div><input class="fi" id="nut-wtchange" placeholder="없음 / +5lbs"></div>
+            <div class="fg"><div class="fl">체형</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="nut-over"> Overweight</label><label><input type="checkbox" id="nut-under"> Underweight</label><label><input type="checkbox" id="nut-normal"> Normal</label></div></div>
+            <div class="fg"><div class="fl">문제 항목</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="nut-app"> Appetite</label><label><input type="checkbox" id="nut-chew"> Chewing/Swallowing</label><label><input type="checkbox" id="nut-dental"> Dental</label></div></div>
+            <div class="fg"><div class="fl">필요 항목</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px;flex-wrap:wrap"><label><input type="checkbox" id="nut-puree"> Pureed Food</label><label><input type="checkbox" id="nut-supp"> Supplements</label><label><input type="checkbox" id="nut-cut"> Cut-up Food</label></div></div>
+            <div class="fg"><div class="fl">음식 알레르기</div><input class="fi" id="nut-allergy" placeholder="없음"></div>
+            <div class="fg"><div class="fl">특별식</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="nut-diet-y"> Yes</label><label style="font-size:13px"><input type="checkbox" id="nut-diet-n"> No</label><input class="fi" id="nut-diet-spec" placeholder="종류" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">식이요법 준수</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="nut-follow-y"> Yes</label><label><input type="checkbox" id="nut-follow-n"> No</label><label><input type="checkbox" id="nut-follow-na"> N/A</label></div></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">건강 (Health)</div>
+            <div class="fg"><div class="fl">비식품 알레르기</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="health-allergy-n"> No</label><label style="font-size:13px"><input type="checkbox" id="health-allergy-y"> Yes</label><input class="fi" id="health-allergy-spec" placeholder="종류" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">정기 진료</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="health-dr-y"> Yes</label><label style="font-size:13px"><input type="checkbox" id="health-dr-n"> No</label><input class="fi" type="date" id="health-dr-date" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">최근 1년 입원</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="health-hosp-n"> No</label><label style="font-size:13px"><input type="checkbox" id="health-hosp-y"> Yes</label><input class="fi" id="health-hosp-detail" placeholder="장소/날짜/사유" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">보조기기</div><div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-top:4px"><label><input type="checkbox" id="dev-cane"> Cane</label><label><input type="checkbox" id="dev-walker"> Walker</label><label><input type="checkbox" id="dev-wc"> Wheelchair</label><label><input type="checkbox" id="dev-glasses"> Eyeglasses</label><label><input type="checkbox" id="dev-dentures"> Dentures</label><label><input type="checkbox" id="dev-hearing"> Hearing Aid</label></div></div>
+            <div class="fg"><div class="fl">만성질환</div><div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-top:4px"><label><input type="checkbox" id="ch-heart"> Heart Disease</label><label><input type="checkbox" id="ch-cancer"> Cancer</label><label><input type="checkbox" id="ch-dm"> Diabetes</label><label><input type="checkbox" id="ch-arth"> Arthritis</label><label><input type="checkbox" id="ch-asthma"> Asthma</label><label><input type="checkbox" id="ch-alz"> Alzheimer's</label><label><input type="checkbox" id="ch-htn"> Hypertension</label><label><input type="checkbox" id="ch-copd"> COPD</label><label><input type="checkbox" id="ch-hiv"> HIV</label><label><input type="checkbox" id="ch-park"> Parkinson's</label><label><input type="checkbox" id="ch-osteo"> Osteoporosis</label><label><input type="checkbox" id="ch-dem"> Dementia</label><label><input type="checkbox" id="ch-cvd"> Cardiovascular</label></div></div>
+            <div class="fg"><div class="fl">투약 보조 필요</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="med-cue-y"> Yes</label><label><input type="checkbox" id="med-cue-n"> No</label></div></div>
+            <div class="fg"><div class="fl">수면 문제</div><input class="fi" id="health-sleep" placeholder="없음"></div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">현재 복용 약물</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px;font-size:10px;color:#8E8E93"><span>약물명</span><span>용량/빈도</span><span>복용 이유</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px"><input class="fi" id="med-1-name" placeholder="약물명" style="font-size:12px"><input class="fi" id="med-1-dose" placeholder="용량/빈도" style="font-size:12px"><input class="fi" id="med-1-reason" placeholder="이유" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px"><input class="fi" id="med-2-name" style="font-size:12px"><input class="fi" id="med-2-dose" style="font-size:12px"><input class="fi" id="med-2-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px"><input class="fi" id="med-3-name" style="font-size:12px"><input class="fi" id="med-3-dose" style="font-size:12px"><input class="fi" id="med-3-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px"><input class="fi" id="med-4-name" style="font-size:12px"><input class="fi" id="med-4-dose" style="font-size:12px"><input class="fi" id="med-4-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px"><input class="fi" id="med-5-name" style="font-size:12px"><input class="fi" id="med-5-dose" style="font-size:12px"><input class="fi" id="med-5-reason" style="font-size:12px"></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="health-comments" rows="2"></textarea></div>
+          </div>
+
+          <!-- Step 5 지원/연락처 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">주 보호자 (Primary Caregiver)</div>
+            <div class="fg"><label style="font-size:13px"><input type="checkbox" id="care-none"> None</label></div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="care-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="care-rel" placeholder="딸/Son"></div><div><div class="fl">언어</div><input class="fi" id="care-lang" placeholder="Korean"></div></div>
+            <div class="fg"><div class="fl">주소</div><input class="fi" id="care-addr"></div>
+            <div class="frow"><div><div class="fl">집 전화</div><input class="fi" type="tel" id="care-hphone"></div><div><div class="fl">직장 전화</div><input class="fi" type="tel" id="care-wphone"></div></div>
+            <div class="fg"><div class="fl">Other supports</div><div style="display:flex;gap:10px;align-items:center"><input class="fi" id="care-other" placeholder="설명" style="flex:1"><label style="font-size:12px;white-space:nowrap"><input type="checkbox" id="care-other-none"> None</label></div></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">비상 연락처 1</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="ec1-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="ec1-rel"></div><div><div class="fl">집 전화</div><input class="fi" type="tel" id="ec1-hphone"></div></div>
+            <div class="fg"><div class="fl">주소</div><input class="fi" id="ec1-addr"></div>
+            <div class="fg"><div class="fl">직장 전화</div><input class="fi" type="tel" id="ec1-wphone"></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">비상 연락처 2</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="ec2-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="ec2-rel"></div><div><div class="fl">집 전화</div><input class="fi" type="tel" id="ec2-hphone"></div></div>
+            <div class="fg"><div class="fl">직장 전화</div><input class="fi" type="tel" id="ec2-wphone"></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">법적 연락처 / Health Care Proxy</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="legal-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="legal-rel"></div><div><div class="fl">집 전화</div><input class="fi" type="tel" id="legal-hphone"></div></div>
+            <div class="fg"><div class="fl">직장 전화</div><input class="fi" type="tel" id="legal-wphone"></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">거주 환경</div>
+            <div class="fg"><div class="fl">거주 형태</div><input class="fi" id="living-arr" placeholder="혼자 / 가족과 함께"></div>
+            <div class="frow"><div><div class="fl">세대원 수</div><input class="fi" id="living-num" placeholder="1명"></div><div><div class="fl">참전용사</div><div style="display:flex;gap:12px;font-size:13px;margin-top:8px"><label><input type="checkbox" id="vet-y"> Yes</label><label><input type="checkbox" id="vet-n"> No</label></div></div></div>
+          </div>
+
+          <!-- Step 6 개인이력 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="fg"><div class="fl">직업 배경</div><textarea class="fta" id="ph-work" rows="2" placeholder="전직업, 경력 등"></textarea></div>
+            <div class="fg"><div class="fl">학력</div><input class="fi" id="ph-edu" placeholder="고졸, 대졸 등"></div>
+            <div class="fg"><div class="fl">취미/관심사</div><textarea class="fta" id="ph-hobbies" rows="2" placeholder="한국 음악, 산책 등"></textarea></div>
+            <div class="fg"><div class="fl">종교</div><input class="fi" id="ph-religion" placeholder="기독교, 불교 등"></div>
+            <div class="fg"><div class="fl">출생지</div><input class="fi" id="ph-birth" placeholder="South Korea"></div>
+            <div class="fg"><div class="fl">운전 / 흡연</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ph-drive-n"> 운전 No</label><label><input type="checkbox" id="ph-drive-y"> 운전 Yes</label><label><input type="checkbox" id="ph-smoke-n"> 흡연 No</label><label><input type="checkbox" id="ph-smoke-y"> 흡연 Yes</label></div></div>
+            <div class="fg"><div class="fl">자녀</div><input class="fi" id="ph-children" placeholder="아들 2명, 딸 1명"></div>
+            <div class="fg"><div class="fl">프로그램 기대</div><textarea class="fta" id="ph-hopes" rows="3" placeholder="사회적 교류, 건강 유지 등"></textarea></div>
+            <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 "PDF 생성" 버튼을 눌러주세요.</div>
+          </div>
+
+          <div class="pstep-footer">
+            <button class="pnav pnav-prev" id="as-prev" onclick="prevAssessStep()" style="visibility:hidden">이전</button>
+            <div class="pctr" id="as-pctr">1 / 7</div>
+            <button class="pnav pnav-next" id="as-next" onclick="nextAssessStep()">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
 
     <div class="panel" id="panel-billing">
@@ -1322,7 +1592,7 @@ function goTab(tab,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+tab).classList.add('active');
+  var panel=document.getElementById('panel-'+tab);if(panel)panel.classList.add('active');
   closeModal();
   if(tab==='attendance')renderAtt();
   if(tab==='dashboard')renderDash();
