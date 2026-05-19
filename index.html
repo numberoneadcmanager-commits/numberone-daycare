@@ -874,7 +874,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
             <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 "PDF 생성" 버튼을 눌러주세요.</div>
           </div>
 
-          <div class="pstep-footer">
+          <div id="as-pcsp-btn" style="display:none;margin:10px 14px 0"><button class="btn-full" style="padding:13px;border-radius:12px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-size:14px;font-weight:700;cursor:pointer" onclick="fillPCSPFromAssessment(_asmt.mid)">📋 이 Assessment로 PCSP 자동 작성 →</button></div>
+            <div class="pstep-footer">
             <button class="pnav pnav-prev" id="as-prev" onclick="prevAssessStep()" style="visibility:hidden">이전</button>
             <div class="pctr" id="as-pctr">1 / 7</div>
             <button class="pnav pnav-next" id="as-next" onclick="nextAssessStep()">다음</button>
@@ -2155,6 +2156,7 @@ function openAssessmentForm(mid) {
   document.getElementById('as-gender-f').checked = true;
 
   goAssessStep(0);
+  var pcspBtn2=document.getElementById('as-pcsp-btn');if(pcspBtn2)pcspBtn2.style.display='none';
   document.querySelector('.content').scrollTop = 0;
 }
 
@@ -2461,6 +2463,12 @@ th{background:#f0f0f0;font-weight:bold;text-align:left}
       m2.nextAssessment = new Date(new Date(dateStr).setFullYear(new Date(dateStr).getFullYear()+1)).toISOString().slice(0,10);
       saveToStorage();
     }
+    // PCSP 자동채우기 버튼 표시
+    var pcspBtn = document.getElementById('as-pcsp-btn');
+    if (pcspBtn) {
+      pcspBtn.style.display = 'block';
+      pcspBtn.onclick = function() { fillPCSPFromAssessment(mid); };
+    }
   }, 800);
 }
 
@@ -2493,6 +2501,127 @@ function filterFrmMembers() {
     div.addEventListener('click', function(){ openAssessmentForm(m.id); });
     el.appendChild(div);
   });
+}
+
+
+// ── Assessment → PCSP 자동 채우기 ────────────────────────────
+function fillPCSPFromAssessment(mid) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if (!m) return;
+
+  // 기본정보
+  var pts = m.en.trim().split(/[\s,]+/);
+  var el = document.getElementById('f-last');
+  if(el) el.value = pts[0]||'';
+  el = document.getElementById('f-first');
+  if(el) el.value = pts.slice(1).join(' ')||'';
+  el = document.getElementById('f-kr');
+  if(el) el.value = m.kr||'';
+  el = document.getElementById('f-dob');
+  if(el) el.value = m.dob||'';
+  el = document.getElementById('f-phone');
+  if(el) el.value = m.phone||'';
+  el = document.getElementById('f-addr');
+  if(el) el.value = m.addr||'';
+  el = document.getElementById('f-medicaid');
+  if(el) el.value = m.medicaid||'';
+  el = document.getElementById('f-mltc');
+  if(el) el.value = m.mltc||'';
+  el = document.getElementById('f-pcp');
+  if(el) el.value = txtVal('as-pcp')||m.pcp||'';
+  el = document.getElementById('f-ins');
+  if(el) el.value = m.ins||'Anthem';
+  el = document.getElementById('f-wdate');
+  if(el) el.value = txtVal('as-date')||new Date().toISOString().slice(0,10);
+  el = document.getElementById('f-writer');
+  if(el) el.value = txtVal('as-assessor')||'';
+
+  // 출석요일
+  var days = m.days||[];
+  selDays = new Set(days);
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
+    var b = document.getElementById('db-'+d);
+    if(b) b.classList.toggle('sel', days.includes(d));
+  });
+
+  // 건강정보 (Assessment Step 4에서)
+  var diag = '';
+  if(document.getElementById('ch-htn')&&document.getElementById('ch-htn').checked) diag += 'Hypertension (I10)\n';
+  if(document.getElementById('ch-dm')&&document.getElementById('ch-dm').checked) diag += 'Type 2 Diabetes (E11.9)\n';
+  if(document.getElementById('ch-alz')&&document.getElementById('ch-alz').checked) diag += 'Alzheimer\'s Disease (G30.9)\n';
+  if(document.getElementById('ch-dem')&&document.getElementById('ch-dem').checked) diag += 'Dementia (F03.90)\n';
+  if(document.getElementById('ch-park')&&document.getElementById('ch-park').checked) diag += 'Parkinson\'s Disease (G20)\n';
+  if(document.getElementById('ch-cvd')&&document.getElementById('ch-cvd').checked) diag += 'Cardiovascular Disease (I25.10)\n';
+  if(document.getElementById('ch-osteo')&&document.getElementById('ch-osteo').checked) diag += 'Osteoporosis (M81.0)\n';
+  if(document.getElementById('ch-copd')&&document.getElementById('ch-copd').checked) diag += 'COPD (J44.1)\n';
+  if(document.getElementById('ch-heart')&&document.getElementById('ch-heart').checked) diag += 'Heart Disease (I51.9)\n';
+  el = document.getElementById('f-diag');
+  if(el && diag) el.value = diag.trim();
+
+  // 알레르기/식이
+  el = document.getElementById('f-allergy');
+  if(el) el.value = txtVal('nut-allergy')||'None';
+  el = document.getElementById('f-diet');
+  if(el) el.value = txtVal('nut-diet-spec')||'Regular';
+
+  // 약물
+  var meds = '';
+  for(var i=1;i<=5;i++){
+    var mn=txtVal('med-'+i+'-name');
+    var md=txtVal('med-'+i+'-dose');
+    var mr=txtVal('med-'+i+'-reason');
+    if(mn) meds += mn+(md?' '+md:'')+(mr?' — '+mr:'')+'\n';
+  }
+  el = document.getElementById('f-meds');
+  if(el && meds) el.value = meds.trim();
+
+  // 투약보조
+  el = document.getElementById('f-medassist');
+  if(el){
+    if(document.getElementById('med-cue-y')&&document.getElementById('med-cue-y').checked)
+      el.value = 'Yes — Cueing';
+    else el.value = 'No — 불필요';
+  }
+
+  // ADL 평가 → PCSP ADL 필드
+  var adlMap = [
+    ['adl-mobility-st','adl-0'],
+    ['adl-transfer-st','adl-1'],
+    ['adl-toilet-st','adl-2'],
+    ['adl-bathing-st','adl-3'],
+    ['adl-eating-st','adl-4'],
+  ];
+  var adlLabels = ['Independent','Supervision','Limited Assistance','Extensive Assistance','Total Dependence'];
+  adlMap.forEach(function(pair){
+    var val = txtVal(pair[0]);
+    var pcspEl = document.getElementById(pair[1]);
+    if(pcspEl && val){
+      var idx2 = parseInt(val)-1;
+      if(idx2>=0 && idx2<adlLabels.length) pcspEl.value = adlLabels[idx2];
+    }
+  });
+
+  // 비상연락처
+  el = document.getElementById('f-ec1first');
+  if(el){
+    var ec1 = txtVal('ec1-name').split(' ');
+    el.value = ec1[0]||'';
+  }
+  el = document.getElementById('f-ec1last');
+  if(el){
+    var ec1b = txtVal('ec1-name').split(' ');
+    el.value = ec1b.slice(1).join(' ')||'';
+  }
+  el = document.getElementById('f-ec1rel');
+  if(el) el.value = txtVal('ec1-rel')||'';
+  el = document.getElementById('f-ec1phone');
+  if(el) el.value = txtVal('ec1-hphone')||'';
+
+  // PCSP 탭으로 이동
+  goTab('pcsp', document.querySelector('.tab[onclick*=\'pcsp\']'));
+  openPCSPForm(mid);
+
+  alert('✅ Assessment 데이터가 PCSP에 자동으로 채워졌어요!\n나머지 항목을 확인하고 수정해주세요.');
 }
 
 // ── INIT RENDER ───────────────────────────────────────────────
