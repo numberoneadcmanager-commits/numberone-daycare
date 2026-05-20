@@ -1588,7 +1588,7 @@ function saveToStorage(){
     MEMBERS.forEach(function(m){
       if(m.status==='disenrolled')ms[m.id]={status:m.status,disenrollDate:m.disenrollDate||'',disenrollNote:m.disenrollNote||''};
     });
-    localStorage.setItem(STORAGE_KEY,JSON.stringify({allR:allR,incidents:incidents,activities:activities,cases:cases,memberStatus:ms,savedAt:new Date().toISOString()}));
+    localStorage.setItem(STORAGE_KEY,JSON.stringify({allR:allR,incidents:incidents,activities:activities,cases:cases,memberStatus:ms,memberPhotos:mp,savedAt:new Date().toISOString()}));
   }catch(e){}
 }
 function loadFromStorage(){
@@ -1599,6 +1599,7 @@ function loadFromStorage(){
     if(data.incidents)incidents=data.incidents;
     if(data.activities)activities=data.activities;
     if(data.cases)cases=data.cases;
+    if(data.memberPhotos)Object.keys(data.memberPhotos).forEach(function(id){var m=MEMBERS.find(function(x){return x.id===id;});if(m)m.photo=data.memberPhotos[id];});
     if(data.memberStatus)Object.keys(data.memberStatus).forEach(function(id){
       var s=data.memberStatus[id];
       var m=MEMBERS.find(function(x){return x.id===id;});
@@ -1634,7 +1635,8 @@ function importData(){
         if(!confirm('현재 데이터가 덮어씌워집니다. 계속하시겠습니까?'))return;
         if(data.allR)allR=data.allR;if(data.incidents)incidents=data.incidents;
         if(data.activities)activities=data.activities;if(data.cases)cases=data.cases;
-        if(data.memberStatus)Object.keys(data.memberStatus).forEach(function(id){
+        if(data.memberPhotos)Object.keys(data.memberPhotos).forEach(function(id){var m=MEMBERS.find(function(x){return x.id===id;});if(m)m.photo=data.memberPhotos[id];});
+    if(data.memberStatus)Object.keys(data.memberStatus).forEach(function(id){
           var s=data.memberStatus[id];var m=MEMBERS.find(function(x){return x.id===id;});
           if(m){m.status=s.status;m.disenrollDate=s.disenrollDate||'';}
         });
@@ -1965,7 +1967,7 @@ function renderMG(){
   document.getElementById('m-cnt').textContent='검색 결과: '+mFilt.length+'명';
   const sl=mFilt.slice(mPage*PER,(mPage+1)*PER);
   document.getElementById('mgrid').innerHTML=sl.map(m=>`<div class="mc ${isActive(m) ? '' : 'disenrolled-card'}" onclick="openPCSPForm('${m.id}')">
-    <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
+    <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor};overflow:hidden;padding:0">${m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover">':m.kr[0]}</div>
     <div style="flex:1;min-width:0"><div class="mc-name">${m.kr}</div><div class="mc-en">${m.en}</div></div></div>
     <div class="mc-grid">
       <span class="mc-lbl">차트번호</span><span class="mc-val" style="color:#D85A30;font-weight:800">${m.chartNo||m.id||'—'}</span>
@@ -1977,7 +1979,7 @@ function renderMG(){
     </div>
     <div class="mc-days" style="margin-top:7px">${m.days.map(d=>`<span class="mc-day">${DKR[d]}</span>`).join('')}</div>
     ${m.memo?`<div style="font-size:11px;color:#D85A30;background:#FFF3EE;border-radius:8px;padding:5px 9px;margin-top:6px">📝 ${m.memo}</div>`:''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openMemberEdit('${m.id}')">✏️ 정보 수정</button><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openStatusModal('${m.id}')">● 상태 변경</button></div><button class="btn-full btn-primary" style="margin-top:6px;padding:10px;font-size:13px" onclick="event.stopPropagation();openPCSPForm('${m.id}')">PCSP 입력 →</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openMemberEdit('${m.id}')">✏️ 정보 수정</button><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openStatusModal('${m.id}')">● 상태 변경</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px"><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openPhotoUpload('${m.id}')">📸 사진</button><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#FFF3EE;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();generateMemberChart('${m.id}')">🪪 차트</button></div><button class="btn-full btn-primary" style="margin-top:6px;padding:10px;font-size:13px" onclick="event.stopPropagation();openPCSPForm('${m.id}')">PCSP 입력 →</button>
   </div>`).join('');
   const tot=Math.ceil(mFilt.length/PER);
   if(tot<=1){document.getElementById('mpg').innerHTML='';return;}
@@ -1995,7 +1997,7 @@ function renderPCSPList(){
   const q=(document.getElementById('psearch')||{}).value||'';
   const list=q?MEMBERS.filter(m=>m.kr.includes(q)||m.en.toLowerCase().includes(q.toLowerCase())||m.medicaid.toLowerCase().includes(q.toLowerCase())):MEMBERS;
   document.getElementById('pcsp-list').innerHTML=list.slice(0,25).map(m=>`<div class="mc ${isActive(m) ? '' : 'disenrolled-card'}" onclick="openPCSPForm('${m.id}')">
-    <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
+    <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor};overflow:hidden;padding:0">${m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover">':m.kr[0]}</div>
     <div><div class="mc-name">${m.kr} <span style="font-size:11px;font-weight:400;color:#8E8E93">${m.en}</span></div><div class="mc-en">Medicaid: ${m.medicaid} | ${m.pcp||'—'}</div></div></div>
     <button class="btn-full btn-primary" style="margin-top:8px;padding:10px;font-size:13px" onclick="event.stopPropagation();openPCSPForm('${m.id}')">PCSP 입력 시작 →</button>
   </div>`).join('');
@@ -3318,6 +3320,124 @@ function generateMemberRightsPDF() {
 
     +'<div style="margin-top:12px;font-size:8px;text-align:center;border-top:1px solid #ccc;padding-top:6px;color:#666">'
     +'Number One Adult Daycare · 161-22 Northern Blvd 1FL, Flushing, NY 11358 · NPI: 1154194504'
+    +'</div>'
+    +'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.print();},500);
+}
+
+
+// ── 멤버 사진 + PDF 차트 ──────────────────────────────────────
+function openPhotoUpload(mid) {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var m = MEMBERS.find(function(x){return x.id===mid;});
+      if(!m) return;
+      m.photo = ev.target.result;
+      saveToStorage();
+      filterM();
+      alert(m.kr + ' 사진이 저장됐어요!');
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function generateMemberChart(mid) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if(!m) return;
+  var dobF = m.dob ? new Date(m.dob.slice(0,10)+'T00:00:00').toLocaleDateString('en-US') : '—';
+  var days = (m.days||[]).map(function(d){return {Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'}[d]||d;}).join(', ');
+  var insBadgeStr = {Anthem_MLTC:'Anthem MLTC',Anthem_MAP:'Anthem MAP',CLP:'Centerlight PACE',SWH:'Senior Whole Health'}[m.ins]||m.ins;
+
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'
+    +'<title>Member Chart - '+m.en+'</title>'
+    +'<style>'
+    +'@page{size:letter;margin:0.6in}'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Arial,sans-serif;font-size:10px;color:#000}'
+    +'.header{text-align:center;margin-bottom:14px;border-bottom:2px solid #D85A30;padding-bottom:8px}'
+    +'h1{font-size:13px;font-weight:bold;color:#D85A30}'
+    +'.chart-grid{display:grid;grid-template-columns:140px 1fr;gap:16px;margin-bottom:14px}'
+    +'.photo-box{width:140px;height:170px;border:1.5px solid #ccc;border-radius:8px;overflow:hidden;background:#F2F2F7;display:flex;align-items:center;justify-content:center}'
+    +'.photo-box img{width:100%;height:100%;object-fit:cover}'
+    +'.photo-placeholder{text-align:center;color:#C7C7CC;font-size:11px}'
+    +'.info-section{}'
+    +'.name-kr{font-size:20px;font-weight:800;color:#D85A30;margin-bottom:2px}'
+    +'.name-en{font-size:12px;color:#555;margin-bottom:10px}'
+    +'table{width:100%;border-collapse:collapse;font-size:9.5px}'
+    +'td{padding:4px 6px;border-bottom:.5px solid #E5E5EA;vertical-align:top}'
+    +'td:first-child{font-weight:700;color:#555;width:100px;white-space:nowrap}'
+    +'.badge{display:inline-block;font-size:8px;padding:1px 6px;border-radius:10px;font-weight:700}'
+    +'.badge-anthem{background:#E6F1FB;color:#0C447C}'
+    +'.badge-clp{background:#F3E8FF;color:#4C1D95}'
+    +'.badge-swh{background:#E1F5EE;color:#085041}'
+    +'.badge-map{background:#FFF3E0;color:#B35900}'
+    +'.badge-active{background:#E1F5EE;color:#085041}'
+    +'.badge-dis{background:#FFEBEE;color:#C62828}'
+    +'.days-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}'
+    +'.day-chip{font-size:9px;padding:2px 6px;border-radius:5px;background:#F2F2F7;font-weight:700}'
+    +'.section-title{font-size:10px;font-weight:800;color:#D85A30;border-bottom:1.5px solid #D85A30;padding-bottom:3px;margin:12px 0 6px}'
+    +'.memo-box{background:#FFF3EE;border-radius:6px;padding:6px 8px;font-size:9px;color:#B84520;margin-top:8px}'
+    +'</style></head><body>'
+
+    +'<div class="header">'
+    +'<h1>NUMBER ONE ADULT DAYCARE / 넘버원 어덜트 데이케어</h1>'
+    +'<div style="font-size:9px;color:#666">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248 · NPI: 1154194504</div>'
+    +'</div>'
+
+    +'<div class="chart-grid">'
+    // 사진
+    +'<div>'
+    +'<div class="photo-box">'
+    +(m.photo?'<img src="'+m.photo+'">'
+      :'<div class="photo-placeholder"><div style="font-size:30px;margin-bottom:6px">👤</div><div>사진 없음</div></div>')
+    +'</div>'
+    +'<div style="text-align:center;margin-top:6px;font-size:9px;color:#8E8E93">차트번호: <b style="color:#D85A30;font-size:11px">'+(m.chartNo||m.id)+'</b></div>'
+    +'</div>'
+    // 기본 정보
+    +'<div class="info-section">'
+    +'<div class="name-kr">'+m.kr+'</div>'
+    +'<div class="name-en">'+m.en+'</div>'
+    +'<table>'
+    +'<tr><td>생년월일</td><td>'+dobF+'</td></tr>'
+    +'<tr><td>성별</td><td>—</td></tr>'
+    +'<tr><td>Medicaid</td><td>'+m.medicaid+'</td></tr>'
+    +'<tr><td>MLTC ID</td><td>'+(m.mltc||'—')+'</td></tr>'
+    +'<tr><td>보험사</td><td><span class="badge badge-'+(m.ins==='CLP'?'clp':m.ins==='SWH'?'swh':m.ins==='Anthem_MAP'?'map':'anthem')+'">'+insBadgeStr+'</span></td></tr>'
+    +'<tr><td>상태</td><td><span class="badge '+((!m.status||m.status==="active")?'badge-active':'badge-dis')+'">'+((!m.status||m.status==="active")?'● Active':'● Disenrolled')+'</span></td></tr>'
+    +'<tr><td>출석 요일</td><td><div class="days-row">'+days+'</div></td></tr>'
+    +'<tr><td>전화</td><td>'+(m.phone||'—')+'</td></tr>'
+    +'<tr><td>주소</td><td>'+(m.addr||'—')+'</td></tr>'
+    +'<tr><td>주치의</td><td>'+(m.pcp||'—')+'</td></tr>'
+    +'</table>'
+    +'</div>'
+    +'</div>'
+
+    +(m.memo?'<div class="memo-box">📝 메모: '+m.memo+'</div>':'')
+
+    +'<div class="section-title">Assessment 기록</div>'
+    +'<table>'
+    +'<tr><td>마지막 Assessment</td><td>'+(m.lastAssessment||'기록 없음')+'</td></tr>'
+    +'<tr><td>다음 Reassessment</td><td>'+(m.nextAssessment||'—')+'</td></tr>'
+    +'</table>'
+
+    +'<div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:30px">'
+    +'<div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div>'
+    +'<div style="font-size:9px;color:#555">작성자 서명 / Staff Signature</div></div>'
+    +'<div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div>'
+    +'<div style="font-size:9px;color:#555">날짜 / Date</div></div>'
+    +'</div>'
+
+    +'<div style="margin-top:10px;font-size:8px;text-align:center;border-top:1px solid #ccc;padding-top:6px;color:#888">'
+    +'CONFIDENTIAL - HIPAA Protected Health Information · 이 문서는 기밀이며 HIPAA 보호 건강 정보입니다'
     +'</div>'
     +'</body></html>');
   w.document.close();
