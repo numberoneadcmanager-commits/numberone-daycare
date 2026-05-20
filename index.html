@@ -2482,12 +2482,12 @@ th{background:#f0f0f0;font-weight:bold;text-align:left}
 
 <div class="sig-area">
   <div>
-    <div class="sig-line">Assessor Signature</div>
-    <div style="font-size:9px;margin-top:4px">${assessorName}</div>
+    `+(_asSig?'<img src="'+_asSig+'" style="max-height:60px;max-width:100%;display:block;margin-bottom:4px">':'<div style="height:60px"></div>')+`
+    <div class="sig-line">Assessor Signature / ${assessorName}</div>
   </div>
   <div>
-    <div class="sig-line">Date</div>
-    <div style="font-size:9px;margin-top:4px">${dateF}</div>
+    <div style="height:60px"></div>
+    <div class="sig-line">Date: ${dateF}</div>
   </div>
 </div>
 
