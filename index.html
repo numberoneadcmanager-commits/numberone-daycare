@@ -901,7 +901,18 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
             <div class="fg"><div class="fl">운전 / 흡연</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ph-drive-n"> 운전 No</label><label><input type="checkbox" id="ph-drive-y"> 운전 Yes</label><label><input type="checkbox" id="ph-smoke-n"> 흡연 No</label><label><input type="checkbox" id="ph-smoke-y"> 흡연 Yes</label></div></div>
             <div class="fg"><div class="fl">자녀</div><input class="fi" id="ph-children" placeholder="아들 2명, 딸 1명"></div>
             <div class="fg"><div class="fl">프로그램 기대</div><textarea class="fta" id="ph-hopes" rows="3" placeholder="사회적 교류, 건강 유지 등"></textarea></div>
-            <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 "PDF 생성" 버튼을 눌러주세요.</div>
+            <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 서명 후 "PDF 생성" 버튼을 눌러주세요.</div>
+            <div style="margin-top:14px">
+              <div style="font-size:12px;font-weight:700;color:#3C3C43;margin-bottom:8px">평가자 서명 (Assessor Signature)</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <div style="font-size:11px;color:#3C3C43">서명</div>
+                <button onclick="clearAsSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
+              </div>
+              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
+                <canvas id="as-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas>
+                <div id="as-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>평가자 서명</div></div>
+              </div>
+            </div>
           </div>
 
           <div id="as-pcsp-btn" style="display:none;margin:10px 14px 0"><button class="btn-full" style="padding:13px;border-radius:12px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-size:14px;font-weight:700;cursor:pointer" onclick="fillPCSPFromAssessment(_asmt.mid)">📋 이 Assessment로 PCSP 자동 작성 →</button></div>
@@ -2187,6 +2198,7 @@ function openAssessmentForm(mid) {
 
   goAssessStep(0);
   var pcspBtn2=document.getElementById('as-pcsp-btn');if(pcspBtn2)pcspBtn2.style.display='none';
+  clearAsSig();
   document.querySelector('.content').scrollTop = 0;
 }
 
@@ -2206,6 +2218,7 @@ function goAssessStep(n) {
   if(pf) pf.style.width = Math.round((n+1)/steps.length*100)+'%';
   var content = document.querySelector('.content');
   if(content) content.scrollTop = 0;
+  if(n===6) setTimeout(initAsSigCanvas, 100);
 }
 
 function nextAssessStep() {
@@ -2886,7 +2899,7 @@ function generateNutritionPDF() {
     +chkNS('ns-counsel-accept')+' Accepted(승인) &nbsp;&nbsp;'
     +chkNS('ns-counsel-decline')+' Declined(거부)</p>'
 
-    +'<div class="sig-area">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:15px">'
     +'<div>'
     +(_nsMemberSig?'<img src="'+_nsMemberSig+'" class="sig-img">':'<div style="height:55px;border-bottom:1px solid #000"></div>')
     +'<div class="sig-lbl">Member Signature / 회원 서명 &nbsp;&nbsp; Date: '+dateF+'</div>'
@@ -2903,6 +2916,49 @@ function generateNutritionPDF() {
     +'</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 500);
+}
+
+
+// ── Assessment 서명 ───────────────────────────────────────────
+var _asSig = null;
+
+function initAsSigCanvas() {
+  var canvas = document.getElementById('as-sig-canvas');
+  if(!canvas || canvas._asInit) return;
+  canvas._asInit = true;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  var drawing = false, lx = 0, ly = 0;
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width/rect.width, sy = canvas.height/rect.height;
+    if(e.touches) return {x:(e.touches[0].clientX-rect.left)*sx, y:(e.touches[0].clientY-rect.top)*sy};
+    return {x:(e.clientX-rect.left)*sx, y:(e.clientY-rect.top)*sy};
+  }
+  function start(e){ e.preventDefault(); drawing=true; var p=getPos(e); lx=p.x; ly=p.y;
+    var empty=document.getElementById('as-sig-empty');
+    if(empty) empty.style.display='none';
+  }
+  function draw(e){ if(!drawing)return; e.preventDefault(); var p=getPos(e);
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke(); lx=p.x; ly=p.y;
+  }
+  function stop(){ if(!drawing)return; drawing=false; _asSig=canvas.toDataURL('image/png'); }
+  canvas.addEventListener('mousedown',start);
+  canvas.addEventListener('mousemove',draw);
+  canvas.addEventListener('mouseup',stop);
+  canvas.addEventListener('mouseleave',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});
+  canvas.addEventListener('touchmove',draw,{passive:false});
+  canvas.addEventListener('touchend',stop);
+}
+
+function clearAsSig() {
+  var canvas = document.getElementById('as-sig-canvas');
+  if(canvas) { canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas._asInit=false; }
+  _asSig = null;
+  var empty = document.getElementById('as-sig-empty');
+  if(empty) empty.style.display='flex';
 }
 
 // ── INIT RENDER ───────────────────────────────────────────────
