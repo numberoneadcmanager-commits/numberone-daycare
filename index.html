@@ -776,6 +776,47 @@ window.addEventListener('load', function() {
         <div id="frm-member-list"></div>
       </div>
       
+      <!-- Member Rights 폼 -->
+      <div id="frm-member-rights" style="display:none">
+        <button class="back-btn" onclick="document.getElementById('frm-member-rights').style.display='none';document.getElementById('frm-list').style.display='block';">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px">📄 Participant's Bill of Rights / 참여자 권리 장전</div>
+          <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:700" id="mr-name"></div>
+            <div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="mr-dob"></span></div>
+          </div>
+          <div class="fg"><div class="fl">서명 날짜</div><input class="fi" type="date" id="mr-date"></div>
+
+          <!-- 권리 내용 요약 -->
+          <div style="background:#FFF3EE;border:1.5px solid #FECDB8;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.8">
+            <div style="font-weight:700;color:#D85A30;margin-bottom:8px">참여자 권리 요약 (Participant Rights Summary)</div>
+            <div>✅ 차별받지 않을 권리 · Right to non-discrimination</div>
+            <div>✅ 존엄성 및 안전 · Dignity and safety</div>
+            <div>✅ 서비스 선택권 · Right to choose services</div>
+            <div>✅ 프로그램 참여권 · Right to program involvement</div>
+            <div>✅ 사적 공간 접근권 · Access to private space</div>
+            <div>✅ 소통 및 정보 접근 · Communication and information access</div>
+            <div>✅ 고충 처리 권리 · Right to file grievance</div>
+            <div>✅ 프로그램 중단 권리 · Right to stop program at any time</div>
+          </div>
+
+          <!-- 서명 -->
+          <div style="margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:11px;font-weight:700;color:#3C3C43">참여자 서명 (Participant Signature)</div>
+              <button onclick="clearMRSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
+            </div>
+            <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
+              <canvas id="mr-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas>
+              <div id="mr-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px">
+                <div>✍️</div><div>여기에 서명하세요</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">📄 PDF 생성 및 인쇄</button>
+        </div>
+      </div>
+
       <!-- Nutrition Screening 폼 -->
       <div id="frm-nutrition" style="display:none">
         <button class="back-btn" onclick="document.getElementById('frm-nutrition').style.display='none';document.getElementById('frm-list').style.display='block';">← 목록으로</button>
@@ -2686,26 +2727,37 @@ function filterFrmMembers() {
     var warn = !!(m.nextAssessment && m.nextAssessment <= soon);
     var div = document.createElement('div');
     div.className = 'mc';
-    if (warn) div.style.border = '1.5px solid #FF9500';
+    if(warn) div.style.border = '1.5px solid #FF9500';
     div.innerHTML = '<div class="mc-top">'
       +'<div class="mc-av" style="background:'+m.avBg+';color:'+m.avColor+'">'+m.kr[0]+'</div>'
       +'<div><div class="mc-name">'+m.kr+'</div><div class="mc-en">'+m.en+'</div></div></div>'
       +'<div style="font-size:11px;color:#8E8E93;margin-top:4px">'+lastAs+nextAs+'</div>'
       +(warn?'<div style="font-size:11px;color:#FF9500;margin-top:3px">⚠️ Reassessment 필요</div>':'');
-    var btnWrap = document.createElement('div');
-    btnWrap.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px';
+
+    // 버튼 3개
+    var grid = document.createElement('div');
+    grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px';
+
     var btnAs = document.createElement('button');
-    btnAs.style.cssText = 'width:100%;padding:10px;font-size:12px;border-radius:10px;background:#D85A30;color:#fff;border:none;font-weight:700;cursor:pointer';
+    btnAs.style.cssText = 'padding:8px 4px;font-size:11px;border-radius:9px;background:#D85A30;color:#fff;border:none;font-weight:700;cursor:pointer';
     btnAs.textContent = '📋 Assessment';
-    btnAs.addEventListener('click', (function(mid){return function(e){e.stopPropagation();openAssessmentForm(mid);};})(m.id));
+    btnAs.addEventListener('click',(function(id){return function(e){e.stopPropagation();openAssessmentForm(id);};})(m.id));
+
     var btnNs = document.createElement('button');
-    btnNs.style.cssText = 'width:100%;padding:10px;font-size:12px;border-radius:10px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-weight:700;cursor:pointer';
+    btnNs.style.cssText = 'padding:8px 4px;font-size:11px;border-radius:9px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-weight:700;cursor:pointer';
     btnNs.textContent = '🥗 Nutrition';
-    btnNs.addEventListener('click', (function(mid){return function(e){e.stopPropagation();openNutritionForm(mid);};})(m.id));
-    btnWrap.appendChild(btnAs);
-    btnWrap.appendChild(btnNs);
-    div.appendChild(btnWrap);
-    div.addEventListener('click', (function(mid){return function(){openAssessmentForm(mid);};})(m.id));
+    btnNs.addEventListener('click',(function(id){return function(e){e.stopPropagation();openNutritionForm(id);};})(m.id));
+
+    var btnMr = document.createElement('button');
+    btnMr.style.cssText = 'padding:8px 4px;font-size:11px;border-radius:9px;background:#E6F1FB;color:#0C447C;border:1.5px solid #85B7EB;font-weight:700;cursor:pointer';
+    btnMr.textContent = '📄 Rights';
+    btnMr.addEventListener('click',(function(id){return function(e){e.stopPropagation();openMemberRightsForm(id);};})(m.id));
+
+    grid.appendChild(btnAs);
+    grid.appendChild(btnNs);
+    grid.appendChild(btnMr);
+    div.appendChild(grid);
+    div.addEventListener('click',(function(id){return function(){openAssessmentForm(id);};})(m.id));
     el.appendChild(div);
   });
 }
@@ -3114,6 +3166,162 @@ function clearAsSig() {
   _asSig = null;
   var empty = document.getElementById('as-sig-empty');
   if(empty) empty.style.display='flex';
+}
+
+
+// ── Member Rights ─────────────────────────────────────────────
+var _mrMid = null;
+var _mrSig = null;
+
+function openMemberRightsForm(mid) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  if (!m) return;
+  _mrMid = mid;
+  _mrSig = null;
+  var el = document.getElementById('mr-name');
+  if(el) el.textContent = m.kr + ' (' + m.en + ')';
+  el = document.getElementById('mr-dob');
+  if(el) el.textContent = m.dob ? m.dob.slice(0,10) : '—';
+  el = document.getElementById('mr-date');
+  if(el) el.value = new Date().toISOString().slice(0,10);
+  clearMRSig();
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-nutrition').style.display = 'none';
+  document.getElementById('frm-assessment').style.display = 'none';
+  document.getElementById('frm-member-rights').style.display = 'block';
+  document.querySelector('.content').scrollTop = 0;
+  setTimeout(initMRCanvas, 100);
+}
+
+function initMRCanvas() {
+  var canvas = document.getElementById('mr-sig-canvas');
+  if(!canvas || canvas._mrInit) return;
+  canvas._mrInit = true;
+  var ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  var drawing = false, lx = 0, ly = 0;
+  function getPos(e) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width/rect.width, sy = canvas.height/rect.height;
+    if(e.touches) return {x:(e.touches[0].clientX-rect.left)*sx,y:(e.touches[0].clientY-rect.top)*sy};
+    return {x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};
+  }
+  function start(e){e.preventDefault();drawing=true;var p=getPos(e);lx=p.x;ly=p.y;
+    var empty=document.getElementById('mr-sig-empty');if(empty)empty.style.display='none';}
+  function draw(e){if(!drawing)return;e.preventDefault();var p=getPos(e);
+    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;}
+  function stop(){if(!drawing)return;drawing=false;_mrSig=canvas.toDataURL('image/png');}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);
+  canvas.addEventListener('mouseup',stop);canvas.addEventListener('mouseleave',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});
+  canvas.addEventListener('touchmove',draw,{passive:false});
+  canvas.addEventListener('touchend',stop);
+}
+
+function clearMRSig() {
+  var canvas = document.getElementById('mr-sig-canvas');
+  if(canvas){canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);canvas._mrInit=false;}
+  _mrSig = null;
+  var empty = document.getElementById('mr-sig-empty');
+  if(empty) empty.style.display='flex';
+}
+
+function generateMemberRightsPDF() {
+  if(!_mrMid){alert('멤버를 선택해주세요.');return;}
+  var m = MEMBERS.find(function(x){return x.id===_mrMid;});
+  if(!m)return;
+  var dateStr = document.getElementById('mr-date').value;
+  var dateF = dateStr ? new Date(dateStr+'T00:00:00').toLocaleDateString('en-US') : '';
+  var dobF = m.dob ? new Date(m.dob.slice(0,10)+'T00:00:00').toLocaleDateString('en-US') : '—';
+
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'
+    +'<title>Participant Bill of Rights - '+m.en+'</title>'
+    +'<style>'
+    +'@page{size:letter;margin:0.7in}'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Arial,sans-serif;font-size:9.5px;color:#000;line-height:1.6}'
+    +'.header{text-align:center;margin-bottom:12px;border-bottom:2px solid #000;padding-bottom:8px}'
+    +'h1{font-size:13px;font-weight:bold}'
+    +'h2{font-size:11px;font-weight:bold;margin:10px 0 5px;color:#333}'
+    +'.section{margin-bottom:10px;padding-left:8px;border-left:3px solid #D85A30}'
+    +'.right-item{margin-bottom:5px}'
+    +'.right-item b{font-weight:bold}'
+    +'.kr{color:#555;font-size:9px;margin-top:1px}'
+    +'.info-box{border:1px solid #000;padding:5px 8px;margin-bottom:10px;font-size:9.5px}'
+    +'.sig-area{margin-top:16px;border-top:2px solid #000;padding-top:10px}'
+    +'</style></head><body>'
+
+    +'<div class="header">'
+    +'<h1>넘버원 어덜트 데이케어 / NUMBER ONE ADULT DAYCARE</h1>'
+    +'<div style="font-size:10px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</div>'
+    +'<h1 style="margin-top:6px">PARTICIPANT\'S BILL OF RIGHTS / 참여자 권리 장전</h1>'
+    +'</div>'
+
+    +'<div class="info-box">'
+    +'<b>Participant:</b> '+m.en+' ('+m.kr+') &nbsp;&nbsp; <b>DOB:</b> '+dobF+' &nbsp;&nbsp; <b>Date:</b> '+dateF
+    +'</div>'
+
+    +'<p style="margin-bottom:8px;font-size:9.5px">As a participant of Number One Adult Daycare, you have the right to:</p>'
+
+    +'<div class="section"><h2>I. Dignity, Safety & Freedom / 존엄성, 안전 및 자유</h2>'
+    +'<div class="right-item"><b>Non-Discrimination:</b> You have the right not to be discriminated against by race, skin color, or national origin.</div>'
+    +'<div class="kr">차별 금지: 인종, 피부색 또는 국가에 의한 차별을 받지 않을 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Dignity & Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint, abuse, neglect, intimidation, and coercion.</div>'
+    +'<div class="kr">존엄성 및 안전: 프라이버시, 존엄성 및 존중을 받을 권리, 모든 형태의 억제와 학대로부터 자유로울 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Safe Environment:</b> You have the right to a safe and pleasant environment.</div>'
+    +'<div class="kr">안전한 환경: 안전하고 쾌적한 환경에서 서비스를 받을 권리가 있습니다.</div>'
+    +'</div>'
+
+    +'<div class="section"><h2>II. Self-Determination / 자기 결정권</h2>'
+    +'<div class="right-item"><b>Service Choice:</b> You have the right to choose your own daycare services and activities, and to direct your service plan.</div>'
+    +'<div class="kr">서비스 선택: 서비스 및 활동을 선택하고 자신의 서비스 계획을 주도적으로 결정할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Program Involvement:</b> You have the right to participate in the organization and operation of the program.</div>'
+    +'<div class="kr">프로그램 참여: 프로그램 구성과 운용에 참여할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Personal Control:</b> You have control over personal finances and daily schedule. You may stop the program at any time.</div>'
+    +'<div class="kr">개인 통제: 개인 재정 및 일일 일정을 통제할 권리, 언제든지 프로그램을 중단할 권리가 있습니다.</div>'
+    +'</div>'
+
+    +'<div class="section"><h2>III. Communication & Privacy / 소통 및 프라이버시</h2>'
+    +'<div class="right-item"><b>Private Space:</b> You have access to a private space for dining, phone calls, and meeting visitors.</div>'
+    +'<div class="kr">사적 공간: 식사, 전화 통화, 방문객과의 만남을 위한 사적 공간에 접근할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Communication:</b> You have the right to communicate with other participants and the community.</div>'
+    +'<div class="kr">소통: 다른 참여자 및 커뮤니티와 소통할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Information Access:</b> You have the right to information about your rights and to review consent forms.</div>'
+    +'<div class="kr">정보 접근: 권리에 대한 정보 및 동의서를 확인할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Grievance:</b> You have the right to file a complaint regarding discriminatory treatment.</div>'
+    +'<div class="kr">고충 처리: 차별적 대우에 관한 고충을 제기할 권리가 있습니다.</div>'
+    +'</div>'
+
+    +'<div class="section"><h2>IV. Choices & Opportunities / 선택 및 기회</h2>'
+    +'<div class="right-item"><b>Choices:</b> You have choices of services, meals, activities, and community integration activities.</div>'
+    +'<div class="kr">선택: 서비스, 식사, 활동 및 지역사회 통합 활동을 선택할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Opportunities:</b> You have opportunities to seek employment or volunteer opportunities.</div>'
+    +'<div class="kr">기회: 고용 또는 자원봉사 기회를 모색할 권리가 있습니다.</div>'
+    +'</div>'
+
+    +'<div class="sig-area">'
+    +'<p style="margin-bottom:10px;font-size:9.5px"><b>Acknowledgment / 확인</b><br>'
+    +'I have received, read, and/or had the Participant\'s Bill of Rights explained to me in a language I understand.<br>'
+    +'<span style="font-size:9px;color:#555">본인은 권리에 관한 내용을 이해할 수 있는 언어로 제공받았으며, 충분히 이해하였음을 확인합니다.</span></p>'
+    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:flex-end">'
+    +'<div>'
+    +(_mrSig?'<img src="'+_mrSig+'" style="max-height:55px;max-width:100%;display:block;margin-bottom:4px">':'<div style="height:55px"></div>')
+    +'<div style="border-top:1px solid #000;font-size:9px;padding-top:3px">Participant Signature / 참여자 서명</div>'
+    +'</div>'
+    +'<div>'
+    +'<div style="font-size:11px;margin-bottom:20px">Date: '+dateF+'</div>'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+
+    +'<div style="margin-top:12px;font-size:8px;text-align:center;border-top:1px solid #ccc;padding-top:6px;color:#666">'
+    +'Number One Adult Daycare · 161-22 Northern Blvd 1FL, Flushing, NY 11358 · NPI: 1154194504'
+    +'</div>'
+    +'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.print();},500);
 }
 
 // ── INIT RENDER ───────────────────────────────────────────────
