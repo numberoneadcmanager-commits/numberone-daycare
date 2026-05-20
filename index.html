@@ -299,10 +299,165 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .as-tab{flex-shrink:0;padding:8px 12px;font-size:10px;font-weight:600;color:#8E8E93;cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap}
 .as-tab.active{color:#D85A30;border-bottom-color:#D85A30}
 .as-tab.done{color:#34C759}
+
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#D85A30 0%,#B84520 100%);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
+.login-card{background:#fff;border-radius:20px;padding:32px 28px;width:90%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{font-size:28px;font-weight:800;color:#D85A30;margin-bottom:4px}
+.login-sub{font-size:13px;color:#8E8E93;margin-bottom:24px}
+.login-divider{border:none;border-top:.5px solid #E5E5EA;margin:20px 0}
+.login-error{font-size:12px;color:#FF3B30;background:#FFEBEE;padding:8px 12px;border-radius:8px;margin-top:12px;display:none}
+.login-user{display:none;align-items:center;gap:10px;background:#F2F2F7;border-radius:12px;padding:10px 14px;margin-bottom:16px}
+.login-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.login-name{font-size:13px;font-weight:600;text-align:left}
+.login-email{font-size:11px;color:#8E8E93;text-align:left}
+.g-btn{width:100%;padding:12px;border-radius:11px;border:1.5px solid #E5E5EA;background:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;color:#3C3C43;transition:background .2s}
+.g-btn:hover{background:#F9F9F9}
+.g-btn svg{flex-shrink:0}
+
 </style>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com', 'chouung11@gmail.com', 'numberone.adc.lee@gmail.com'];
+const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
+var _currentUser = null;
+
+function initGoogleAuth() {
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: handleCredentialResponse,
+    auto_select: true,
+    cancel_on_tap_outside: false
+  });
+
+  // 저장된 세션 확인
+  var saved = localStorage.getItem('noad_session');
+  if (saved) {
+    try {
+      var user = JSON.parse(saved);
+      if (user && user.email && ALLOWED_EMAILS.includes(user.email)) {
+        _currentUser = user;
+        showApp(user);
+        return;
+      }
+    } catch(e) {}
+  }
+
+  // 로그인 화면 표시
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+
+  google.accounts.id.renderButton(
+    document.getElementById('g-signin-btn'),
+    {
+      theme: 'outline',
+      size: 'large',
+      width: 300,
+      text: 'signin_with',
+      shape: 'rectangular',
+      logo_alignment: 'left'
+    }
+  );
+  google.accounts.id.prompt();
+}
+
+function handleCredentialResponse(response) {
+  var payload = parseJwt(response.credential);
+  var email = payload.email;
+
+  if (!ALLOWED_EMAILS.includes(email)) {
+    var err = document.getElementById('login-error');
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = '❌ 접속 권한이 없습니다: ' + email;
+    }
+    return;
+  }
+
+  _currentUser = {
+    email: email,
+    name: payload.name,
+    picture: payload.picture
+  };
+
+  localStorage.setItem('noad_session', JSON.stringify(_currentUser));
+  showApp(_currentUser);
+}
+
+function showApp(user) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // 헤더에 사용자 표시
+  var pill = document.getElementById('api-pill');
+  if (pill) {
+    var nameShort = user.name ? user.name.split(' ')[0] : user.email.split('@')[0];
+    // 사용자 아이콘 추가
+    var userEl = document.getElementById('hdr-user');
+    if (!userEl) {
+      userEl = document.createElement('div');
+      userEl.id = 'hdr-user';
+      userEl.style.cssText = 'display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer';
+      userEl.innerHTML = (user.picture ? '<img src="'+user.picture+'" style="width:20px;height:20px;border-radius:50%">' : '')
+        + '<span style="font-size:10px;color:#3C3C43;font-weight:600">'+nameShort+'</span>'
+        + '<span style="font-size:9px;color:#C7C7CC">▼</span>';
+      userEl.onclick = function() { if(confirm('로그아웃 하시겠습니까?')) logout(); };
+      pill.parentNode.insertBefore(userEl, pill.nextSibling);
+    }
+  }
+}
+
+function logout() {
+  localStorage.removeItem('noad_session');
+  _currentUser = null;
+  google.accounts.id.disableAutoSelect();
+  location.reload();
+}
+
+function parseJwt(token) {
+  var base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  var json = decodeURIComponent(atob(base64).split('').map(function(c){
+    return '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+  return JSON.parse(json);
+}
+
+// Google GSI 로드 완료 후 초기화
+window.addEventListener('load', function() {
+  if (typeof google !== 'undefined' && google.accounts) {
+    initGoogleAuth();
+  } else {
+    // GSI 로드 대기
+    var checkInterval = setInterval(function() {
+      if (typeof google !== 'undefined' && google.accounts) {
+        clearInterval(checkInterval);
+        initGoogleAuth();
+      }
+    }, 200);
+  }
+});
+</script>
+
 </head>
 <body>
-<div id="app">
+
+<div id="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">넘버원 어덜트 데이케어</div>
+    <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">NUMBER ONE ADULT DAYCARE</div>
+    <div style="font-size:12px;color:#3C3C43;margin-bottom:24px">관리자 전용 시스템입니다</div>
+    <div style="font-size:11px;color:#8E8E93;margin-bottom:12px">Google 계정으로 로그인하세요</div>
+    <div id="g-signin-btn" style="display:flex;justify-content:center"></div>
+    <div id="login-error" class="login-error"></div>
+    <hr class="login-divider">
+    <div style="font-size:10px;color:#C7C7CC;line-height:1.6">
+      🔒 이 시스템은 승인된 직원만 접근할 수 있습니다<br>
+      HIPAA 규정에 따라 접근 기록이 유지됩니다
+    </div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
 
   <!-- Header -->
   <div class="hdr">
