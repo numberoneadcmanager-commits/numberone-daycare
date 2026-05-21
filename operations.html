@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>넘버원 업무 관리</title>
+<link rel="icon" href="data:,">
+<script src="https://accounts.google.com/gsi/client" async defer onload="if(typeof initGoogle==='function')initGoogle()"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F2F2F7;color:#1C1C1E;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#5856D6 0%,#007AFF 100%);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column}
+.login-card{background:#fff;border-radius:20px;padding:32px 28px;width:90%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{font-size:24px;font-weight:800;color:#5856D6;margin-bottom:4px}
+.login-sub{font-size:13px;color:#8E8E93;margin-bottom:24px}
+.login-error{font-size:12px;color:#FF3B30;background:#FFEBEE;padding:8px 12px;border-radius:8px;margin-top:12px;display:none}
+/* Header */
+.hdr{background:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:.5px solid #C6C6C8;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:700;color:#1C1C1E}
+.hdr-sub{font-size:11px;color:#8E8E93}
+.hdr-btn{background:#5856D6;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer}
+/* Tabbar */
+.tabbar{display:flex;background:#fff;border-bottom:.5px solid #C6C6C8;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0}
+.tabbar::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:9px 13px;font-size:11px;font-weight:600;color:#8E8E93;cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap}
+.tab.active{color:#5856D6;border-bottom-color:#5856D6}
+/* Content */
+#app{display:none;flex-direction:column;height:100dvh}
+.content{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.panel{display:none}
+.panel.active{display:block}
+/* Cards */
+.card{background:#fff;border-radius:13px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.section-lbl{font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.sbox{background:#fff;border-radius:12px;padding:10px 6px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.sv{font-size:22px;font-weight:800;color:#1C1C1E}
+.sl{font-size:10px;color:#8E8E93;margin-top:2px}
+.c-green{color:#34C759}.c-red{color:#FF3B30}.c-orange{color:#FF9500}.c-blue{color:#007AFF}.c-purple{color:#5856D6}
+/* Log cards */
+.log-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.log-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.log-name{font-size:13px;font-weight:700}
+.log-actions{display:flex;gap:6px}
+.empty-msg{text-align:center;color:#C7C7CC;font-size:13px;padding:2rem}
+/* Badges */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.b-ok{background:#E1F5EE;color:#0F6E56}
+.b-warn{background:#FFF3E0;color:#B35900}
+.b-red{background:#FFEBEE;color:#900}
+.b-blue{background:#E6F1FB;color:#185FA5}
+.b-purple{background:#EEEDFE;color:#534AB7}
+/* Buttons */
+.btn-full{width:100%;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-primary{background:#5856D6;color:#fff}
+.btn-sm{background:#F2F2F7;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;color:#1C1C1E}
+.btn-danger{background:#FFEBEE;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;color:#FF3B30}
+/* Forms */
+.m-input{width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
+.m-input:focus{border-color:#5856D6}
+.m-select{width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:10px 12px;font-size:14px;background:#fff;outline:none}
+.m-textarea{width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;min-height:70px;resize:vertical}
+.modal-input-wrap label{display:block;font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:4px}
+.modal-date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+/* Search */
+.search-wrap{display:flex;align-items:center;background:#fff;border-radius:10px;padding:8px 12px;margin-bottom:10px;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.search-wrap input{border:none;outline:none;font-size:14px;flex:1;background:transparent}
+/* Filter pills */
+.f-row{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:2px}
+.fpill{flex-shrink:0;background:#F2F2F7;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;color:#8E8E93}
+.fpill.active{background:#5856D6;color:#fff}
+/* Overlays */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none}
+.ov.open{display:block}
+.modal{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:20px 20px 0 0;padding:16px;z-index:201;max-height:90dvh;overflow-y:auto}
+.modal-handle{width:36px;height:4px;background:#E5E5EA;border-radius:2px;margin:0 auto 14px}
+.modal-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.modal-title span{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:#8E8E93;padding:4px}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.mbt{flex:1;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer}
+.mbt-cancel{background:#F2F2F7;color:#1C1C1E}
+.mbt-save{background:#5856D6;color:#fff}
+/* Audit checklist */
+.audit-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid #F2F2F7}
+.audit-item:last-child{border-bottom:none}
+.audit-check{width:22px;height:22px;border-radius:6px;border:2px solid #E5E5EA;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.audit-check.done{background:#34C759;border-color:#34C759;color:#fff}
+.audit-label{font-size:12px;flex:1}
+.audit-label.done{text-decoration:line-through;color:#8E8E93}
+/* Doc vault */
+.doc-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:.5px solid #F2F2F7}
+.doc-item:last-child{border-bottom:none}
+/* Temp log */
+.temp-table{width:100%;border-collapse:collapse;font-size:11px}
+.temp-table td,.temp-table th{border:1px solid #E5E5EA;padding:6px 8px;text-align:center}
+.temp-table th{background:#F2F2F7;font-weight:700}
+.temp-ok{color:#34C759;font-weight:700}
+.temp-bad{color:#FF3B30;font-weight:700}
+@media print{.tabbar,.hdr,.btn-full,.ov,.modal{display:none!important}.panel{display:block!important}}
+</style>
+</head>
+<body>
+
+<div id="login-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">📋 업무 관리</div>
+    <div class="login-sub">넘버원 어덜트 데이케어</div>
+    <div id="g-signin-btn"></div>
+    <div id="login-error" class="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">📋 업무 관리</div>
+      <div class="hdr-sub">넘버원 어덜트 데이케어</div>
+    </div>
+    <button class="hdr-btn" onclick="window.location.href='index.html'">🏥 케어 관리</button>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active" onclick="goTab('audit',this)">✅ Audit</div>
+    <div class="tab" onclick="goTab('pcsp',this)">PCSP</div>
+    <div class="tab" onclick="goTab('staff',this)">스태프</div>
+    <div class="tab" onclick="goTab('billing',this)">빌링</div>
+    <div class="tab" onclick="goTab('grievance',this)">Grievance</div>
+    <div class="tab" onclick="goTab('firedrill',this)">소방훈련</div>
+    <div class="tab" onclick="goTab('templog',this)">온도기록</div>
+    <div class="tab" onclick="goTab('docs',this)">문서보관함</div>
+    <div class="tab" onclick="goTab('activity',this)">활동캘린더</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Audit Checklist -->
+    <div class="panel active" id="panel-audit">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv c-green" id="audit-done">0</div><div class="sl">준비완료</div></div>
+        <div class="sbox"><div class="sv c-red" id="audit-pending">0</div><div class="sl">미준비</div></div>
+        <div class="sbox"><div class="sv c-blue" id="audit-pct">0%</div><div class="sl">진행률</div></div>
+      </div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setAuditFilter('all',this)">전체</div>
+        <div class="fpill" onclick="setAuditFilter('anthem',this)">Anthem</div>
+        <div class="fpill" onclick="setAuditFilter('clp',this)">CenterLight</div>
+        <div class="fpill" onclick="setAuditFilter('swh',this)">SWH</div>
+        <div class="fpill" onclick="setAuditFilter('common',this)">공통</div>
+      </div>
+      <div id="audit-list"></div>
+    </div>
+
+    <!-- PCSP -->
+    <div class="panel" id="panel-pcsp">
+      <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div>
+        <div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div>
+        <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
+      </div>
+      <div id="pcsp-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openPCSPModal()">➕ PCSP 추가</button>
+    </div>
+
+    <!-- Staff -->
+    <div class="panel" id="panel-staff">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv" id="op-staff-total">0</div><div class="sl">전체 스태프</div></div>
+        <div class="sbox"><div class="sv c-red" id="op-staff-exp">0</div><div class="sl">자격증 만료</div></div>
+        <div class="sbox"><div class="sv c-orange" id="op-staff-soon">0</div><div class="sl">90일 이내</div></div>
+      </div>
+      <div id="op-staff-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openStaffModal()">➕ 스태프 추가</button>
+    </div>
+
+    <!-- Billing -->
+    <div class="panel" id="panel-billing">
+      <div class="card">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">Medicaid 빌링 리포트</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">시작일</div><input class="m-input" type="date" id="bill-from"></div>
+          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">종료일</div><input class="m-input" type="date" id="bill-to"></div>
+        </div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">보험사</div>
+          <select class="m-select" id="bill-ins">
+            <option value="Anthem_MLTC">Anthem MLTC — HEALTHPLUS 45302</option>
+            <option value="Anthem_MAP">Anthem MAP</option>
+            <option value="CLP">Centerlight PACE</option>
+            <option value="SWH">Senior Whole Health</option>
+          </select>
+        </div>
+        <button class="btn-full btn-primary" onclick="alert('빌링 기능은 Google Sheets 출결 데이터와 연동됩니다.')">리포트 생성</button>
+      </div>
+      <div style="background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:13px;padding:14px">
+        <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💡 빌링 안내</div>
+        <div style="font-size:12px;color:#534AB7;line-height:1.6">NPI: 1154194504 · EIN: 93-4271990<br>Revenue Code: 3104 · HEALTHPLUS 45302<br>S5105: $60/일 · A0100: $12.5×2</div>
+      </div>
+    </div>
+
+    <!-- Grievance -->
+    <div class="panel" id="panel-grievance">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv" id="gr-total">0</div><div class="sl">전체</div></div>
+        <div class="sbox"><div class="sv c-orange" id="gr-open">0</div><div class="sl">처리중</div></div>
+        <div class="sbox"><div class="sv c-green" id="gr-closed">0</div><div class="sl">완료</div></div>
+      </div>
+      <div class="search-wrap"><span>🔍</span><input id="gr-search" placeholder="검색" oninput="renderGrievanceList()"></div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setGrFilter('all',this)">전체</div>
+        <div class="fpill" onclick="setGrFilter('open',this)">처리중</div>
+        <div class="fpill" onclick="setGrFilter('closed',this)">완료</div>
+      </div>
+      <div id="gr-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openGrModal()">➕ Grievance 추가</button>
+    </div>
+
+    <!-- Fire Drill -->
+    <div class="panel" id="panel-firedrill">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv" id="fd-total">0</div><div class="sl">전체</div></div>
+        <div class="sbox"><div class="sv c-blue" id="fd-year">0</div><div class="sl">올해</div></div>
+        <div class="sbox"><div class="sv c-green" id="fd-last">—</div><div class="sl">최근 훈련</div></div>
+      </div>
+      <div id="fd-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openFDModal()">➕ 소방훈련 기록</button>
+    </div>
+
+    <!-- Temperature Log -->
+    <div class="panel" id="panel-templog">
+      <div class="f-row">
+        <div class="fpill active" onclick="setTempFilter('fridge',this)">🧊 냉장고</div>
+        <div class="fpill" onclick="setTempFilter('food',this)">🍱 음식</div>
+        <div class="fpill" onclick="setTempFilter('water',this)">🚿 온수</div>
+        <div class="fpill" onclick="setTempFilter('sanitize',this)">🧴 소독</div>
+      </div>
+      <div id="temp-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openTempModal()">➕ 온도 기록 추가</button>
+    </div>
+
+    <!-- Document Vault -->
+    <div class="panel" id="panel-docs">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv c-red" id="doc-exp">0</div><div class="sl">만료됨</div></div>
+        <div class="sbox"><div class="sv c-orange" id="doc-soon">0</div><div class="sl">30일내</div></div>
+        <div class="sbox"><div class="sv c-green" id="doc-ok">0</div><div class="sl">유효</div></div>
+      </div>
+      <div id="docs-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openDocModal()">➕ 문서 추가</button>
+    </div>
+
+    <!-- Activity Calendar -->
+    <div class="panel" id="panel-activity">
+      <div class="search-wrap"><span>🔍</span><input id="act-search" placeholder="활동 검색" oninput="renderActivityList()"></div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setActFilter('all',this)">전체</div>
+        <div class="fpill" onclick="setActFilter('thisMonth',this)">이번달</div>
+        <div class="fpill" onclick="setActFilter('nextMonth',this)">다음달</div>
+      </div>
+      <div id="act-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openActModal()">➕ 활동 추가</button>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- Grievance Modal -->
+<div class="ov" id="ov-gr" onclick="closeOv('ov-gr')"></div>
+<div class="modal" id="modal-ov-gr" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="gr-modal-title">😤 Grievance 추가</span><button class="modal-close" onclick="closeOv('ov-gr')">✕</button></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>날짜 *</label><input class="m-input" id="gr-date" type="date"></div>
+    <div class="modal-input-wrap"><label>유형</label>
+      <select class="m-select" id="gr-type">
+        <option>Grievance</option><option>Complaint</option><option>Appeal</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>멤버 이름</label><input class="m-input" id="gr-member" placeholder="멤버 이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>내용 *</label><textarea class="m-textarea" id="gr-content" placeholder="불만/고충 내용"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>조치 내용</label><textarea class="m-textarea" id="gr-action" placeholder="취한 조치"></textarea></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>담당자</label><input class="m-input" id="gr-staff" placeholder="담당자"></div>
+    <div class="modal-input-wrap"><label>상태</label>
+      <select class="m-select" id="gr-status"><option>open</option><option>closed</option></select>
+    </div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>결과</label><input class="m-input" id="gr-result" placeholder="처리 결과"></div>
+  <input type="hidden" id="gr-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-gr')">취소</button><button class="mbt mbt-save" onclick="saveGrievance()">저장</button></div>
+</div>
+
+<!-- Fire Drill Modal -->
+<div class="ov" id="ov-fd" onclick="closeOv('ov-fd')"></div>
+<div class="modal" id="modal-ov-fd" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>🔥 소방훈련 기록</span><button class="modal-close" onclick="closeOv('ov-fd')">✕</button></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>날짜 *</label><input class="m-input" id="fd-date" type="date"></div>
+    <div class="modal-input-wrap"><label>시간</label><input class="m-input" id="fd-time" type="time"></div>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>참석 인원</label><input class="m-input" id="fd-count" type="number" placeholder="명"></div>
+    <div class="modal-input-wrap"><label>소요 시간 (분)</label><input class="m-input" id="fd-duration" type="number" placeholder="분"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>훈련 유형</label>
+    <select class="m-select" id="fd-type"><option>실제 대피 훈련</option><option>화재 경보 테스트</option><option>소화기 훈련</option><option>기타</option></select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>담당자</label><input class="m-input" id="fd-staff" placeholder="훈련 담당자"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>결과/메모</label><textarea class="m-textarea" id="fd-note" placeholder="훈련 결과 및 특이사항"></textarea></div>
+  <input type="hidden" id="fd-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-fd')">취소</button><button class="mbt mbt-save" onclick="saveFireDrill()">저장</button></div>
+</div>
+
+<!-- Temperature Modal -->
+<div class="ov" id="ov-temp" onclick="closeOv('ov-temp')"></div>
+<div class="modal" id="modal-ov-temp" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>🌡️ 온도 기록</span><button class="modal-close" onclick="closeOv('ov-temp')">✕</button></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>날짜 *</label><input class="m-input" id="temp-date" type="date"></div>
+    <div class="modal-input-wrap"><label>시간</label><input class="m-input" id="temp-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>유형 *</label>
+    <select class="m-select" id="temp-type">
+      <option value="fridge">🧊 냉장고 (기준: 40°F / 4°C 이하)</option>
+      <option value="food">🍱 음식 온도 (기준: 140°F / 60°C 이상)</option>
+      <option value="water">🚿 온수 (기준: 110°F / 43°C 이상)</option>
+      <option value="sanitize">🧴 소독액 농도</option>
+    </select>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>측정값 *</label><input class="m-input" id="temp-value" type="number" step="0.1" placeholder="온도/농도"></div>
+    <div class="modal-input-wrap"><label>단위</label>
+      <select class="m-select" id="temp-unit"><option>°F</option><option>°C</option><option>ppm</option></select>
+    </div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>기록자</label><input class="m-input" id="temp-staff" placeholder="기록자"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><input class="m-input" id="temp-note" placeholder="특이사항"></div>
+  <input type="hidden" id="temp-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-temp')">취소</button><button class="mbt mbt-save" onclick="saveTemp()">저장</button></div>
+</div>
+
+<!-- Document Modal -->
+<div class="ov" id="ov-doc" onclick="closeOv('ov-doc')"></div>
+<div class="modal" id="modal-ov-doc" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="doc-modal-title">📁 문서 추가</span><button class="modal-close" onclick="closeOv('ov-doc')">✕</button></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>문서명 *</label><input class="m-input" id="doc-name" placeholder="문서 이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>카테고리</label>
+    <select class="m-select" id="doc-cat">
+      <option>인증/허가</option><option>보험</option><option>직원</option><option>시설</option><option>기타</option>
+    </select>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>발급일</label><input class="m-input" id="doc-issued" type="date"></div>
+    <div class="modal-input-wrap"><label>만료일</label><input class="m-input" id="doc-expiry" type="date"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>Google Drive 링크</label><input class="m-input" id="doc-link" placeholder="https://drive.google.com/..."></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><input class="m-input" id="doc-note" placeholder="참고사항"></div>
+  <input type="hidden" id="doc-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-doc')">취소</button><button class="mbt mbt-save" onclick="saveDoc()">저장</button></div>
+</div>
+
+<!-- Activity Modal -->
+<div class="ov" id="ov-act" onclick="closeOv('ov-act')"></div>
+<div class="modal" id="modal-ov-act" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>📅 활동 추가</span><button class="modal-close" onclick="closeOv('ov-act')">✕</button></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>날짜 *</label><input class="m-input" id="act-date" type="date"></div>
+    <div class="modal-input-wrap"><label>시간</label><input class="m-input" id="act-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>활동명 *</label><input class="m-input" id="act-name" placeholder="활동 이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>카테고리</label>
+    <select class="m-select" id="act-cat">
+      <option>신체활동</option><option>인지활동</option><option>사회활동</option><option>문화활동</option><option>식사</option><option>지역사회</option><option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>담당자</label><input class="m-input" id="act-staff" placeholder="담당 스태프"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><textarea class="m-textarea" id="act-note" placeholder="참고사항"></textarea></div>
+  <input type="hidden" id="act-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-act')">취소</button><button class="mbt mbt-save" onclick="saveActivity()">저장</button></div>
+</div>
+
+<!-- PCSP Modal -->
+<div class="ov" id="ov-pcsp" onclick="closeOv('ov-pcsp')"></div>
+<div class="modal" id="modal-ov-pcsp" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="pcsp-modal-title">📄 PCSP 추가</span><button class="modal-close" onclick="closeOv('ov-pcsp')">✕</button></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>멤버 이름 *</label><input class="m-input" id="pcsp-member" placeholder="멤버 이름 검색"></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>작성일 *</label><input class="m-input" id="pcsp-date" type="date"></div>
+    <div class="modal-input-wrap"><label>갱신 예정일</label><input class="m-input" id="pcsp-next" type="date"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>작성자</label><input class="m-input" id="pcsp-author" placeholder="작성자"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>진단</label><textarea class="m-textarea" id="pcsp-dx" placeholder="진단명"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 1</label><input class="m-input" id="pcsp-goal1" placeholder="목표 1"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 2</label><input class="m-input" id="pcsp-goal2" placeholder="목표 2"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 3</label><input class="m-input" id="pcsp-goal3" placeholder="목표 3"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>상태</label>
+    <select class="m-select" id="pcsp-status"><option>active</option><option>pending</option><option>completed</option></select>
+  </div>
+  <input type="hidden" id="pcsp-edit-id">
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-pcsp')">취소</button><button class="mbt mbt-save" onclick="savePCSP()">저장</button></div>
+</div>
+
+<script>
+// ── Google 로그인 ─────────────────────────────────────────
+const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com','chouung11@gmail.com','numberone.adc.lee@gmail.com'];
+const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwBcK5Bs9MekS5wz5TMDkXdPa5ElKPwpqIaghCC9LY2ROXhtE712Zt2GdD8RqRMuD6z/exec';
+var _currentUser = null;
+
+function initGoogle(){
+  try{
+    var s = JSON.parse(localStorage.getItem('noad_session')||'null');
+    if(s && s.email && ALLOWED_EMAILS.includes(s.email)){showApp(s);return;}
+  }catch(e){}
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  google.accounts.id.initialize({client_id:CLIENT_ID,callback:handleCredentialResponse,auto_select:true});
+  google.accounts.id.renderButton(document.getElementById('g-signin-btn'),{theme:'outline',size:'large',width:300});
+  google.accounts.id.prompt();
+}
+window.addEventListener('load', function(){
+  if(typeof google !== 'undefined' && google.accounts){
+    initGoogle();
+  } else {
+    var script = document.querySelector('script[src*="accounts.google.com"]');
+    if(script){ script.addEventListener('load', initGoogle); }
+    else { setTimeout(initGoogle, 1000); }
+  }
+});
+
+function parseJwt(token){
+  try{return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}catch(e){return {};}
+}
+function handleCredentialResponse(response){
+  var payload=parseJwt(response.credential);
+  if(!ALLOWED_EMAILS.includes(payload.email)){
+    var err=document.getElementById('login-error');
+    err.style.display='block';err.textContent='❌ 접속 권한이 없습니다: '+payload.email;return;
+  }
+  _currentUser={email:payload.email,name:payload.name,picture:payload.picture};
+  localStorage.setItem('noad_session',JSON.stringify(_currentUser));
+  showApp(_currentUser);
+}
+function showApp(user){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  initData();
+}
+
+// ── Tab 전환 ─────────────────────────────────────────────
+function goTab(tab,el){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  var panel=document.getElementById('panel-'+tab);
+  if(panel)panel.classList.add('active');
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  if(el)el.classList.add('active');
+  if(tab==='audit')renderAudit();
+  if(tab==='pcsp')renderPCSPList();
+  if(tab==='staff')renderOpStaff();
+  if(tab==='grievance')renderGrievanceList();
+  if(tab==='firedrill')renderFDList();
+  if(tab==='templog')renderTempList();
+  if(tab==='docs')renderDocsList();
+  if(tab==='activity')renderActivityList();
+}
+
+// ── Overlay ───────────────────────────────────────────────
+function openOv(id){document.getElementById(id).classList.add('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='block';}
+function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
+
+// ── API Call ─────────────────────────────────────────────
+async function apiCall(data){
+  try{
+    var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(data)});
+    return await r.json();
+  }catch(e){return {ok:false,error:e.message};}
+}
+
+// ── AUDIT CHECKLIST ───────────────────────────────────────
+var AUDIT_ITEMS = [
+  {id:'a1',label:'출결 기록 (Attendance Log)',filter:'common',link:'index.html'},
+  {id:'a2',label:'PCSP (5명 이상)',filter:'common',link:null},
+  {id:'a3',label:'Incident / Grievance Log',filter:'common',link:null},
+  {id:'a4',label:'Fire Drill Records (최근 2회)',filter:'common',link:null},
+  {id:'a5',label:'소방훈련 기록',filter:'common',link:null},
+  {id:'a6',label:'OMIG Certification (1년 이내)',filter:'common',link:null},
+  {id:'a7',label:'DFTA Registration (NYC)',filter:'common',link:null},
+  {id:'a8',label:'Liability Insurance',filter:'common',link:null},
+  {id:'a9',label:'Certificate of Occupancy',filter:'common',link:null},
+  {id:'a10',label:'Food Service Establishment Permit',filter:'common',link:null},
+  {id:'a11',label:'Registered Dietician License',filter:'common',link:null},
+  {id:'a12',label:'Registered Nurse License',filter:'common',link:null},
+  {id:'a13',label:'CPR Training Certificates (3명 이상)',filter:'common',link:null},
+  {id:'a14',label:'Staff Training Records',filter:'common',link:null},
+  {id:'a15',label:'Policies & Procedures',filter:'common',link:null},
+  {id:'a16',label:'Activity & Meal Calendar (이번달)',filter:'common',link:null},
+  {id:'a17',label:'Anthem Member Attendance Log',filter:'anthem',link:'index.html'},
+  {id:'a18',label:'Anthem Member Files',filter:'anthem',link:null},
+  {id:'a19',label:'OMIG Certification (Anthem)',filter:'anthem',link:null},
+  {id:'a20',label:'CenterLight Participant List',filter:'clp',link:'index.html'},
+  {id:'a21',label:'Daily Sign-in (CenterLight 5명)',filter:'clp',link:'index.html'},
+  {id:'a22',label:'NYC Kitchen Inspection Report',filter:'clp',link:null},
+  {id:'a23',label:'Elevator Inspection Certificate',filter:'clp',link:null},
+  {id:'a24',label:'Smoke/Sprinkler Inspection Log',filter:'clp',link:null},
+  {id:'a25',label:'Refrigerator Temp Log (2개월)',filter:'swh',link:null},
+  {id:'a26',label:'Hot Water Testing Log (2개월)',filter:'swh',link:null},
+  {id:'a27',label:'Food Temperature Log (2개월)',filter:'swh',link:null},
+  {id:'a28',label:'Dishwasher/Sanitizing Log (2개월)',filter:'swh',link:null},
+  {id:'a29',label:'SWH Member Roster',filter:'swh',link:null},
+  {id:'a30',label:'FDNY Notification (SWH)',filter:'swh',link:null},
+  {id:'a31',label:'Annual Program Self-Evaluation',filter:'swh',link:null},
+  {id:'a32',label:'Food Handler Certification (2명)',filter:'swh',link:null},
+  {id:'a33',label:'Extermination Records',filter:'swh',link:null},
+  {id:'a34',label:'Staff Health Assessment & PPD',filter:'common',link:null},
+  {id:'a35',label:'Employee Files (10% of staff)',filter:'common',link:null},
+];
+var AUDIT_DONE = JSON.parse(localStorage.getItem('audit_done')||'{}');
+var _auditFilter = 'all';
+
+function setAuditFilter(f,el){
+  _auditFilter=f;
+  document.querySelectorAll('#panel-audit .fpill').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  renderAudit();
+}
+
+function renderAudit(){
+  var list = AUDIT_ITEMS.filter(function(i){return _auditFilter==='all'||i.filter===_auditFilter;});
+  var doneCount = list.filter(function(i){return AUDIT_DONE[i.id];}).length;
+  var pct = list.length ? Math.round(doneCount/list.length*100) : 0;
+  var el=document.getElementById('audit-done'); if(el)el.textContent=doneCount;
+  el=document.getElementById('audit-pending'); if(el)el.textContent=list.length-doneCount;
+  el=document.getElementById('audit-pct'); if(el)el.textContent=pct+'%';
+
+  var html='<div class="card">';
+  list.forEach(function(item){
+    var done=!!AUDIT_DONE[item.id];
+    html+='<div class="audit-item">'
+      +'<div class="audit-check'+(done?' done':'')+'" onclick="toggleAudit(\''+item.id+'\')">'+(done?'✓':'')+'</div>'
+      +'<div class="audit-label'+(done?' done':'')+'">'+item.label+'</div>'
+      +(item.link?'<a href="'+item.link+'" style="font-size:10px;color:#5856D6;text-decoration:none">→ 이동</a>':'')
+      +'</div>';
+  });
+  html+='</div>';
+  var el2=document.getElementById('audit-list'); if(el2)el2.innerHTML=html;
+}
+
+function toggleAudit(id){
+  AUDIT_DONE[id]=!AUDIT_DONE[id];
+  localStorage.setItem('audit_done',JSON.stringify(AUDIT_DONE));
+  renderAudit();
+}
+
+// ── GRIEVANCE ────────────────────────────────────────────
+var GR_LIST = JSON.parse(localStorage.getItem('gr_list')||'[]');
+function saveGRStorage(){localStorage.setItem('gr_list',JSON.stringify(GR_LIST));}
+var _grFilter='all';
+function setGrFilter(f,el){_grFilter=f;document.querySelectorAll('#panel-grievance .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderGrievanceList();}
+
+function renderGrievanceList(){
+  var q=(document.getElementById('gr-search')||{}).value||'';
+  var list=GR_LIST.filter(function(g){
+    var match=!q||(g.member||'').includes(q)||(g.content||'').includes(q);
+    var st=_grFilter==='all'||g.status===_grFilter;
+    return match&&st;
+  }).sort(function(a,b){return b.date>a.date?1:-1;});
+
+  var open=GR_LIST.filter(function(g){return g.status==='open';}).length;
+  var closed=GR_LIST.filter(function(g){return g.status==='closed';}).length;
+  var e=document.getElementById('gr-total');if(e)e.textContent=GR_LIST.length;
+  e=document.getElementById('gr-open');if(e)e.textContent=open;
+  e=document.getElementById('gr-closed');if(e)e.textContent=closed;
+
+  var html='';
+  if(!list.length){html='<div class="empty-msg">기록이 없어요</div>';}
+  list.forEach(function(g){
+    var badge=g.status==='open'?'<span class="badge b-warn">처리중</span>':'<span class="badge b-ok">완료</span>';
+    html+='<div class="log-card">'
+      +'<div class="log-top"><div class="log-name">😤 '+g.type+'</div>'+badge+'</div>'
+      +'<div style="font-size:12px;font-weight:600;margin-bottom:3px">'+(g.member||'')+'</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:3px">'+(g.content||'')+'</div>'
+      +(g.action?'<div style="font-size:11px;color:#8E8E93">조치: '+g.action+'</div>':'')
+      +'<div style="font-size:11px;color:#8E8E93">'+g.date+' · '+(g.staff||'')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="editGr(\''+g.id+'\')">✏️</button>'
+      +'<button class="btn-danger" onclick="deleteGr(\''+g.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2=document.getElementById('gr-list');if(el2)el2.innerHTML=html;
+}
+
+function openGrModal(id){
+  document.getElementById('gr-modal-title').textContent=id?'✏️ Grievance 수정':'😤 Grievance 추가';
+  document.getElementById('gr-edit-id').value=id||'';
+  var today=new Date().toISOString().slice(0,10);
+  if(id){var g=GR_LIST.find(function(x){return x.id===id;});if(g){document.getElementById('gr-date').value=g.date||today;document.getElementById('gr-type').value=g.type||'Grievance';document.getElementById('gr-member').value=g.member||'';document.getElementById('gr-content').value=g.content||'';document.getElementById('gr-action').value=g.action||'';document.getElementById('gr-staff').value=g.staff||'';document.getElementById('gr-status').value=g.status||'open';document.getElementById('gr-result').value=g.result||'';}}
+  else{document.getElementById('gr-date').value=today;document.getElementById('gr-member').value='';document.getElementById('gr-content').value='';document.getElementById('gr-action').value='';document.getElementById('gr-staff').value='';document.getElementById('gr-result').value='';}
+  openOv('ov-gr');
+}
+function saveGrievance(){
+  var date=document.getElementById('gr-date').value;
+  var content=document.getElementById('gr-content').value.trim();
+  if(!date||!content){alert('날짜와 내용은 필수입니다');return;}
+  var editId=document.getElementById('gr-edit-id').value;
+  var entry={id:editId||('gr_'+Date.now()),date:date,type:document.getElementById('gr-type').value,member:document.getElementById('gr-member').value.trim(),content:content,action:document.getElementById('gr-action').value.trim(),staff:document.getElementById('gr-staff').value.trim(),status:document.getElementById('gr-status').value,result:document.getElementById('gr-result').value.trim()};
+  if(editId){var idx=GR_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)GR_LIST[idx]=entry;else GR_LIST.push(entry);}
+  else GR_LIST.push(entry);
+  saveGRStorage();
+  apiCall({action:'append',sheet:'grievance',data:{'ID':entry.id,'날짜':entry.date,'유형':entry.type,'멤버':entry.member,'내용':entry.content,'조치':entry.action,'담당자':entry.staff,'상태':entry.status,'결과':entry.result}}).catch(function(){});
+  closeOv('ov-gr');renderGrievanceList();
+}
+function editGr(id){openGrModal(id);}
+function deleteGr(id){if(!confirm('삭제?'))return;GR_LIST=GR_LIST.filter(function(x){return x.id!==id;});saveGRStorage();renderGrievanceList();}
+
+// ── FIRE DRILL ────────────────────────────────────────────
+var FD_LIST = JSON.parse(localStorage.getItem('fd_list')||'[]');
+function saveFDStorage(){localStorage.setItem('fd_list',JSON.stringify(FD_LIST));}
+
+function renderFDList(){
+  var thisYear=new Date().getFullYear().toString();
+  var yearCount=FD_LIST.filter(function(f){return (f.date||'').startsWith(thisYear);}).length;
+  var sorted=FD_LIST.slice().sort(function(a,b){return b.date>a.date?1:-1;});
+  var e=document.getElementById('fd-total');if(e)e.textContent=FD_LIST.length;
+  e=document.getElementById('fd-year');if(e)e.textContent=yearCount;
+  e=document.getElementById('fd-last');if(e)e.textContent=sorted.length?sorted[0].date:'—';
+
+  var html='';
+  if(!sorted.length){html='<div class="empty-msg">소방훈련 기록이 없어요</div>';}
+  sorted.forEach(function(f){
+    html+='<div class="log-card">'
+      +'<div class="log-top"><div class="log-name">🔥 '+f.type+'</div><span class="badge b-ok">'+f.date+'</span></div>'
+      +'<div style="font-size:12px;color:#3C3C43;margin-bottom:3px">참석: '+(f.count||'—')+'명 · 소요: '+(f.duration||'—')+'분</div>'
+      +'<div style="font-size:11px;color:#8E8E93">담당: '+(f.staff||'—')+(f.note?' · '+f.note:'')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="editFD(\''+f.id+'\')">✏️</button>'
+      +'<button class="btn-danger" onclick="deleteFD(\''+f.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2=document.getElementById('fd-list');if(el2)el2.innerHTML=html;
+}
+
+function openFDModal(id){
+  document.getElementById('fd-edit-id').value=id||'';
+  var today=new Date().toISOString().slice(0,10);
+  if(id){var f=FD_LIST.find(function(x){return x.id===id;});if(f){document.getElementById('fd-date').value=f.date||today;document.getElementById('fd-time').value=f.time||'';document.getElementById('fd-count').value=f.count||'';document.getElementById('fd-duration').value=f.duration||'';document.getElementById('fd-type').value=f.type||'실제 대피 훈련';document.getElementById('fd-staff').value=f.staff||'';document.getElementById('fd-note').value=f.note||'';}}
+  else{document.getElementById('fd-date').value=today;document.getElementById('fd-time').value='';document.getElementById('fd-count').value='';document.getElementById('fd-duration').value='';document.getElementById('fd-staff').value='';document.getElementById('fd-note').value='';}
+  openOv('ov-fd');
+}
+function saveFireDrill(){
+  var date=document.getElementById('fd-date').value;
+  if(!date){alert('날짜는 필수입니다');return;}
+  var editId=document.getElementById('fd-edit-id').value;
+  var entry={id:editId||('fd_'+Date.now()),date:date,time:document.getElementById('fd-time').value,count:document.getElementById('fd-count').value,duration:document.getElementById('fd-duration').value,type:document.getElementById('fd-type').value,staff:document.getElementById('fd-staff').value.trim(),note:document.getElementById('fd-note').value.trim()};
+  if(editId){var idx=FD_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)FD_LIST[idx]=entry;else FD_LIST.push(entry);}
+  else FD_LIST.push(entry);
+  saveFDStorage();
+  apiCall({action:'append',sheet:'firedrill',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'참석인원':entry.count,'소요시간':entry.duration,'유형':entry.type,'담당자':entry.staff,'메모':entry.note}}).catch(function(){});
+  closeOv('ov-fd');renderFDList();
+}
+function editFD(id){openFDModal(id);}
+function deleteFD(id){if(!confirm('삭제?'))return;FD_LIST=FD_LIST.filter(function(x){return x.id!==id;});saveFDStorage();renderFDList();}
+
+// ── TEMPERATURE LOG ───────────────────────────────────────
+var TEMP_LIST = JSON.parse(localStorage.getItem('temp_list')||'[]');
+function saveTempStorage(){localStorage.setItem('temp_list',JSON.stringify(TEMP_LIST));}
+var _tempFilter='fridge';
+function setTempFilter(f,el){_tempFilter=f;document.querySelectorAll('#panel-templog .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderTempList();}
+
+var TEMP_LIMITS={fridge:{max:40,unit:'°F',label:'40°F 이하'},food:{min:140,unit:'°F',label:'140°F 이상'},water:{min:110,unit:'°F',label:'110°F 이상'},sanitize:{min:50,unit:'ppm',label:'50ppm 이상'}};
+
+function tempOk(t){
+  var limit=TEMP_LIMITS[t.type];
+  if(!limit||!t.value)return true;
+  var v=parseFloat(t.value);
+  if(limit.max)return v<=limit.max;
+  if(limit.min)return v>=limit.min;
+  return true;
+}
+
+function renderTempList(){
+  var list=TEMP_LIST.filter(function(t){return t.type===_tempFilter;}).sort(function(a,b){return b.date>a.date?1:-1;});
+  var limit=TEMP_LIMITS[_tempFilter];
+  var html='';
+  if(limit){html+='<div class="card" style="background:#EDE9FE;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#5856D6">기준: '+limit.label+'</div></div>';}
+  if(!list.length){html+='<div class="empty-msg">기록이 없어요</div>';}
+  list.forEach(function(t){
+    var ok=tempOk(t);
+    html+='<div class="log-card" style="'+(ok?'':'border:1.5px solid #FF3B30')+'">'
+      +'<div class="log-top">'
+      +'<div class="log-name">'+t.date+' '+(t.time||'')+'</div>'
+      +'<span class="'+(ok?'temp-ok':'temp-bad')+'">'+t.value+(t.unit||'°F')+(ok?' ✅':' ❌')+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">기록자: '+(t.staff||'—')+(t.note?' · '+t.note:'')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-danger" onclick="deleteTemp(\''+t.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2=document.getElementById('temp-list');if(el2)el2.innerHTML=html;
+}
+
+function openTempModal(){
+  document.getElementById('temp-edit-id').value='';
+  var today=new Date().toISOString().slice(0,10);
+  var now=new Date().toTimeString().slice(0,5);
+  document.getElementById('temp-date').value=today;
+  document.getElementById('temp-time').value=now;
+  document.getElementById('temp-value').value='';
+  document.getElementById('temp-type').value=_tempFilter==='fridge'?'fridge':_tempFilter==='food'?'food':_tempFilter==='water'?'water':'sanitize';
+  document.getElementById('temp-staff').value='';
+  document.getElementById('temp-note').value='';
+  openOv('ov-temp');
+}
+function saveTemp(){
+  var date=document.getElementById('temp-date').value;
+  var value=document.getElementById('temp-value').value;
+  if(!date||!value){alert('날짜와 측정값은 필수입니다');return;}
+  var entry={id:'temp_'+Date.now(),date:date,time:document.getElementById('temp-time').value,type:document.getElementById('temp-type').value.split(' ')[0],value:value,unit:document.getElementById('temp-unit').value,staff:document.getElementById('temp-staff').value.trim(),note:document.getElementById('temp-note').value.trim()};
+  TEMP_LIST.push(entry);
+  saveTempStorage();
+  apiCall({action:'append',sheet:'templog',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'유형':entry.type,'측정값':entry.value,'단위':entry.unit,'기록자':entry.staff,'메모':entry.note}}).catch(function(){});
+  closeOv('ov-temp');renderTempList();
+}
+function deleteTemp(id){if(!confirm('삭제?'))return;TEMP_LIST=TEMP_LIST.filter(function(x){return x.id!==id;});saveTempStorage();renderTempList();}
+
+// ── DOCUMENT VAULT ────────────────────────────────────────
+var DOCS_LIST = JSON.parse(localStorage.getItem('docs_list')||'['+
+  '{"id":"doc_1","name":"OMIG Certification","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_2","name":"DFTA Registration","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_3","name":"Liability Insurance","cat":"보험","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_4","name":"Certificate of Occupancy","cat":"시설","expiry":"","link":"","note":""},' +
+  '{"id":"doc_5","name":"Food Service Permit","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_6","name":"Registered Dietician License","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_7","name":"Registered Nurse License","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_8","name":"Food Handler Certification","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_9","name":"Elevator Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_10","name":"Fire Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""}' +
+']');
+function saveDocsStorage(){localStorage.setItem('docs_list',JSON.stringify(DOCS_LIST));}
+
+function docStatus(expiry){
+  if(!expiry)return 'none';
+  var today=new Date();today.setHours(0,0,0,0);
+  var exp=new Date(expiry+'T00:00:00');
+  var diff=Math.floor((exp-today)/86400000);
+  if(diff<0)return 'expired';
+  if(diff<=30)return 'soon';
+  return 'ok';
+}
+
+function renderDocsList(){
+  var expired=0,soon=0,ok=0;
+  DOCS_LIST.forEach(function(d){var s=docStatus(d.expiry);if(s==='expired')expired++;else if(s==='soon')soon++;else ok++;});
+  var e=document.getElementById('doc-exp');if(e)e.textContent=expired;
+  e=document.getElementById('doc-soon');if(e)e.textContent=soon;
+  e=document.getElementById('doc-ok');if(e)e.textContent=ok;
+
+  var html='<div class="card">';
+  DOCS_LIST.forEach(function(d){
+    var st=docStatus(d.expiry);
+    var badge=st==='expired'?'<span class="badge b-red">❌ 만료</span>':st==='soon'?'<span class="badge b-warn">⚠️ 만료임박</span>':st==='ok'?'<span class="badge b-ok">✅ 유효</span>':'<span class="badge" style="background:#F2F2F7;color:#8E8E93">기한없음</span>';
+    html+='<div class="doc-item">'
+      +'<div style="flex:1">'
+      +'<div style="font-size:12px;font-weight:700">'+d.name+'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">'+(d.cat||'')+(d.expiry?' · 만료: '+d.expiry:'')+'</div>'
+      +(d.link?'<a href="'+d.link+'" target="_blank" style="font-size:11px;color:#5856D6">📎 Drive 열기</a>':'')
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+      +badge
+      +'<button class="btn-sm" onclick="editDoc(\''+d.id+'\')">✏️</button>'
+      +'<button class="btn-danger" onclick="deleteDoc(\''+d.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  html+='</div>';
+  var el2=document.getElementById('docs-list');if(el2)el2.innerHTML=html;
+}
+
+function openDocModal(id){
+  document.getElementById('doc-modal-title').textContent=id?'✏️ 문서 수정':'📁 문서 추가';
+  document.getElementById('doc-edit-id').value=id||'';
+  if(id){var d=DOCS_LIST.find(function(x){return x.id===id;});if(d){document.getElementById('doc-name').value=d.name||'';document.getElementById('doc-cat').value=d.cat||'인증/허가';document.getElementById('doc-issued').value=d.issued||'';document.getElementById('doc-expiry').value=d.expiry||'';document.getElementById('doc-link').value=d.link||'';document.getElementById('doc-note').value=d.note||'';}}
+  else{document.getElementById('doc-name').value='';document.getElementById('doc-issued').value='';document.getElementById('doc-expiry').value='';document.getElementById('doc-link').value='';document.getElementById('doc-note').value='';}
+  openOv('ov-doc');
+}
+function saveDoc(){
+  var name=document.getElementById('doc-name').value.trim();
+  if(!name){alert('문서명은 필수입니다');return;}
+  var editId=document.getElementById('doc-edit-id').value;
+  var entry={id:editId||('doc_'+Date.now()),name:name,cat:document.getElementById('doc-cat').value,issued:document.getElementById('doc-issued').value,expiry:document.getElementById('doc-expiry').value,link:document.getElementById('doc-link').value.trim(),note:document.getElementById('doc-note').value.trim()};
+  if(editId){var idx=DOCS_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)DOCS_LIST[idx]=entry;else DOCS_LIST.push(entry);}
+  else DOCS_LIST.push(entry);
+  saveDocsStorage();closeOv('ov-doc');renderDocsList();
+}
+function editDoc(id){openDocModal(id);}
+function deleteDoc(id){if(!confirm('삭제?'))return;DOCS_LIST=DOCS_LIST.filter(function(x){return x.id!==id;});saveDocsStorage();renderDocsList();}
+
+// ── ACTIVITY CALENDAR ─────────────────────────────────────
+var ACT_LIST = JSON.parse(localStorage.getItem('op_act_list')||'[]');
+function saveActStorage(){localStorage.setItem('op_act_list',JSON.stringify(ACT_LIST));}
+var _actFilter='all';
+function setActFilter(f,el){_actFilter=f;document.querySelectorAll('#panel-activity .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderActivityList();}
+
+function renderActivityList(){
+  var q=(document.getElementById('act-search')||{}).value||'';
+  var today=new Date().toISOString().slice(0,10);
+  var thisMonth=today.slice(0,7);
+  var nextMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,1).toISOString().slice(0,7);
+  var list=ACT_LIST.filter(function(a){
+    var match=!q||(a.name||'').includes(q)||(a.cat||'').includes(q);
+    var fm=_actFilter==='all'||(_actFilter==='thisMonth'&&(a.date||'').startsWith(thisMonth))||(_actFilter==='nextMonth'&&(a.date||'').startsWith(nextMonth));
+    return match&&fm;
+  }).sort(function(a,b){return a.date>b.date?1:-1;});
+
+  var html='';
+  if(!list.length){html='<div class="empty-msg">활동 일정이 없어요</div>';}
+  list.forEach(function(a){
+    var past=a.date<today;
+    html+='<div class="log-card" style="'+(past?'opacity:0.6':'')+'">'
+      +'<div class="log-top"><div class="log-name">📅 '+a.name+'</div><span class="badge b-purple">'+a.cat+'</span></div>'
+      +'<div style="font-size:12px;color:#3C3C43;margin-bottom:3px">'+a.date+' '+(a.time||'')+'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">'+(a.staff||'')+(a.note?' · '+a.note:'')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="editAct(\''+a.id+'\')">✏️</button>'
+      +'<button class="btn-danger" onclick="deleteAct(\''+a.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2=document.getElementById('act-list');if(el2)el2.innerHTML=html;
+}
+
+function openActModal(id){
+  document.getElementById('act-edit-id').value=id||'';
+  var today=new Date().toISOString().slice(0,10);
+  if(id){var a=ACT_LIST.find(function(x){return x.id===id;});if(a){document.getElementById('act-date').value=a.date||today;document.getElementById('act-time').value=a.time||'';document.getElementById('act-name').value=a.name||'';document.getElementById('act-cat').value=a.cat||'신체활동';document.getElementById('act-staff').value=a.staff||'';document.getElementById('act-note').value=a.note||'';}}
+  else{document.getElementById('act-date').value=today;document.getElementById('act-time').value='';document.getElementById('act-name').value='';document.getElementById('act-staff').value='';document.getElementById('act-note').value='';}
+  openOv('ov-act');
+}
+function saveActivity(){
+  var date=document.getElementById('act-date').value;
+  var name=document.getElementById('act-name').value.trim();
+  if(!date||!name){alert('날짜와 활동명은 필수입니다');return;}
+  var editId=document.getElementById('act-edit-id').value;
+  var entry={id:editId||('act_'+Date.now()),date:date,time:document.getElementById('act-time').value,name:name,cat:document.getElementById('act-cat').value,staff:document.getElementById('act-staff').value.trim(),note:document.getElementById('act-note').value.trim()};
+  if(editId){var idx=ACT_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)ACT_LIST[idx]=entry;else ACT_LIST.push(entry);}
+  else ACT_LIST.push(entry);
+  saveActStorage();closeOv('ov-act');renderActivityList();
+}
+function editAct(id){openActModal(id);}
+function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(function(x){return x.id!==id;});saveActStorage();renderActivityList();}
+
+// ── PCSP ─────────────────────────────────────────────────
+var PCSP_LIST = JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PCSP_LIST));}
+var _pcspFilter='all';
+function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-pcsp .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderPCSPList();}
+
+function renderPCSPList(){
+  var q=(document.getElementById('pcsp-search')||{}).value||'';
+  var today=new Date().toISOString().slice(0,10);
+  var list=PCSP_LIST.filter(function(p){
+    var match=!q||(p.member||'').includes(q);
+    var due=p.next&&p.next<=today;
+    var fm=_pcspFilter==='all'||(_pcspFilter==='due'&&due)||(_pcspFilter==='ok'&&!due);
+    return match&&fm;
+  }).sort(function(a,b){return (a.next||'9999')>(b.next||'9999')?1:-1;});
+
+  var html='';
+  if(!list.length){html='<div class="empty-msg">PCSP 기록이 없어요</div>';}
+  list.forEach(function(p){
+    var due=p.next&&p.next<=today;
+    var badge=due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 유효</span>';
+    html+='<div class="log-card">'
+      +'<div class="log-top"><div class="log-name">📄 '+p.member+'</div>'+badge+'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">작성: '+p.date+' · 갱신예정: '+(p.next||'—')+'</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+(p.goal1||'')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="editPCSP(\''+p.id+'\')">✏️</button>'
+      +'<button class="btn-danger" onclick="deletePCSP(\''+p.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2=document.getElementById('pcsp-list');if(el2)el2.innerHTML=html;
+}
+
+function openPCSPModal(id){
+  document.getElementById('pcsp-modal-title').textContent=id?'✏️ PCSP 수정':'📄 PCSP 추가';
+  document.getElementById('pcsp-edit-id').value=id||'';
+  var today=new Date().toISOString().slice(0,10);
+  if(id){var p=PCSP_LIST.find(function(x){return x.id===id;});if(p){document.getElementById('pcsp-member').value=p.member||'';document.getElementById('pcsp-date').value=p.date||today;document.getElementById('pcsp-next').value=p.next||'';document.getElementById('pcsp-author').value=p.author||'';document.getElementById('pcsp-dx').value=p.dx||'';document.getElementById('pcsp-goal1').value=p.goal1||'';document.getElementById('pcsp-goal2').value=p.goal2||'';document.getElementById('pcsp-goal3').value=p.goal3||'';document.getElementById('pcsp-status').value=p.status||'active';}}
+  else{document.getElementById('pcsp-member').value='';document.getElementById('pcsp-date').value=today;document.getElementById('pcsp-next').value='';document.getElementById('pcsp-author').value=_currentUser?_currentUser.name||'':'';document.getElementById('pcsp-dx').value='';document.getElementById('pcsp-goal1').value='';document.getElementById('pcsp-goal2').value='';document.getElementById('pcsp-goal3').value='';}
+  openOv('ov-pcsp');
+}
+function savePCSP(){
+  var member=document.getElementById('pcsp-member').value.trim();
+  var date=document.getElementById('pcsp-date').value;
+  if(!member||!date){alert('멤버와 날짜는 필수입니다');return;}
+  var editId=document.getElementById('pcsp-edit-id').value;
+  var entry={id:editId||('pcsp_'+Date.now()),member:member,date:date,next:document.getElementById('pcsp-next').value,author:document.getElementById('pcsp-author').value.trim(),dx:document.getElementById('pcsp-dx').value.trim(),goal1:document.getElementById('pcsp-goal1').value.trim(),goal2:document.getElementById('pcsp-goal2').value.trim(),goal3:document.getElementById('pcsp-goal3').value.trim(),status:document.getElementById('pcsp-status').value};
+  if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}
+  else PCSP_LIST.push(entry);
+  savePCSPStorage();
+  apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.date,'멤버ID':'','한글이름':entry.member,'작성자':entry.author,'갱신예정일':entry.next,'진단':entry.dx,'목표1':entry.goal1,'목표2':entry.goal2,'목표3':entry.goal3,'상태':entry.status}}).catch(function(){});
+  closeOv('ov-pcsp');renderPCSPList();
+}
+function editPCSP(id){openPCSPModal(id);}
+function deletePCSP(id){if(!confirm('삭제?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});savePCSPStorage();renderPCSPList();}
+
+// ── Staff (간소화) ────────────────────────────────────────
+function renderOpStaff(){
+  var STAFF_OP=JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var e=document.getElementById('op-staff-total');if(e)e.textContent=STAFF_OP.length;
+  var today=new Date().toISOString().slice(0,10);
+  var exp=0,soon=0;
+  STAFF_OP.forEach(function(s){
+    (s.certs||[]).forEach(function(c){
+      if(!c.exp)return;
+      var diff=Math.floor((new Date(c.exp)-new Date(today))/86400000);
+      if(diff<0)exp++;else if(diff<=90)soon++;
+    });
+  });
+  e=document.getElementById('op-staff-exp');if(e)e.textContent=exp;
+  e=document.getElementById('op-staff-soon');if(e)e.textContent=soon;
+  var html='<div class="card"><div style="font-size:13px;color:#8E8E93;text-align:center;padding:8px">스태프 데이터는 케어 관리 앱과 공유됩니다.<br><a href="index.html" style="color:#5856D6">케어 관리 앱에서 관리하기 →</a></div></div>';
+  var el2=document.getElementById('op-staff-list');if(el2)el2.innerHTML=html;
+}
+function openStaffModal(){ window.location.href='index.html'; }
+
+// ── 초기화 ────────────────────────────────────────────────
+function initData(){
+  renderAudit();
+}
+</script>
+</body>
+</html>

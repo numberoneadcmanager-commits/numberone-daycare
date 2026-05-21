@@ -485,13 +485,11 @@ window.addEventListener('load', function() {
     <div class="tab" onclick="goTab('attendance',this)">출결</div>
     <div class="tab" onclick="goTab('members',this)">멤버</div>
     <div class="tab" onclick="goTab('absence',this)">부재</div>
-    <div class="tab" onclick="goTab('pcsp',this)">PCSP</div>
     <div class="tab" onclick="goTab('logs',this)">로그</div>
-    <div class="tab" onclick="goTab('staff',this)">스태프</div>
     <div class="tab" onclick="goTab('report',this)">보고서</div>
-    <div class="tab" onclick="goTab('forms',this)">폼</div>
-    <div class="tab" onclick="goTab('billing',this)">빌링</div>
     <div class="tab" onclick="goTab('authorization',this)">Auth</div>
+    <div class="tab" onclick="goTab('visitor',this)">방문자</div>
+    <div class="tab" onclick="goTab('council',this)">회의록</div>
     <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
   </div>
 
@@ -512,6 +510,11 @@ window.addEventListener('load', function() {
         <div class="sbox"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
       <div id="ds-auth-alert" style="display:none;margin-bottom:10px"></div>
+      <div style="margin-bottom:10px">
+        <button class="btn-full" style="background:linear-gradient(135deg,#5856D6,#007AFF);color:#fff;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer" onclick="window.location.href='operations.html'">
+          📋 업무 관리 앱으로 이동 →
+        </button>
+      </div>
       <div class="section-lbl">오늘 출결</div>
       <div class="card" id="dash-list"></div>
       <div class="section-lbl" style="margin-top:10px">📅 팔로업 필요 Case</div>
@@ -1165,6 +1168,25 @@ window.addEventListener('load', function() {
         <div style="font-size:12px;color:#B84520;line-height:1.5;margin-bottom:10px">NPI: 1154194504 · EIN: 93-4271990 · Revenue Code: 3104 · HEALTHPLUS 45302</div>
         <button class="btn-full btn-primary" onclick="exportBillingCSV()">CSV 다운로드</button>
       </div>
+    </div>
+
+    <!-- Visitor Log -->
+    <div class="panel" id="panel-visitor">
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="sbox"><div class="sv" id="vis-today">0</div><div class="sl">오늘 방문</div></div>
+        <div class="sbox"><div class="sv c-blue" id="vis-month">0</div><div class="sl">이번달</div></div>
+        <div class="sbox"><div class="sv c-green" id="vis-total">0</div><div class="sl">전체</div></div>
+      </div>
+      <div class="search-wrap"><span>🔍</span><input id="vis-search" placeholder="방문자 이름 검색" oninput="renderVisitorList()"></div>
+      <div id="vis-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openVisitorModal()">➕ 방문자 추가</button>
+    </div>
+
+    <!-- Council Meeting -->
+    <div class="panel" id="panel-council">
+      <div class="search-wrap"><span>🔍</span><input id="council-search" placeholder="회의 검색" oninput="renderCouncilList()"></div>
+      <div id="council-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openCouncilModal()">➕ 회의록 추가</button>
     </div>
 
     <!-- Settings -->
@@ -1863,6 +1885,8 @@ function goTab(tab,el){
   if(tab==='staff')renderStaff();
   if(tab==='report')renderReport();
   if(tab==='authorization')renderAuthList();
+  if(tab==='visitor')renderVisitorList();
+  if(tab==='council')renderCouncilList();
 }
 
 // ── DATE HELPERS ─────────────────────────────────────────────
@@ -2889,11 +2913,9 @@ function fillPCSPFromAssessment(mid) {
   el = document.getElementById('f-ec1phone');
   if(el) el.value = txtVal('ec1-hphone')||'';
 
-  // PCSP 탭으로 이동
-  goTab('pcsp', document.querySelector('.tab[onclick*=\'pcsp\']'));
-  openPCSPForm(mid);
-
-  alert('✅ Assessment 데이터가 PCSP에 자동으로 채워졌어요!\n나머지 항목을 확인하고 수정해주세요.');
+  // 업무 관리 앱으로 이동 안내
+  alert('✅ Assessment 완료!\nPCSP 작성은 업무 관리 앱에서 해주세요.');
+  window.location.href = 'operations.html';
 }
 
 
@@ -3769,18 +3791,240 @@ function deleteAuth(id) {
   renderAuthList();
 }
 
-// favicon 404 방지
-(function(){
-  var link = document.querySelector("link[rel~='icon']");
-  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
-  link.href = 'data:,';
-})();
+<!-- Visitor Log Modal -->
+<div class="ov" id="ov-visitor" onclick="closeOv('ov-visitor')"></div>
+<div class="modal" id="modal-ov-visitor" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="vis-modal-title">👥 방문자 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-visitor')">&#10005;</button>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>방문 날짜 *</label><input class="m-input" id="vis-date" type="date"></div>
+    <div class="modal-input-wrap"><label>방문 시간</label><input class="m-input" id="vis-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>방문자 이름 *</label><input class="m-input" id="vis-name" placeholder="이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>소속/관계</label><input class="m-input" id="vis-org" placeholder="소속 또는 관계"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>방문 목적 *</label>
+    <select class="m-select" id="vis-purpose">
+      <option>Site Visit / Audit</option>
+      <option>Family / Caregiver</option>
+      <option>Vendor</option>
+      <option>Medical Professional</option>
+      <option>Government Inspector</option>
+      <option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><textarea class="m-textarea" id="vis-note" placeholder="참고사항"></textarea></div>
+  <input type="hidden" id="vis-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-visitor')">취소</button>
+    <button class="mbt mbt-save" onclick="saveVisitor()">저장</button>
+  </div>
+</div>
 
-// 대시보드 로드시 auth 알림 갱신
-var _origRenderDash = typeof renderDashboard === 'function' ? renderDashboard : null;
-document.addEventListener('DOMContentLoaded', function(){
-  renderAuthList();
-});
+<!-- Council Meeting Modal -->
+<div class="ov" id="ov-council" onclick="closeOv('ov-council')"></div>
+<div class="modal" id="modal-ov-council" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="council-modal-title">📋 회의록 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-council')">&#10005;</button>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>회의 날짜 *</label><input class="m-input" id="council-date" type="date"></div>
+    <div class="modal-input-wrap"><label>회의 시간</label><input class="m-input" id="council-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 유형</label>
+    <select class="m-select" id="council-type">
+      <option>Participant Council Meeting</option>
+      <option>Staff Meeting</option>
+      <option>Family Council Meeting</option>
+      <option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>참석자</label><input class="m-input" id="council-attendees" placeholder="참석자 이름 (쉼표로 구분)"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>안건</label><textarea class="m-textarea" id="council-agenda" placeholder="회의 안건"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 내용/결정사항</label><textarea class="m-textarea" id="council-minutes" placeholder="회의록 내용"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>다음 회의 예정일</label><input class="m-input" id="council-next" type="date"></div>
+  <input type="hidden" id="council-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-council')">취소</button>
+    <button class="mbt mbt-save" onclick="saveCouncil()">저장</button>
+  </div>
+</div>
+
+<script>
+// ===== VISITOR LOG =====
+var VISITOR_LIST = JSON.parse(localStorage.getItem('visitor_list')||'[]');
+function saveVisitorStorage(){ localStorage.setItem('visitor_list', JSON.stringify(VISITOR_LIST)); }
+
+function renderVisitorList(){
+  var q = (document.getElementById('vis-search')||{}).value||'';
+  var today = new Date().toISOString().slice(0,10);
+  var thisMonth = today.slice(0,7);
+  var list = VISITOR_LIST.filter(function(v){
+    return !q || (v.name||'').toLowerCase().includes(q.toLowerCase()) || (v.org||'').toLowerCase().includes(q.toLowerCase());
+  });
+  list.sort(function(a,b){ return b.date > a.date ? 1 : -1; });
+
+  var todayCount = VISITOR_LIST.filter(function(v){ return v.date===today; }).length;
+  var monthCount = VISITOR_LIST.filter(function(v){ return (v.date||'').slice(0,7)===thisMonth; }).length;
+  var el = document.getElementById('vis-today'); if(el) el.textContent=todayCount;
+  el = document.getElementById('vis-month'); if(el) el.textContent=monthCount;
+  el = document.getElementById('vis-total'); if(el) el.textContent=VISITOR_LIST.length;
+
+  var html = '';
+  if(!list.length){ html='<div class="empty-msg">방문자 기록이 없어요</div>'; }
+  list.forEach(function(v){
+    html += '<div class="log-card">'
+      + '<div class="log-top"><div class="log-name">👤 '+v.name+'</div>'
+      + '<span class="badge b-ok">'+v.purpose+'</span></div>'
+      + '<div style="font-size:12px;color:#3C3C43;margin-bottom:3px">'+(v.org||'')+'</div>'
+      + '<div style="font-size:11px;color:#8E8E93">'+v.date+' '+(v.time||'')+' '+(v.note?'· '+v.note:'')+'</div>'
+      + '<div class="log-actions" style="margin-top:6px">'
+      + '<button class="btn-sm" onclick="editVisitor(\''+v.id+'\')">✏️ 수정</button>'
+      + '<button class="btn-danger" onclick="deleteVisitor(\''+v.id+'\')">삭제</button>'
+      + '</div></div>';
+  });
+  var el2 = document.getElementById('vis-list'); if(el2) el2.innerHTML=html;
+}
+
+function openVisitorModal(id){
+  document.getElementById('vis-modal-title').textContent = id ? '✏️ 방문자 수정' : '👥 방문자 추가';
+  document.getElementById('vis-edit-id').value = id||'';
+  var today = new Date().toISOString().slice(0,10);
+  var now = new Date().toTimeString().slice(0,5);
+  if(id){
+    var v = VISITOR_LIST.find(function(x){return x.id===id;});
+    if(v){
+      document.getElementById('vis-date').value=v.date||today;
+      document.getElementById('vis-time').value=v.time||now;
+      document.getElementById('vis-name').value=v.name||'';
+      document.getElementById('vis-org').value=v.org||'';
+      document.getElementById('vis-purpose').value=v.purpose||'기타';
+      document.getElementById('vis-note').value=v.note||'';
+    }
+  } else {
+    document.getElementById('vis-date').value=today;
+    document.getElementById('vis-time').value=now;
+    document.getElementById('vis-name').value='';
+    document.getElementById('vis-org').value='';
+    document.getElementById('vis-note').value='';
+  }
+  openOv('ov-visitor');
+}
+
+function saveVisitor(){
+  var name=document.getElementById('vis-name').value.trim();
+  var date=document.getElementById('vis-date').value;
+  if(!name||!date){alert('이름과 날짜는 필수입니다');return;}
+  var editId=document.getElementById('vis-edit-id').value;
+  var entry={
+    id:editId||('vis_'+Date.now()),
+    date:date, time:document.getElementById('vis-time').value,
+    name:name, org:document.getElementById('vis-org').value.trim(),
+    purpose:document.getElementById('vis-purpose').value,
+    note:document.getElementById('vis-note').value.trim()
+  };
+  if(editId){ var idx=VISITOR_LIST.findIndex(function(x){return x.id===editId;}); if(idx>=0)VISITOR_LIST[idx]=entry; else VISITOR_LIST.push(entry); }
+  else VISITOR_LIST.push(entry);
+  saveVisitorStorage();
+  if(apiUrl) apiCall({},{action:'append',sheet:'visitor',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'이름':entry.name,'소속':entry.org,'목적':entry.purpose,'메모':entry.note}}).catch(function(){});
+  closeOv('ov-visitor');
+  renderVisitorList();
+}
+function editVisitor(id){openVisitorModal(id);}
+function deleteVisitor(id){
+  if(!confirm('삭제하시겠어요?'))return;
+  VISITOR_LIST=VISITOR_LIST.filter(function(x){return x.id!==id;});
+  saveVisitorStorage();
+  renderVisitorList();
+}
+
+// ===== COUNCIL MEETING =====
+var COUNCIL_LIST = JSON.parse(localStorage.getItem('council_list')||'[]');
+function saveCouncilStorage(){ localStorage.setItem('council_list', JSON.stringify(COUNCIL_LIST)); }
+
+function renderCouncilList(){
+  var q=(document.getElementById('council-search')||{}).value||'';
+  var list=COUNCIL_LIST.filter(function(c){
+    return !q||(c.type||'').includes(q)||(c.attendees||'').includes(q)||(c.agenda||'').includes(q);
+  });
+  list.sort(function(a,b){return b.date>a.date?1:-1;});
+  var html='';
+  if(!list.length){html='<div class="empty-msg">회의록이 없어요</div>';}
+  list.forEach(function(c){
+    html+='<div class="log-card">'
+      +'<div class="log-top"><div class="log-name">📋 '+c.type+'</div>'
+      +'<span class="badge b-ok">'+c.date+'</span></div>'
+      +'<div style="font-size:12px;font-weight:600;color:#3C3C43;margin-bottom:3px">안건: '+(c.agenda||'—')+'</div>'
+      +'<div style="font-size:11px;color:#8E8E93;margin-bottom:3px">참석자: '+(c.attendees||'—')+'</div>'
+      +(c.minutes?'<div style="font-size:11px;color:#3C3C43;background:#F2F2F7;border-radius:8px;padding:6px;margin-bottom:4px">'+c.minutes+'</div>':'')
+      +(c.next?'<div style="font-size:11px;color:#FF9500">📅 다음 회의: '+c.next+'</div>':'')
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="editCouncil(\''+c.id+'\')">✏️ 수정</button>'
+      +'<button class="btn-danger" onclick="deleteCouncil(\''+c.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el=document.getElementById('council-list'); if(el) el.innerHTML=html;
+}
+
+function openCouncilModal(id){
+  document.getElementById('council-modal-title').textContent=id?'✏️ 회의록 수정':'📋 회의록 추가';
+  document.getElementById('council-edit-id').value=id||'';
+  var today=new Date().toISOString().slice(0,10);
+  if(id){
+    var c=COUNCIL_LIST.find(function(x){return x.id===id;});
+    if(c){
+      document.getElementById('council-date').value=c.date||today;
+      document.getElementById('council-time').value=c.time||'';
+      document.getElementById('council-type').value=c.type||'Participant Council Meeting';
+      document.getElementById('council-attendees').value=c.attendees||'';
+      document.getElementById('council-agenda').value=c.agenda||'';
+      document.getElementById('council-minutes').value=c.minutes||'';
+      document.getElementById('council-next').value=c.next||'';
+    }
+  } else {
+    document.getElementById('council-date').value=today;
+    document.getElementById('council-time').value='';
+    document.getElementById('council-attendees').value='';
+    document.getElementById('council-agenda').value='';
+    document.getElementById('council-minutes').value='';
+    document.getElementById('council-next').value='';
+  }
+  openOv('ov-council');
+}
+
+function saveCouncil(){
+  var date=document.getElementById('council-date').value;
+  var type=document.getElementById('council-type').value;
+  if(!date){alert('날짜는 필수입니다');return;}
+  var editId=document.getElementById('council-edit-id').value;
+  var entry={
+    id:editId||('council_'+Date.now()),
+    date:date, time:document.getElementById('council-time').value,
+    type:type,
+    attendees:document.getElementById('council-attendees').value.trim(),
+    agenda:document.getElementById('council-agenda').value.trim(),
+    minutes:document.getElementById('council-minutes').value.trim(),
+    next:document.getElementById('council-next').value
+  };
+  if(editId){var idx=COUNCIL_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)COUNCIL_LIST[idx]=entry;else COUNCIL_LIST.push(entry);}
+  else COUNCIL_LIST.push(entry);
+  saveCouncilStorage();
+  if(apiUrl) apiCall({},{action:'append',sheet:'council',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'유형':entry.type,'참석자':entry.attendees,'안건':entry.agenda,'내용':entry.minutes,'다음회의':entry.next}}).catch(function(){});
+  closeOv('ov-council');
+  renderCouncilList();
+}
+function editCouncil(id){openCouncilModal(id);}
+function deleteCouncil(id){
+  if(!confirm('삭제하시겠어요?'))return;
+  COUNCIL_LIST=COUNCIL_LIST.filter(function(x){return x.id!==id;});
+  saveCouncilStorage();
+  renderCouncilList();
+}
 </script>
 </body>
 </html>
