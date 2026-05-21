@@ -2381,7 +2381,19 @@ async function loadAllData(){
     if(aR.ok)activities=aR.data||[];
     if(cR.ok)cases=cR.data||[];
     if(authR.ok && authR.data && authR.data.length){
-      AUTH_LIST = authR.data;
+      AUTH_LIST = authR.data.map(function(r){
+        return {
+          id: r['ID'] || r['id'] || '',
+          memberId: r['멤버ID'] || r['memberId'] || '',
+          insurer: r['보험사'] || r['insurer'] || '',
+          authNo: r['Auth번호'] || r['authNo'] || '',
+          startDate: r['시작일'] || r['startDate'] || '',
+          endDate: r['종료일'] || r['endDate'] || '',
+          service: r['서비스유형'] || r['service'] || '',
+          note: r['메모'] || r['note'] || '',
+          updatedAt: r['수정시각'] || r['updatedAt'] || ''
+        };
+      });
       saveAuthStorage();
     }
     renderIncidents();renderActivities();renderCases();updateDashNow();renderAuthList();
@@ -3724,13 +3736,23 @@ function saveAuth() {
     AUTH_LIST.push(entry);
   }
   saveAuthStorage();
-  // Sheets 동기화
+  // Sheets 동기화 — Apps Script 헤더에 맞춘 키
   if(apiUrl) {
+    var sheetsData = {
+      'ID': entry.id,
+      '멤버ID': entry.memberId,
+      '보험사': entry.insurer,
+      'Auth번호': entry.authNo,
+      '시작일': entry.startDate,
+      '종료일': entry.endDate,
+      '서비스유형': entry.service,
+      '메모': entry.note
+    };
     apiCall({}, {
       action: editId ? 'update' : 'append',
       sheet: 'auth',
       id: editId || null,
-      data: entry
+      data: sheetsData
     }).catch(function(e){ console.log('Auth Sheets sync:', e); });
   }
   closeOv('ov-auth');
