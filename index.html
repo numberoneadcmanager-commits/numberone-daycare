@@ -491,6 +491,7 @@ window.addEventListener('load', function() {
     <div class="tab" onclick="goTab('report',this)">보고서</div>
     <div class="tab" onclick="goTab('forms',this)">폼</div>
     <div class="tab" onclick="goTab('billing',this)">빌링</div>
+    <div class="tab" onclick="goTab('authorization',this)">Auth</div>
     <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
   </div>
 
@@ -510,6 +511,7 @@ window.addEventListener('load', function() {
         <div class="sbox"><div class="sv" id="ds-total">166</div><div class="sl">전체멤버</div></div>
         <div class="sbox"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
+      <div id="ds-auth-alert" style="display:none;margin-bottom:10px"></div>
       <div class="section-lbl">오늘 출결</div>
       <div class="card" id="dash-list"></div>
       <div class="section-lbl" style="margin-top:10px">📅 팔로업 필요 Case</div>
@@ -1166,6 +1168,24 @@ window.addEventListener('load', function() {
     </div>
 
     <!-- Settings -->
+    <!-- Authorization -->
+    <div class="panel" id="panel-authorization">
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="sbox"><div class="sv c-green" id="auth-active">0</div><div class="sl">✅ 유효</div></div>
+        <div class="sbox"><div class="sv c-orange" id="auth-soon">0</div><div class="sl">⚠️ 30일내</div></div>
+        <div class="sbox"><div class="sv c-red" id="auth-exp">0</div><div class="sl">❌ 만료</div></div>
+      </div>
+      <div class="search-wrap"><span>🔍</span><input id="auth-search" placeholder="멤버 이름 / Auth# 검색" oninput="renderAuthList()"></div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setAuthFilter('all',this)">전체</div>
+        <div class="fpill" onclick="setAuthFilter('active',this)">✅ 유효</div>
+        <div class="fpill" onclick="setAuthFilter('soon',this)">⚠️ 30일내</div>
+        <div class="fpill" onclick="setAuthFilter('expired',this)">❌ 만료</div>
+      </div>
+      <div id="auth-list"></div>
+      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openAuthModal()">➕ Auth 추가</button>
+    </div>
+
     <div class="panel" id="panel-settings">
       <div class="settings-card">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px">🏥 보험사 현황 (전체 166명)</div>
@@ -1204,8 +1224,9 @@ window.addEventListener('load', function() {
         <div style="font-size:12px;color:#3C3C43;line-height:2">
           <div><b>출결</b> · <b>멤버</b> · <b>PCSP</b></div>
           <div><b>incident</b> · <b>activity</b> · <b>caselog</b></div>
+          <div><b>auth</b> (Authorization 관리)</div>
         </div>
-        <div style="font-size:11px;color:#8E8E93;margin-top:8px">💡 "Sheets 초기화"를 누르면 6개 시트와 헤더가 자동 생성됩니다.</div>
+        <div style="font-size:11px;color:#8E8E93;margin-top:8px">💡 "Sheets 초기화"를 누르면 7개 시트와 헤더가 자동 생성됩니다.</div>
       </div>
     </div>
 
@@ -1841,6 +1862,7 @@ function goTab(tab,el){
   if(tab==='logs')renderIncidents();
   if(tab==='staff')renderStaff();
   if(tab==='report')renderReport();
+  if(tab==='authorization')renderAuthList();
 }
 
 // ── DATE HELPERS ─────────────────────────────────────────────
@@ -2349,9 +2371,20 @@ async function testApi(){
 async function initSheets(){document.getElementById('api-msg').textContent='시트 초기화 중...';try{const res=await apiCall({action:'initSheets'});document.getElementById('api-msg').textContent=res.ok?'✅ 완료: '+JSON.stringify(res.data):'❌ '+res.error;}catch(e){document.getElementById('api-msg').textContent='❌ '+e.message;}}
 async function loadAllData(){
   try{
-    const [iR,aR,cR]=await Promise.all([apiCall({action:'read',sheet:'incident'}),apiCall({action:'read',sheet:'activity'}),apiCall({action:'read',sheet:'caselog'})]);
-    if(iR.ok)incidents=iR.data||[];if(aR.ok)activities=aR.data||[];if(cR.ok)cases=cR.data||[];
-    renderIncidents();renderActivities();renderCases();updateDashNow();
+    const [iR,aR,cR,authR]=await Promise.all([
+      apiCall({action:'read',sheet:'incident'}),
+      apiCall({action:'read',sheet:'activity'}),
+      apiCall({action:'read',sheet:'caselog'}),
+      apiCall({action:'read',sheet:'auth'})
+    ]);
+    if(iR.ok)incidents=iR.data||[];
+    if(aR.ok)activities=aR.data||[];
+    if(cR.ok)cases=cR.data||[];
+    if(authR.ok && authR.data && authR.data.length){
+      AUTH_LIST = authR.data;
+      saveAuthStorage();
+    }
+    renderIncidents();renderActivities();renderCases();updateDashNow();renderAuthList();
   }catch(e){console.log(e);}
 }
 async function syncToSheets(iso){
@@ -3469,5 +3502,263 @@ document.getElementById('rpt-to').value=todayISO;
   </div>
   <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-staff-edit')">취소</button><button class="mbt mbt-save" onclick="saveStaffEdit()">저장</button></div>
 </div>
+<!-- Auth Modal -->
+<div class="ov" id="ov-auth" onclick="closeOv('ov-auth')"></div>
+<div class="modal" id="modal-ov-auth" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="auth-modal-title">⚡ Auth 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-auth')">&#10005;</button>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>멤버 *</label>
+    <input class="member-search-input" id="auth-member-search" placeholder="이름 검색..." oninput="filterAuthMemberList()">
+    <select class="member-sel" id="auth-member-sel" size="4"></select>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>보험사 *</label>
+      <select class="m-select" id="auth-insurer">
+        <option>Anthem MLTC</option>
+        <option>Anthem MAP</option>
+        <option>Centerlight PACE</option>
+        <option>Senior Whole Health</option>
+        <option>기타</option>
+      </select>
+    </div>
+    <div class="modal-input-wrap"><label>Auth # *</label><input class="m-input" id="auth-number" placeholder="승인번호"></div>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>승인 시작일 *</label><input class="m-input" id="auth-start" type="date"></div>
+    <div class="modal-input-wrap"><label>승인 종료일 *</label><input class="m-input" id="auth-end" type="date"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>서비스 유형</label>
+    <select class="m-select" id="auth-service">
+      <option>Adult Day Services (S5105)</option>
+      <option>Transportation (A0100)</option>
+      <option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:12px">
+    <label>메모</label>
+    <textarea class="m-textarea" id="auth-note" placeholder="참고사항"></textarea>
+  </div>
+  <input type="hidden" id="auth-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-auth')">취소</button>
+    <button class="mbt mbt-save" onclick="saveAuth()">저장</button>
+  </div>
+</div>
+
+<script>
+// ===== AUTH DATA =====
+var AUTH_LIST = JSON.parse(localStorage.getItem('auth_list')||'[]');
+
+function saveAuthStorage() {
+  localStorage.setItem('auth_list', JSON.stringify(AUTH_LIST));
+}
+
+function authStatus(endDate) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var end = new Date(endDate+'T00:00:00');
+  var diff = Math.floor((end - today) / 86400000);
+  if (diff < 0) return 'expired';
+  if (diff <= 30) return 'soon';
+  return 'active';
+}
+
+function authStatusLabel(endDate) {
+  var s = authStatus(endDate);
+  var end = new Date(endDate+'T00:00:00');
+  var diff = Math.floor((end - new Date().setHours(0,0,0,0)) / 86400000);
+  if (s === 'expired') return '<span class="badge b-red">❌ 만료됨</span>';
+  if (s === 'soon') return '<span class="badge b-warn">⚠️ ' + diff + '일 후 만료</span>';
+  return '<span class="badge b-ok">✅ 유효 (' + diff + '일)</span>';
+}
+
+var _authFilter = 'all';
+function setAuthFilter(f, el) {
+  _authFilter = f;
+  document.querySelectorAll('#panel-authorization .fpill').forEach(function(p){ p.classList.remove('active'); });
+  el.classList.add('active');
+  renderAuthList();
+}
+
+function renderAuthList() {
+  var q = (document.getElementById('auth-search')||{}).value||'';
+  var list = AUTH_LIST.filter(function(a) {
+    var m = MEMBERS.find(function(x){return x.id===a.memberId;});
+    var name = m ? (m.kr+m.en) : '';
+    var match = !q || name.toLowerCase().includes(q.toLowerCase()) || (a.authNo||'').includes(q);
+    var st = authStatus(a.endDate);
+    var filterMatch = _authFilter==='all' || _authFilter===st;
+    return match && filterMatch;
+  });
+
+  // 상태별 카운트
+  var active=0, soon=0, expired=0;
+  AUTH_LIST.forEach(function(a){
+    var s = authStatus(a.endDate);
+    if(s==='active') active++;
+    else if(s==='soon') soon++;
+    else expired++;
+  });
+  var el = document.getElementById('auth-active'); if(el) el.textContent = active;
+  el = document.getElementById('auth-soon'); if(el) el.textContent = soon;
+  el = document.getElementById('auth-exp'); if(el) el.textContent = expired;
+
+  // 대시보드 알림
+  updateAuthAlert(soon, expired);
+
+  var html = '';
+  if (!list.length) { html = '<div class="empty-msg">Auth 기록이 없어요</div>'; }
+  list.sort(function(a,b){ return a.endDate < b.endDate ? -1 : 1; });
+  list.forEach(function(a) {
+    var m = MEMBERS.find(function(x){return x.id===a.memberId;});
+    var mname = m ? (m.kr + ' ' + m.en) : '(알 수 없음)';
+    var st = authStatus(a.endDate);
+    var border = st==='expired'?'border:1.5px solid #FF3B30':st==='soon'?'border:1.5px solid #FF9500':'';
+    html += '<div class="log-card" style="'+border+'">'
+      + '<div class="log-top">'
+      + '<div class="log-name">' + mname + '</div>'
+      + authStatusLabel(a.endDate)
+      + '</div>'
+      + '<div style="font-size:12px;color:#3C3C43;margin-bottom:5px">'
+      + '<b>' + (a.insurer||'') + '</b> &nbsp;·&nbsp; Auth#: <b>' + (a.authNo||'—') + '</b>'
+      + '</div>'
+      + '<div style="font-size:11px;color:#8E8E93">'
+      + (a.service||'') + ' &nbsp;|&nbsp; ' + (a.startDate||'') + ' ~ ' + (a.endDate||'')
+      + (a.note ? ' &nbsp;|&nbsp; ' + a.note : '')
+      + '</div>'
+      + '<div class="log-actions" style="margin-top:7px">'
+      + '<button class="btn-sm" onclick="editAuth(\'' + a.id + '\')">✏️ 수정</button>'
+      + '<button class="btn-danger" onclick="deleteAuth(\'' + a.id + '\')">삭제</button>'
+      + '</div>'
+      + '</div>';
+  });
+  var el2 = document.getElementById('auth-list');
+  if(el2) el2.innerHTML = html;
+}
+
+function updateAuthAlert(soon, expired) {
+  var el = document.getElementById('ds-auth-alert');
+  if (!el) return;
+  if (soon === 0 && expired === 0) { el.style.display='none'; return; }
+  el.style.display = 'block';
+  var html = '';
+  if (expired > 0) html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;cursor:pointer" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
+    + '<span style="font-size:13px;font-weight:700;color:#900">❌ 만료된 Auth ' + expired + '건</span>'
+    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 갱신 필요</span></div>';
+  if (soon > 0) html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer;margin-top:6px" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
+    + '<span style="font-size:13px;font-weight:700;color:#B35900">⚠️ 30일내 만료 Auth ' + soon + '건</span>'
+    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 확인하세요</span></div>';
+  el.innerHTML = html;
+}
+
+function openAuthModal(id) {
+  document.getElementById('auth-modal-title').textContent = id ? '✏️ Auth 수정' : '➕ Auth 추가';
+  document.getElementById('auth-edit-id').value = id || '';
+  document.getElementById('auth-member-search').value = '';
+  document.getElementById('auth-number').value = '';
+  document.getElementById('auth-start').value = '';
+  document.getElementById('auth-end').value = '';
+  document.getElementById('auth-note').value = '';
+  filterAuthMemberList();
+
+  if (id) {
+    var a = AUTH_LIST.find(function(x){return x.id===id;});
+    if (a) {
+      document.getElementById('auth-insurer').value = a.insurer||'Anthem MLTC';
+      document.getElementById('auth-number').value = a.authNo||'';
+      document.getElementById('auth-start').value = a.startDate||'';
+      document.getElementById('auth-end').value = a.endDate||'';
+      document.getElementById('auth-service').value = a.service||'Adult Day Services (S5105)';
+      document.getElementById('auth-note').value = a.note||'';
+      // 멤버 선택
+      var sel = document.getElementById('auth-member-sel');
+      filterAuthMemberList();
+      sel.value = a.memberId;
+    }
+  }
+  openOv('ov-auth');
+}
+
+function filterAuthMemberList() {
+  var q = document.getElementById('auth-member-search').value.toLowerCase();
+  var sel = document.getElementById('auth-member-sel');
+  sel.innerHTML = '';
+  MEMBERS.filter(function(m){
+    return m.status !== 'disenrolled' && (!q || m.kr.includes(q) || m.en.toLowerCase().includes(q));
+  }).forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.kr + ' ' + m.en;
+    sel.appendChild(opt);
+  });
+}
+
+function saveAuth() {
+  var memberId = document.getElementById('auth-member-sel').value;
+  var authNo = document.getElementById('auth-number').value.trim();
+  var startDate = document.getElementById('auth-start').value;
+  var endDate = document.getElementById('auth-end').value;
+  if (!memberId || !authNo || !startDate || !endDate) { alert('멤버, Auth#, 기간은 필수입니다'); return; }
+
+  var editId = document.getElementById('auth-edit-id').value;
+  var entry = {
+    id: editId || ('auth_' + Date.now()),
+    memberId: memberId,
+    insurer: document.getElementById('auth-insurer').value,
+    authNo: authNo,
+    startDate: startDate,
+    endDate: endDate,
+    service: document.getElementById('auth-service').value,
+    note: document.getElementById('auth-note').value.trim(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (editId) {
+    var idx = AUTH_LIST.findIndex(function(x){return x.id===editId;});
+    if (idx >= 0) AUTH_LIST[idx] = entry; else AUTH_LIST.push(entry);
+  } else {
+    AUTH_LIST.push(entry);
+  }
+  saveAuthStorage();
+  // Sheets 동기화
+  if(apiUrl) {
+    apiCall({}, {
+      action: editId ? 'update' : 'append',
+      sheet: 'auth',
+      id: editId || null,
+      data: entry
+    }).catch(function(e){ console.log('Auth Sheets sync:', e); });
+  }
+  closeOv('ov-auth');
+  renderAuthList();
+}
+
+function editAuth(id) { openAuthModal(id); }
+
+function deleteAuth(id) {
+  if (!confirm('삭제하시겠어요?')) return;
+  AUTH_LIST = AUTH_LIST.filter(function(x){return x.id!==id;});
+  saveAuthStorage();
+  if(apiUrl) apiCall({},{action:'delete',sheet:'auth',id:id}).catch(function(e){});
+  renderAuthList();
+}
+
+// favicon 404 방지
+(function(){
+  var link = document.querySelector("link[rel~='icon']");
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.href = 'data:,';
+})();
+
+// 대시보드 로드시 auth 알림 갱신
+var _origRenderDash = typeof renderDashboard === 'function' ? renderDashboard : null;
+document.addEventListener('DOMContentLoaded', function(){
+  renderAuthList();
+});
+</script>
 </body>
 </html>
