@@ -3546,8 +3546,8 @@ document.getElementById('rpt-to').value=todayISO;
   </div>
   <div class="modal-input-wrap" style="margin-bottom:10px">
     <label>멤버 *</label>
-    <input class="member-search-input" id="auth-member-search" placeholder="이름 검색..." oninput="filterAuthMemberList()">
-    <select class="member-sel" id="auth-member-sel" size="4"></select>
+    <input class="m-input" id="auth-member-search" placeholder="이름 검색..." oninput="filterAuthMemberList()" style="margin-bottom:6px">
+    <select class="m-select" id="auth-member-sel" size="5" style="height:110px;border:1.5px solid #E5E5EA;border-radius:10px;padding:4px;font-size:13px;width:100%"></select>
   </div>
   <div class="modal-date-row">
     <div class="modal-input-wrap"><label>보험사 *</label>
@@ -3718,15 +3718,15 @@ function openAuthModal(id) {
 }
 
 function filterAuthMemberList() {
-  var q = document.getElementById('auth-member-search').value.toLowerCase();
+  var q = (document.getElementById('auth-member-search').value||'').toLowerCase();
   var sel = document.getElementById('auth-member-sel');
   sel.innerHTML = '';
   MEMBERS.filter(function(m){
-    return m.status !== 'disenrolled' && (!q || m.kr.includes(q) || m.en.toLowerCase().includes(q));
+    return m.status !== 'disenrolled' && (!q || (m.kr||'').includes(q) || (m.en||'').toLowerCase().includes(q));
   }).forEach(function(m) {
     var opt = document.createElement('option');
     opt.value = m.id;
-    opt.textContent = m.kr + ' ' + m.en;
+    opt.textContent = (m.kr||'') + ' ' + (m.en||'');
     sel.appendChild(opt);
   });
 }
@@ -3790,6 +3790,7 @@ function deleteAuth(id) {
   if(apiUrl) apiCall({},{action:'delete',sheet:'auth',id:id}).catch(function(e){});
   renderAuthList();
 }
+</script>
 
 <!-- Visitor Log Modal -->
 <div class="ov" id="ov-visitor" onclick="closeOv('ov-visitor')"></div>
