@@ -1210,7 +1210,7 @@ window.addEventListener('load', function() {
         <div style="font-size:14px;font-weight:700;margin-bottom:6px">🔗 Google Sheets 연동</div>
         <div style="font-size:12px;color:#8E8E93;line-height:1.6;margin-bottom:10px">Apps Script 배포 후 웹앱 URL을 입력하세요.</div>
         <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">웹앱 URL</div>
-        <input class="url-input" id="api-url-input" placeholder="https://script.google.com/macros/s/xxx/exec" value="https://script.google.com/macros/s/AKfycbxDMnntxjBm-6zmbdRcCKBGEd6LObX7dRyEo9vW63Tcw7xJEwfkJd4UduXUxWOCKSwB/exec">
+        <input class="url-input" id="api-url-input" placeholder="https://script.google.com/macros/s/xxx/exec" value="https://script.google.com/macros/s/AKfycbxV3hSn7qenkFvz_YjOkPqR9JiUvne_BhrWKoGIHPBgKDD0oDxOdl-DJuCnKPeVxo3i/exec">
         <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">
           <button class="btn btn-primary" style="font-size:13px;padding:10px 16px" onclick="saveApiUrl()">저장 및 연결</button>
           <button class="btn btn-secondary" style="font-size:13px;padding:10px 16px" onclick="testApi()">테스트</button>
@@ -1323,7 +1323,7 @@ const DEFAULT_STAFF = [
    certs:[{name:'LCSW',exp:'2025-12-31'},{name:'CPR/AED',exp:'2025-11-15'},{name:'SNAP Certification',exp:'2026-05-01'}],
    avBg:'#EEEDFE',avColor:'#534AB7'},
 ];
-var apiUrl = localStorage.getItem('api_url') || 'https://script.google.com/macros/s/AKfycbxDMnntxjBm-6zmbdRcCKBGEd6LObX7dRyEo9vW63Tcw7xJEwfkJd4UduXUxWOCKSwB/exec';
+var apiUrl = localStorage.getItem('api_url') || 'https://script.google.com/macros/s/AKfycbxV3hSn7qenkFvz_YjOkPqR9JiUvne_BhrWKoGIHPBgKDD0oDxOdl-DJuCnKPeVxo3i/exec';
 var MEMBERS = MEMBERS_DATA.map(function(m){ return Object.assign({}, m); });
 var STAFF = [];
 </script>
