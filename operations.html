@@ -97,7 +97,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .temp-table th{background:#F2F2F7;font-weight:700}
 .temp-ok{color:#34C759;font-weight:700}
 .temp-bad{color:#FF3B30;font-weight:700}
-@media print{.tabbar,.hdr,.btn-full,.ov,.modal{display:none!important}.panel{display:block!important}}
+/* PCSP */
+.pcsp-day-btn{padding:6px 10px;border:1.5px solid #E5E5EA;border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#8E8E93}
+.pcsp-day-btn.sel{background:#5856D6;color:#fff;border-color:#5856D6}
+.pcsp-risk-item,.pcsp-goal-item,.pcsp-contact-item,.pcsp-comm-item{background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:8px}
+.pcsp-adl-row{display:grid;grid-template-columns:80px 1fr 1fr;gap:6px;align-items:center;padding:6px 0;border-bottom:.5px solid #F2F2F7;font-size:12px}
+.pcsp-adl-row:last-child{border-bottom:none}
+.pcsp-right-row{padding:8px 0;border-bottom:.5px solid #F2F2F7}
+.pcsp-right-row:last-child{border-bottom:none}
+@media print{.tabbar,.hdr,.btn-full,.ov,.modal,#pcsp-nav{display:none!important}.panel{display:block!important}}
 </style>
 </head>
 <body>
@@ -153,14 +161,339 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- PCSP -->
     <div class="panel" id="panel-pcsp">
-      <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
-      <div class="f-row">
-        <div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div>
-        <div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div>
-        <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
+      <!-- PCSP 목록 -->
+      <div id="pcsp-list-view">
+        <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
+        <div class="f-row">
+          <div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div>
+          <div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div>
+          <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
+        </div>
+        <div id="pcsp-list"></div>
+        <button class="btn-full btn-primary" style="margin-top:8px" onclick="openPCSPForm()">➕ PCSP 새로 작성</button>
       </div>
-      <div id="pcsp-list"></div>
-      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openPCSPModal()">➕ PCSP 추가</button>
+
+      <!-- PCSP 7단계 폼 -->
+      <div id="pcsp-form-view" style="display:none">
+        <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <button class="btn-sm" onclick="showPCSPList()">← 목록으로</button>
+            <span id="pcsp-step-label" style="font-size:12px;color:#8E8E93">1 / 7</span>
+          </div>
+          <div style="background:#F2F2F7;border-radius:4px;height:6px">
+            <div id="pcsp-progress" style="background:#5856D6;height:6px;border-radius:4px;width:14%;transition:.3s"></div>
+          </div>
+          <div class="f-row" style="margin-top:8px;gap:4px">
+            <div class="fpill active" id="ptab-0" onclick="pcspGoStep(0)">기본</div>
+            <div class="fpill" id="ptab-1" onclick="pcspGoStep(1)">연락처</div>
+            <div class="fpill" id="ptab-2" onclick="pcspGoStep(2)">건강</div>
+            <div class="fpill" id="ptab-3" onclick="pcspGoStep(3)">ADL</div>
+            <div class="fpill" id="ptab-4" onclick="pcspGoStep(4)">위험/선호</div>
+            <div class="fpill" id="ptab-5" onclick="pcspGoStep(5)">목표</div>
+            <div class="fpill" id="ptab-6" onclick="pcspGoStep(6)">권리/서명</div>
+          </div>
+        </div>
+
+        <!-- Step 0: 기본정보 -->
+        <div class="pcsp-step" id="pstep-0">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">📋 PCSP 작성 정보</div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>작성자 Full Name *</label><input class="m-input" id="p-writer" placeholder="First Last Name"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>작성일 *</label><input class="m-input" id="p-wdate" type="date"></div>
+              <div class="modal-input-wrap"><label>갱신 예정일</label><input class="m-input" id="p-nextdate" type="date"></div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:0"><label>작성 유형</label>
+              <select class="m-select" id="p-type"><option>Initial</option><option>Annual Reassessment</option><option>Essential Change</option></select>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">👤 참여자 기본정보</div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>Last Name *</label><input class="m-input" id="p-last" placeholder="SHIN"></div>
+              <div class="modal-input-wrap"><label>First Name *</label><input class="m-input" id="p-first" placeholder="CHUN JA"></div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>한글 이름</label><input class="m-input" id="p-kr" placeholder="신춘자"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>생년월일 (DOB)</label><input class="m-input" id="p-dob" type="date"></div>
+              <div class="modal-input-wrap"><label>Gender (생물학적)</label>
+                <select class="m-select" id="p-gender"><option>Female</option><option>Male</option><option>Nonbinary</option></select>
+              </div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Gender Identity</label><input class="m-input" id="p-genderid" placeholder="Female, Male, Non-binary, Transgender..."></div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>주소 (Address)</label><input class="m-input" id="p-addr" placeholder="Street, City, State ZIP"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>전화번호 (Phone)</label><input class="m-input" id="p-phone" placeholder="718-000-0000"></div>
+              <div class="modal-input-wrap"><label>이메일 (Email)</label><input class="m-input" id="p-email" placeholder="없으면 'none'"></div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>선호 언어 (Preferred Language)</label><input class="m-input" id="p-lang" placeholder="Korean, English..."></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>동거인 있음?</label>
+                <select class="m-select" id="p-livewith"><option>Yes</option><option>No</option></select>
+              </div>
+              <div class="modal-input-wrap"><label>동거인이 케어 지원?</label>
+                <select class="m-select" id="p-caresupp"><option>Yes</option><option>No</option><option>N/A</option></select>
+              </div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:0"><label>동거인 이름/관계 (케어 지원 시)</label><input class="m-input" id="p-livewithname" placeholder="예: Jane Doe, daughter"></div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🏥 보험 정보</div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>MLTC Plan / 보험사 *</label><input class="m-input" id="p-ins" placeholder="Anthem MLTC"></div>
+              <div class="modal-input-wrap"><label>Medicaid / Insurance ID *</label><input class="m-input" id="p-medicaid" placeholder="Medicaid #"></div>
+            </div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>Secondary 보험사</label><input class="m-input" id="p-ins2" placeholder="없으면 공란"></div>
+              <div class="modal-input-wrap"><label>Secondary Insurance ID</label><input class="m-input" id="p-ins2id" placeholder="없으면 공란"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">📅 SADC 출석 정보</div>
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">출석 요일 (Days of SADC Attendance)</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Mon')">Mon</button>
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Tue')">Tue</button>
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Wed')">Wed</button>
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Thu')">Thu</button>
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Fri')">Fri</button>
+                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Sat')">Sat</button>
+              </div>
+            </div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>출석 시간 (Time)</label><input class="m-input" id="p-time" placeholder="예: 8:00am–2:00pm"></div>
+              <div class="modal-input-wrap"><label>교통수단 (Transportation)</label><input class="m-input" id="p-transport" placeholder="예: Van, Public Transit, Family"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: 연락처 -->
+        <div class="pcsp-step" id="pstep-1" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📞 MLTC Plan Care Manager (Primary)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">이메일 주소는 필수입니다</div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name *</label><input class="m-input" id="p-cm1name" placeholder="Care Manager 이름"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>전화 (직통 또는 내선)</label><input class="m-input" id="p-cm1phone" placeholder="전화번호"></div>
+              <div class="modal-input-wrap"><label>이메일 *</label><input class="m-input" id="p-cm1email" placeholder="이메일 주소"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📞 Care Manager (Secondary / Alternate)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">없으면 공란</div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name</label><input class="m-input" id="p-cm2name" placeholder="없으면 공란"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>전화</label><input class="m-input" id="p-cm2phone"></div>
+              <div class="modal-input-wrap"><label>이메일</label><input class="m-input" id="p-cm2email"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">👨‍⚕️ 주치의 (Primary Care Physician)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">이메일 모를 경우 'unknown' 입력</div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name</label><input class="m-input" id="p-pcpname" placeholder="의사 이름"></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>전화 (직통 또는 오피스)</label><input class="m-input" id="p-pcpphone"></div>
+              <div class="modal-input-wrap"><label>이메일</label><input class="m-input" id="p-pcpemail" placeholder="모르면 'unknown'"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🆘 연락처 (Contacts)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">최소 2명 이상 입력 권장 · Caregiver / Emergency Contact / Guardian 구분</div>
+            <div id="pcsp-contacts-list"></div>
+            <button class="btn-sm" style="margin-top:8px" onclick="addPcspContact()">➕ 연락처 추가</button>
+          </div>
+        </div>
+
+        <!-- Step 2: 건강정보 -->
+        <div class="pcsp-step" id="pstep-2" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🩺 진단 (Pertinent Diagnoses)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">신체/인지/정신건강 진단 모두 포함 · MLTC PCSP에서 확인 후 참여자와 검증</div>
+            <textarea class="m-textarea" id="p-diag" style="width:100%;min-height:80px" placeholder="예: Type 2 Diabetes, Hypertension, Mild Dementia, Osteoporosis..."></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💊 약물 (Medications)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">처방약 + OTC + 건강보조식품 모두 포함 · 모르는 진단명은 'unknown'</div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>SADC에서 복약 지원 필요?</label>
+                <select class="m-select" id="p-medassist"><option>No</option><option>Yes</option></select>
+              </div>
+              <div class="modal-input-wrap"><label>지원 수준 (Yes인 경우)</label>
+                <select class="m-select" id="p-medlevel"><option>N/A</option><option>Verbal Cueing</option><option>Assistance with Setup</option></select>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">• Verbal Cueing: 시간 알려주기&nbsp;&nbsp;• Assistance with Setup: 용기 열기 등</div>
+            <textarea class="m-textarea" id="p-meds" style="width:100%;min-height:100px" placeholder="약물명 – 진단명 형식으로 입력&#10;예: Metformin 500mg – Type 2 Diabetes&#10;Lisinopril 10mg – Hypertension&#10;Calcium supplement – Bone Health"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🚨 알레르기 (Allergies)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">심각도 및 응급 대처 포함 · 없으면 'None'</div>
+            <textarea class="m-textarea" id="p-allergy" style="width:100%" placeholder="예: Peanuts – Severe, causes anaphylaxis within 1-2 min, EpiPen required, call 911&#10;없으면: None"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🥗 식이 제한 (Dietary Restrictions)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">이유 포함 · 없으면 'None'</div>
+            <textarea class="m-textarea" id="p-diet" style="width:100%" placeholder="예: Thickened liquids (nectar-thick) – dysphagia&#10;Low sodium diet – hypertension&#10;없으면: None"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🍽️ 영양 선호/특별식 (Nutrition Preferences)</div>
+            <textarea class="m-textarea" id="p-nutrition" style="width:100%;margin-bottom:10px" placeholder="예: Kosher diet, Low-calorie diet&#10;없으면: None"></textarea>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>SADC 수용 가능?</label>
+                <select class="m-select" id="p-nutr-acc"><option>N/A</option><option>Yes</option><option>No</option></select>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#8E8E93;margin:6px 0 6px">수용 가능 시: 어떻게 수용하는지 / 불가 시: 대안 설명</div>
+            <textarea class="m-textarea" id="p-nutr-how" style="width:100%" placeholder="예(Yes): SADC has Kosher options available for each meal&#10;예(No): Participant brings food from home that meets their dietary preference"></textarea>
+          </div>
+        </div>
+
+        <!-- Step 3: 독립능력 + ADL -->
+        <div class="pcsp-step" id="pstep-3" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🧠 독립 능력 (Capacity for Independence)</div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>필요 표현 가능?</label>
+                <select class="m-select" id="p-comm"><option>Yes</option><option>No</option></select>
+              </div>
+              <div class="modal-input-wrap"><label>스스로 결정 가능?</label>
+                <select class="m-select" id="p-decision"><option>Yes</option><option>No</option></select>
+              </div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>No인 경우 이유 설명</label>
+              <textarea class="m-textarea" id="p-decision-why" placeholder="예: Diagnosed with Alzheimer's disease which affects decision-making ability"></textarea>
+            </div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>혼자 있을 수 있음?</label>
+                <select class="m-select" id="p-alone"><option>Yes</option><option>No</option></select>
+              </div>
+              <div class="modal-input-wrap"><label>통증/감각 필요?</label>
+                <select class="m-select" id="p-pain"><option>No</option><option>Yes</option></select>
+              </div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:0">
+              <label>혼자 불가 이유 / 통증·감각 내용 및 지원 방법</label>
+              <textarea class="m-textarea" id="p-cap-desc" placeholder="예(혼자 불가): Dementia requires supervision at all times to prevent wandering&#10;예(통증): Degenerative bone disease – staff encourage standing/walking every hour"></textarea>
+            </div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🚶 ADL 기능 평가 (Functional Assessment)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">Independent = 혼자 가능 · Supervision Only = 지시/리마인더 필요 · Minimal = 약간 도움 · Moderate = 상당한 도움 · Total = 완전 도움</div>
+            <div id="pcsp-adl-list"></div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🤝 개인 케어 선호 (Personal Care Preference)</div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>케어 제공자 선호 있음?</label>
+                <select class="m-select" id="p-carepref"><option>No</option><option>Yes</option></select>
+              </div>
+              <div class="modal-input-wrap"><label>SADC 수용 가능?</label>
+                <select class="m-select" id="p-carepref-acc"><option>N/A</option><option>Yes</option><option>No</option></select>
+              </div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>선호 내용 (Yes인 경우)</label>
+              <input class="m-input" id="p-carepref-desc" placeholder="예: Female staff for toileting assistance, Korean-speaking staff preferred">
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:0"><label>수용 불가 시 참여자 고지 여부</label>
+              <select class="m-select" id="p-carepref-notified"><option>N/A</option><option>Yes – notified prior to enrollment</option><option>Yes – notified when preference could no longer be met</option><option>No</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: 위험관리 + 선호도 -->
+        <div class="pcsp-step" id="pstep-4" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">⚠️ 위험 관리 (Risk Management & Safeguards)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">위험 없으면 저장 시 자동으로 "No known risks" 기록 · 위험 여러 개면 각각 추가</div>
+            <div id="pcsp-risks-list"></div>
+            <button class="btn-sm" style="margin-top:8px" onclick="addPcspRisk()">➕ 위험 요소 추가</button>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">❤️ 선호도 (Preferences)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">활동, 음식, 사회화, 종교, 취미 등 · SADC 활동에 국한하지 않고 전반적 선호도 기록</div>
+            <textarea class="m-textarea" id="p-prefs" style="width:100%;min-height:80px" placeholder="좋아하는 것: Enjoys Korean music, bingo, walking, watching Korean dramas&#10;싫어하는 것: Dislikes loud environments, large groups"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💪 강점 (Strengths)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · 신체적/사회적/행동적 강점 모두 포함 · 탐색 질문: "What are things you like to do and are good at?"</div>
+            <textarea class="m-textarea" id="p-strengths" style="width:100%;min-height:70px" placeholder="예: Good communicator, advocates for her needs&#10;Friendly and enjoys socializing with other participants&#10;Independent with mobility using a cane"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📌 필요 (Needs)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · SADC 참석 이유 및 높은 수준의 필요 사항 · 탐색 질문: "What do you hope to get out of SADC?"</div>
+            <textarea class="m-textarea" id="p-needs" style="width:100%;min-height:70px" placeholder="예: Socialization and peer interaction&#10;Caregiver respite during daytime hours&#10;Cognitive stimulation and structured activities"></textarea>
+          </div>
+        </div>
+
+        <!-- Step 5: 목표 + 활동 -->
+        <div class="pcsp-step" id="pstep-5" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🎯 목표 (Goals & Activities — SMART)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">Specific · Measurable · Achievable · Relevant · Time-bound · 날짜/기간 포함 필수</div>
+            <div id="pcsp-goals-list"></div>
+            <button class="btn-sm" style="margin-top:8px" onclick="addPcspGoal()">➕ 목표 추가</button>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🎨 SADC 활동 (SADC Activities)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">참여자가 관심 있는 활동만 기록 · Cultural/Educational/Intellectual/Physical/Social 카테고리 포함 · 필요 지원 없으면 'none'</div>
+            <textarea class="m-textarea" id="p-sadc-act" style="width:100%;min-height:90px" placeholder="활동명 – 필요 지원 형식&#10;예: Bingo – no support needed&#10;Exercise class – staff assists with seated variations&#10;Korean cultural programs – no support needed&#10;Art class – large-print materials provided"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🌍 지역사회 통합 활동 (Community Integration)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">관심 없으면 거절한 활동도 기록 필수 · SADC가 지원 조정 의무</div>
+            <div id="pcsp-community-list"></div>
+            <button class="btn-sm" style="margin-top:8px" onclick="addPcspCommunity()">➕ 활동 추가</button>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💼 일/봉사 관심 (Work / Volunteer)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">지역사회 일/봉사에 대한 관심 · SADC 내 봉사도 물어볼 것</div>
+            <div class="modal-input-wrap" style="margin-bottom:10px"><label>일/봉사 관심?</label>
+              <select class="m-select" id="p-work">
+                <option>No</option>
+                <option>Yes</option>
+                <option>N/A – Participant is unable to do so</option>
+              </select>
+            </div>
+            <textarea class="m-textarea" id="p-work-desc" style="width:100%" placeholder="Yes인 경우: 관심 내용, 빈도, 시간, 지원 방법 등 상세 기술&#10;N/A인 경우: 불가 이유 상세 기술&#10;예(Yes): Interested in volunteering at local animal shelter 1 day/week, 10am-12pm. SADC staff remind participant before leaving."></textarea>
+          </div>
+        </div>
+
+        <!-- Step 6: 권리수정 + 서명 -->
+        <div class="pcsp-step" id="pstep-6" style="display:none">
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">⚖️ 권리 수정 (HCBS Final Rule Rights Modifications)</div>
+            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">진단명만으로는 수정 불가 · 수정 필요한 권리만 Yes 선택 · 시간 제한 명시 필수</div>
+            <div id="pcsp-rights-list"></div>
+          </div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">✅ PCSP 확인 (Acknowledgement)</div>
+            <div style="font-size:11px;color:#3C3C43;line-height:1.6;margin-bottom:12px;padding:10px;background:#F2F2F7;border-radius:8px">
+              I confirm that I led the person centered planning process, was offered various opportunities and choices, and was free to choose activities and services according to my goals and preferences. The information documented in this PCSP is accurate.
+            </div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>참여자 / 법적 대리인 서명</label><input class="m-input" id="p-sig" placeholder="서명 또는 이름 입력"></div>
+              <div class="modal-input-wrap"><label>서명 날짜</label><input class="m-input" id="p-sigdate" type="date"></div>
+            </div>
+            <div class="modal-input-wrap" style="margin-bottom:0"><label>작성자 서명</label><input class="m-input" id="p-writersig" placeholder="작성자 서명 또는 이름"></div>
+          </div>
+          <div class="card" style="background:#EDE9FE">
+            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">📄 작성 요약</div>
+            <div id="pcsp-summary" style="font-size:12px;color:#3C3C43;line-height:1.8"></div>
+          </div>
+          <input type="hidden" id="pcsp-edit-id">
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="mbt mbt-cancel" onclick="pcspPrev()">← 이전</button>
+            <button class="mbt mbt-save" onclick="savePCSPFull()">💾 저장 완료</button>
+          </div>
+        </div>
+
+        <!-- 이전/다음 버튼 -->
+        <div id="pcsp-nav" style="display:flex;gap:8px;margin-top:12px">
+          <button class="mbt mbt-cancel" id="pcsp-prev-btn" onclick="pcspPrev()" style="visibility:hidden">← 이전</button>
+          <button class="mbt mbt-save" id="pcsp-next-btn" onclick="pcspNext()">다음 →</button>
+        </div>
+      </div>
     </div>
 
     <!-- Staff -->
@@ -385,26 +718,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <!-- PCSP Modal -->
-<div class="ov" id="ov-pcsp" onclick="closeOv('ov-pcsp')"></div>
-<div class="modal" id="modal-ov-pcsp" style="display:none" onclick="event.stopPropagation()">
-  <div class="modal-handle"></div>
-  <div class="modal-title"><span id="pcsp-modal-title">📄 PCSP 추가</span><button class="modal-close" onclick="closeOv('ov-pcsp')">✕</button></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>멤버 이름 *</label><input class="m-input" id="pcsp-member" placeholder="멤버 이름 검색"></div>
-  <div class="modal-date-row">
-    <div class="modal-input-wrap"><label>작성일 *</label><input class="m-input" id="pcsp-date" type="date"></div>
-    <div class="modal-input-wrap"><label>갱신 예정일</label><input class="m-input" id="pcsp-next" type="date"></div>
-  </div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>작성자</label><input class="m-input" id="pcsp-author" placeholder="작성자"></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>진단</label><textarea class="m-textarea" id="pcsp-dx" placeholder="진단명"></textarea></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 1</label><input class="m-input" id="pcsp-goal1" placeholder="목표 1"></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 2</label><input class="m-input" id="pcsp-goal2" placeholder="목표 2"></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>목표 3</label><input class="m-input" id="pcsp-goal3" placeholder="목표 3"></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>상태</label>
-    <select class="m-select" id="pcsp-status"><option>active</option><option>pending</option><option>completed</option></select>
-  </div>
-  <input type="hidden" id="pcsp-edit-id">
-  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-pcsp')">취소</button><button class="mbt mbt-save" onclick="savePCSP()">저장</button></div>
-</div>
 
 <script>
 // ── Google 로그인 ─────────────────────────────────────────
@@ -852,61 +1165,231 @@ function saveActivity(){
 function editAct(id){openActModal(id);}
 function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(function(x){return x.id!==id;});saveActStorage();renderActivityList();}
 
-// ── PCSP ─────────────────────────────────────────────────
-var PCSP_LIST = JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+// ── PCSP 7단계 ───────────────────────────────────────────
+var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
 function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PCSP_LIST));}
-var _pcspFilter='all';
+var _pcspStep=0,_pcspDays=new Set(),_pcspContacts=[],_pcspRisks=[],_pcspGoals=[],_pcspCommunity=[],_pcspFilter='all';
+var PCSP_ADL_ITEMS=['Mobility','Transfers','Toileting','Continence','Eating'];
+var PCSP_ADL_LEVELS=['Independent','Supervision Only','Minimal Hands-On','Moderate Hands-On','Total Hands-On'];
+var PCSP_RIGHTS=[
+  'Freedom of movement within the setting',
+  'Access to food/snacks at any time',
+  'Physical accessibility of all areas of the setting',
+  'Visitors and visitor hours of choosing',
+  'Privacy (phone calls, mail, personal space)',
+  'Choice of roommate or those with whom they share a unit',
+  'Ability to furnish and decorate their personal space',
+  'Right to lock their own space',
+  'Control their own schedules and activities',
+  'Community access and participation in community life'
+];
+
 function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-pcsp .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderPCSPList();}
 
 function renderPCSPList(){
   var q=(document.getElementById('pcsp-search')||{}).value||'';
   var today=new Date().toISOString().slice(0,10);
   var list=PCSP_LIST.filter(function(p){
-    var match=!q||(p.member||'').includes(q);
-    var due=p.next&&p.next<=today;
-    var fm=_pcspFilter==='all'||(_pcspFilter==='due'&&due)||(_pcspFilter==='ok'&&!due);
-    return match&&fm;
-  }).sort(function(a,b){return (a.next||'9999')>(b.next||'9999')?1:-1;});
-
+    var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').includes(q);
+    var due=p.nextdate&&p.nextdate<=today;
+    return (_pcspFilter==='all'||(_pcspFilter==='due'&&due)||(_pcspFilter==='ok'&&!due))&&match;
+  }).sort(function(a,b){return (a.nextdate||'9999')>(b.nextdate||'9999')?1:-1;});
   var html='';
-  if(!list.length){html='<div class="empty-msg">PCSP 기록이 없어요</div>';}
+  if(!list.length)html='<div class="empty-msg">PCSP 기록이 없어요</div>';
   list.forEach(function(p){
-    var due=p.next&&p.next<=today;
+    var due=p.nextdate&&p.nextdate<=today;
     var badge=due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 유효</span>';
-    html+='<div class="log-card">'
-      +'<div class="log-top"><div class="log-name">📄 '+p.member+'</div>'+badge+'</div>'
-      +'<div style="font-size:11px;color:#8E8E93">작성: '+p.date+' · 갱신예정: '+(p.next||'—')+'</div>'
-      +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+(p.goal1||'')+'</div>'
+    html+='<div class="log-card"><div class="log-top"><div class="log-name">📄 '+(p.nameLast||'')+', '+(p.nameFirst||'')+' '+(p.nameKr?'('+p.nameKr+')':'')+'</div>'+badge+'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">작성: '+(p.wdate||'—')+' · 갱신예정: '+(p.nextdate||'—')+'</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+(p.diag||'').slice(0,60)+'</div>'
       +'<div class="log-actions" style="margin-top:6px">'
-      +'<button class="btn-sm" onclick="editPCSP(\''+p.id+'\')">✏️</button>'
+      +'<button class="btn-sm" onclick="editPCSP(\''+p.id+'\')">✏️ 수정</button>'
+      +'<button class="btn-sm" onclick="printPCSP(\''+p.id+'\')">🖨️ 출력</button>'
       +'<button class="btn-danger" onclick="deletePCSP(\''+p.id+'\')">삭제</button>'
       +'</div></div>';
   });
-  var el2=document.getElementById('pcsp-list');if(el2)el2.innerHTML=html;
+  var el=document.getElementById('pcsp-list');if(el)el.innerHTML=html;
 }
 
-function openPCSPModal(id){
-  document.getElementById('pcsp-modal-title').textContent=id?'✏️ PCSP 수정':'📄 PCSP 추가';
+function showPCSPList(){document.getElementById('pcsp-list-view').style.display='block';document.getElementById('pcsp-form-view').style.display='none';renderPCSPList();}
+
+function openPCSPForm(id){
+  document.getElementById('pcsp-list-view').style.display='none';
+  document.getElementById('pcsp-form-view').style.display='block';
+  _pcspDays=new Set();_pcspContacts=[];_pcspRisks=[];_pcspGoals=[];_pcspCommunity=[];
   document.getElementById('pcsp-edit-id').value=id||'';
   var today=new Date().toISOString().slice(0,10);
-  if(id){var p=PCSP_LIST.find(function(x){return x.id===id;});if(p){document.getElementById('pcsp-member').value=p.member||'';document.getElementById('pcsp-date').value=p.date||today;document.getElementById('pcsp-next').value=p.next||'';document.getElementById('pcsp-author').value=p.author||'';document.getElementById('pcsp-dx').value=p.dx||'';document.getElementById('pcsp-goal1').value=p.goal1||'';document.getElementById('pcsp-goal2').value=p.goal2||'';document.getElementById('pcsp-goal3').value=p.goal3||'';document.getElementById('pcsp-status').value=p.status||'active';}}
-  else{document.getElementById('pcsp-member').value='';document.getElementById('pcsp-date').value=today;document.getElementById('pcsp-next').value='';document.getElementById('pcsp-author').value=_currentUser?_currentUser.name||'':'';document.getElementById('pcsp-dx').value='';document.getElementById('pcsp-goal1').value='';document.getElementById('pcsp-goal2').value='';document.getElementById('pcsp-goal3').value='';}
-  openOv('ov-pcsp');
+  var nextYear=new Date();nextYear.setFullYear(nextYear.getFullYear()+1);
+  document.getElementById('p-wdate').value=today;
+  document.getElementById('p-sigdate').value=today;
+  document.getElementById('p-nextdate').value=nextYear.toISOString().slice(0,10);
+  document.getElementById('p-writer').value=_currentUser?(_currentUser.name||''):'';
+  ['last','first','kr','genderid','addr','phone','email','lang','livewithname','ins','medicaid','ins2','ins2id','time','transport','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','diag','meds','allergy','diet','nutrition','nutr-how','cap-desc','carepref-desc','prefs','strengths','needs','sadc-act','work-desc','sig'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value='';});
+  if(id){
+    var p=PCSP_LIST.find(function(x){return x.id===id;});
+    if(p){
+      var fields={last:'nameLast',first:'nameFirst',kr:'nameKr',writer:'writer',wdate:'wdate',nextdate:'nextdate',dob:'dob',genderid:'genderid',addr:'addr',phone:'phone',email:'email',lang:'lang',livewithname:'livewithname',ins:'ins',medicaid:'medicaid',ins2:'ins2',ins2id:'ins2id',time:'time',transport:'transport',cm1name:'cm1name',cm1phone:'cm1phone',cm1email:'cm1email',cm2name:'cm2name',cm2phone:'cm2phone',cm2email:'cm2email',pcpname:'pcpname',pcpphone:'pcpphone',pcpemail:'pcpemail',diag:'diag',meds:'meds',allergy:'allergy',diet:'diet',nutrition:'nutrition','nutr-how':'nutr_how','cap-desc':'cap_desc','carepref-desc':'carepref_desc',prefs:'prefs',strengths:'strengths',needs:'needs','sadc-act':'sadc_act','work-desc':'work_desc',sig:'sig',sigdate:'sigdate'};
+      Object.keys(fields).forEach(function(k){var el=document.getElementById('p-'+k);if(el&&p[fields[k]])el.value=p[fields[k]];});
+      ['gender','livewith','caresupp','medassist','medlevel','nutr-acc','comm','decision','alone','pain','carepref','carepref-acc','work'].forEach(function(k){var el=document.getElementById('p-'+k);var pk=k.replace(/-/g,'_');if(el&&p[pk])el.value=p[pk];});
+      _pcspDays=new Set(p.days||[]);_pcspContacts=p.contacts||[];_pcspRisks=p.risks||[];_pcspGoals=p.goals||[];_pcspCommunity=p.community||[];
+      if(p.adl){p.adl.forEach(function(a,i){var lv=document.getElementById('padl-level-'+i);var dv=document.getElementById('padl-device-'+i);if(lv)lv.value=a.level;if(dv)dv.value=a.device;});}
+      if(p.rights){p.rights.forEach(function(r,i){var mod=document.getElementById('pright-mod-'+i);var desc=document.getElementById('pright-desc-'+i);if(mod)mod.value=r.modified;if(desc)desc.value=r.desc||'';toggleRightDetail(i);});}
+    }
+  }
+  initPCSPDayBtns();initPCSPAdlList();initPCSPRightsList();
+  renderPCSPContacts();renderPCSPRisks();renderPCSPGoals();renderPCSPCommunity();
+  pcspGoStep(0);
 }
-function savePCSP(){
-  var member=document.getElementById('pcsp-member').value.trim();
-  var date=document.getElementById('pcsp-date').value;
-  if(!member||!date){alert('멤버와 날짜는 필수입니다');return;}
+
+function initPCSPDayBtns(){document.querySelectorAll('.pcsp-day-btn').forEach(function(btn){var m=btn.getAttribute('onclick').match(/'(\w+)'/);if(m)btn.classList.toggle('sel',_pcspDays.has(m[1]));});}
+function togglePcspDay(btn,day){if(_pcspDays.has(day)){_pcspDays.delete(day);btn.classList.remove('sel');}else{_pcspDays.add(day);btn.classList.add('sel');}}
+
+function initPCSPAdlList(){
+  var html='<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:6px;margin-bottom:4px"><div style="font-size:10px;font-weight:700;color:#8E8E93">ADL</div><div style="font-size:10px;font-weight:700;color:#8E8E93">케어 수준</div><div style="font-size:10px;font-weight:700;color:#8E8E93">보조기기</div></div>';
+  PCSP_ADL_ITEMS.forEach(function(item,i){html+='<div class="pcsp-adl-row"><div style="font-weight:700;font-size:11px">'+item+'</div><select class="m-select" id="padl-level-'+i+'" style="font-size:11px;padding:5px">'+PCSP_ADL_LEVELS.map(function(l){return '<option>'+l+'</option>';}).join('')+'</select><input class="m-input" id="padl-device-'+i+'" placeholder="none" style="font-size:11px;padding:5px"></div>';});
+  var el=document.getElementById('pcsp-adl-list');if(el)el.innerHTML=html;
+}
+
+function initPCSPRightsList(){
+  var html='';
+  PCSP_RIGHTS.forEach(function(right,i){
+    html+='<div class="pcsp-right-row">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<div style="font-size:12px;font-weight:600;flex:1">'+right+'</div>'
+      +'<select class="m-select" id="pright-mod-'+i+'" style="width:80px;font-size:11px;padding:4px;margin-left:8px" onchange="toggleRightDetail('+i+')">'
+      +'<option>No</option><option>Yes</option></select>'
+      +'</div>'
+      +'<div id="pright-detail-'+i+'" style="display:none;background:#FFF3E0;border-radius:8px;padding:10px;margin-bottom:4px">'
+      +'<div style="font-size:11px;font-weight:700;color:#B35900;margin-bottom:6px">수정 내용 입력 (모두 필수)</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">① Modification Description (수정 내용 설명)</div>'
+      +'<textarea class="m-textarea" id="pright-desc-'+i+'" placeholder="예: Participant will have staff supervision when making food choices" style="width:100%;font-size:11px;min-height:50px;margin-bottom:8px"></textarea>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">② Diagnosis/Condition (관련 진단/상태)</div>'
+      +'<input class="m-input" id="pright-dx-'+i+'" placeholder="예: Type 2 Diabetes" style="font-size:11px;margin-bottom:8px">'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">③ Positive Interventions Used Before Modification (이전 시도 방법)</div>'
+      +'<input class="m-input" id="pright-prior-'+i+'" placeholder="예: Verbal reminders, motivational interviewing, visual cues" style="font-size:11px;margin-bottom:8px">'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">④ Timeframe for Review (기간 및 재검토 일정)</div>'
+      +'<input class="m-input" id="pright-time-'+i+'" placeholder="예: 6 months – 1/1/2026 to 7/1/2026" style="font-size:11px;margin-bottom:8px">'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">⑤ Assurance of No Harm (무해성 확인)</div>'
+      +'<textarea class="m-textarea" id="pright-harm-'+i+'" placeholder="예: Participant will continue to have access to healthy snacks at any time at the SADC" style="width:100%;font-size:11px;min-height:50px"></textarea>'
+      +'</div>'
+      +'</div>';
+  });
+  var el=document.getElementById('pcsp-rights-list');if(el)el.innerHTML=html;
+}
+function toggleRightDetail(i){var sel=document.getElementById('pright-mod-'+i);var detail=document.getElementById('pright-detail-'+i);if(detail)detail.style.display=sel&&sel.value==='Yes'?'block':'none';}
+
+function renderPCSPContacts(){var el=document.getElementById('pcsp-contacts-list');if(!el)return;if(!_pcspContacts.length){el.innerHTML='<div class="empty-msg" style="padding:8px">연락처 없음</div>';return;}el.innerHTML=_pcspContacts.map(function(c,i){return '<div class="pcsp-contact-item"><div style="display:flex;justify-content:space-between"><b>'+c.name+'</b><button class="btn-danger" onclick="removePcspContact('+i+')">삭제</button></div><div style="font-size:11px;color:#8E8E93">'+c.type+' · '+c.rel+' · '+c.phone+'</div></div>';}).join('');}
+function addPcspContact(){var name=prompt('이름:');if(!name)return;var type=prompt('유형 (Caregiver/Emergency Contact/Guardian):','Emergency Contact');var rel=prompt('관계:','');var phone=prompt('전화번호:','');var email=prompt('이메일 (없으면 none):','none');_pcspContacts.push({name:name,type:type||'Emergency Contact',rel:rel||'',phone:phone||'',email:email||'none'});renderPCSPContacts();}
+function removePcspContact(i){_pcspContacts.splice(i,1);renderPCSPContacts();}
+
+function renderPCSPRisks(){var el=document.getElementById('pcsp-risks-list');if(!el)return;if(!_pcspRisks.length){el.innerHTML='<div class="empty-msg" style="padding:8px">없으면 저장 시 "No known risks" 기록</div>';return;}el.innerHTML=_pcspRisks.map(function(r,i){return '<div class="pcsp-risk-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>⚠️ '+r.risk+'</b><button class="btn-danger" onclick="removePcspRisk('+i+')">삭제</button></div><div style="font-size:11px"><b>Trigger:</b> '+r.trigger+' | <b>Response:</b> '+r.response+'</div><div style="font-size:11px"><b>Measure:</b> '+r.measure+' | <b>Safeguard:</b> '+r.safeguard+'</div></div>';}).join('');}
+function addPcspRisk(){var risk=prompt('위험 요소 (예: Fall Risk):');if(!risk)return;var trigger=prompt('Trigger:','');var response=prompt('Known Response:','');var measure=prompt('Measure in Place:','');var safeguard=prompt('Safeguard:','');_pcspRisks.push({risk:risk,trigger:trigger||'',response:response||'',measure:measure||'',safeguard:safeguard||''});renderPCSPRisks();}
+function removePcspRisk(i){_pcspRisks.splice(i,1);renderPCSPRisks();}
+
+function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(!el)return;if(!_pcspGoals.length){el.innerHTML='<div class="empty-msg" style="padding:8px">목표 없음</div>';return;}el.innerHTML=_pcspGoals.map(function(g,i){return '<div class="pcsp-goal-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🎯 Goal '+(i+1)+'</b><button class="btn-danger" onclick="removePcspGoal('+i+')">삭제</button></div><div style="font-size:11px"><b>Goal:</b> '+g.goal+'</div><div style="font-size:11px"><b>Outcome:</b> '+g.outcome+'</div><div style="font-size:11px"><b>Actions:</b> '+g.actions+'</div></div>';}).join('');}
+function addPcspGoal(){var goal=prompt('Goal (목표):');if(!goal)return;var outcome=prompt('Outcome Criteria (달성 기준/날짜):','');var actions=prompt('Actions/Steps:','');var activities=prompt('Related Activities:','');_pcspGoals.push({goal:goal,outcome:outcome||'',actions:actions||'',activities:activities||''});renderPCSPGoals();}
+function removePcspGoal(i){_pcspGoals.splice(i,1);renderPCSPGoals();}
+
+function renderPCSPCommunity(){var el=document.getElementById('pcsp-community-list');if(!el)return;if(!_pcspCommunity.length){el.innerHTML='<div class="empty-msg" style="padding:8px">지역사회 활동 없음</div>';return;}el.innerHTML=_pcspCommunity.map(function(c,i){return '<div class="pcsp-comm-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🌍 '+c.activity+'</b><button class="btn-danger" onclick="removePcspCommunity('+i+')">삭제</button></div><div style="font-size:11px">'+c.location+' · '+c.schedule+'</div><div style="font-size:11px">Transport: '+c.transport+' · Support: '+c.support+'</div></div>';}).join('');}
+function addPcspCommunity(){var activity=prompt('활동명:');if(!activity)return;var location=prompt('장소:','');var schedule=prompt('일정:','');var transport=prompt('교통수단:','');var support=prompt('필요 지원:','none');_pcspCommunity.push({activity:activity,location:location||'',schedule:schedule||'',transport:transport||'',support:support||'none'});renderPCSPCommunity();}
+function removePcspCommunity(i){_pcspCommunity.splice(i,1);renderPCSPCommunity();}
+
+function pcspGoStep(s){
+  _pcspStep=s;
+  document.querySelectorAll('.pcsp-step').forEach(function(p){p.style.display='none';});
+  var step=document.getElementById('pstep-'+s);if(step)step.style.display='block';
+  for(var i=0;i<7;i++){var tab=document.getElementById('ptab-'+i);if(tab)tab.classList.toggle('active',i===s);}
+  var label=document.getElementById('pcsp-step-label');if(label)label.textContent=(s+1)+' / 7';
+  var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((s+1)/7*100)+'%';
+  var nav=document.getElementById('pcsp-nav');
+  if(s===6){if(nav)nav.style.display='none';buildPCSPSummary();}
+  else{
+    if(nav)nav.style.display='flex';
+    var prevBtn=document.getElementById('pcsp-prev-btn');
+    if(prevBtn)prevBtn.style.visibility=s===0?'hidden':'visible';
+  }
+  document.querySelector('.content').scrollTop=0;
+}
+function pcspNext(){if(_pcspStep<6)pcspGoStep(_pcspStep+1);}
+function pcspPrev(){if(_pcspStep>0)pcspGoStep(_pcspStep-1);}
+function gp(id){var el=document.getElementById('p-'+id);return el?el.value:'';}
+
+function buildPCSPSummary(){
+  var days=Array.from(_pcspDays).join(', ')||'—';
+  document.getElementById('pcsp-summary').innerHTML=
+    '<div><b>참여자:</b> '+gp('last')+', '+gp('first')+(gp('kr')?' ('+gp('kr')+')':'')+'</div>'
+    +'<div><b>작성:</b> '+gp('wdate')+' · '+gp('writer')+' · 갱신예정: '+gp('nextdate')+'</div>'
+    +'<div><b>보험:</b> '+gp('ins')+' · Medicaid: '+gp('medicaid')+'</div>'
+    +'<div><b>출석:</b> '+days+' '+gp('time')+'</div>'
+    +'<div><b>진단:</b> '+(gp('diag')||'—').slice(0,80)+'</div>'
+    +'<div><b>목표:</b> '+_pcspGoals.length+'개 | 위험: '+(_pcspRisks.length||'없음')+'</div>';
+}
+
+function savePCSPFull(){
+  var last=gp('last'),first=gp('first'),wdate=gp('wdate');
+  if(!last&&!first){alert('참여자 이름을 입력해주세요');pcspGoStep(0);return;}
+  if(!wdate){alert('작성일을 입력해주세요');pcspGoStep(0);return;}
+  var adl=PCSP_ADL_ITEMS.map(function(item,i){var lv=document.getElementById('padl-level-'+i);var dv=document.getElementById('padl-device-'+i);return {item:item,level:lv?lv.value:'',device:dv?dv.value:''};});
+  var rights=PCSP_RIGHTS.map(function(right,i){
+    var mod=document.getElementById('pright-mod-'+i);
+    var isYes=mod&&mod.value==='Yes';
+    return {
+      right:right,
+      modified:mod?mod.value:'No',
+      desc:isYes&&document.getElementById('pright-desc-'+i)?document.getElementById('pright-desc-'+i).value:'',
+      dx:isYes&&document.getElementById('pright-dx-'+i)?document.getElementById('pright-dx-'+i).value:'',
+      prior:isYes&&document.getElementById('pright-prior-'+i)?document.getElementById('pright-prior-'+i).value:'',
+      timeframe:isYes&&document.getElementById('pright-time-'+i)?document.getElementById('pright-time-'+i).value:'',
+      noHarm:isYes&&document.getElementById('pright-harm-'+i)?document.getElementById('pright-harm-'+i).value:''
+    };
+  });
   var editId=document.getElementById('pcsp-edit-id').value;
-  var entry={id:editId||('pcsp_'+Date.now()),member:member,date:date,next:document.getElementById('pcsp-next').value,author:document.getElementById('pcsp-author').value.trim(),dx:document.getElementById('pcsp-dx').value.trim(),goal1:document.getElementById('pcsp-goal1').value.trim(),goal2:document.getElementById('pcsp-goal2').value.trim(),goal3:document.getElementById('pcsp-goal3').value.trim(),status:document.getElementById('pcsp-status').value};
-  if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}
-  else PCSP_LIST.push(entry);
+  var entry={id:editId||('pcsp_'+Date.now()),writer:gp('writer'),wdate:wdate,nextdate:gp('nextdate'),type:gp('type'),nameLast:last,nameFirst:first,nameKr:gp('kr'),dob:gp('dob'),gender:gp('gender'),genderid:gp('genderid'),addr:gp('addr'),phone:gp('phone'),email:gp('email'),lang:gp('lang'),livewith:gp('livewith'),caresupp:gp('caresupp'),livewithname:gp('livewithname'),ins:gp('ins'),medicaid:gp('medicaid'),ins2:gp('ins2'),ins2id:gp('ins2id'),days:Array.from(_pcspDays),time:gp('time'),transport:gp('transport'),cm1name:gp('cm1name'),cm1phone:gp('cm1phone'),cm1email:gp('cm1email'),cm2name:gp('cm2name'),cm2phone:gp('cm2phone'),cm2email:gp('cm2email'),pcpname:gp('pcpname'),pcpphone:gp('pcpphone'),pcpemail:gp('pcpemail'),contacts:_pcspContacts,diag:gp('diag'),medassist:gp('medassist'),medlevel:gp('medlevel'),meds:gp('meds'),allergy:gp('allergy'),diet:gp('diet'),nutrition:gp('nutrition'),nutr_acc:gp('nutr-acc'),nutr_how:gp('nutr-how'),comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),alone:gp('alone'),pain:gp('pain'),cap_desc:gp('cap-desc'),adl:adl,carepref:gp('carepref'),carepref_acc:gp('carepref-acc'),carepref_desc:gp('carepref-desc'),carepref_notified:gp('carepref-notified'),risks:_pcspRisks.length?_pcspRisks:[{risk:'No known risks',trigger:'',response:'',measure:'',safeguard:''}],prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,work:gp('work'),work_desc:gp('work-desc'),rights:rights,sig:gp('sig'),sigdate:gp('sigdate'),writersig:gp('writersig'),status:'active',updatedAt:new Date().toISOString()};
+  if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}else PCSP_LIST.push(entry);
   savePCSPStorage();
-  apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.date,'멤버ID':'','한글이름':entry.member,'작성자':entry.author,'갱신예정일':entry.next,'진단':entry.dx,'목표1':entry.goal1,'목표2':entry.goal2,'목표3':entry.goal3,'상태':entry.status}}).catch(function(){});
-  closeOv('ov-pcsp');renderPCSPList();
+  apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':'','한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag,'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':entry.status}}).catch(function(){});
+  alert('✅ PCSP 저장 완료!');showPCSPList();
 }
-function editPCSP(id){openPCSPModal(id);}
+
+function editPCSP(id){openPCSPForm(id);}
 function deletePCSP(id){if(!confirm('삭제?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});savePCSPStorage();renderPCSPList();}
+
+function printPCSP(id){
+  var p=PCSP_LIST.find(function(x){return x.id===id;});
+  if(!p){alert('PCSP를 찾을 수 없어요');return;}
+  var days=(p.days||[]).join(', ')||'—';
+  var adlRows=(p.adl||[]).map(function(a){return '<tr><td>'+a.item+'</td><td>'+a.level+'</td><td>'+(a.device||'none')+'</td></tr>';}).join('');
+  var goalsHtml=(p.goals||[]).map(function(g,i){return '<tr><td>Goal '+(i+1)+'</td><td>'+g.goal+'</td><td>'+g.outcome+'</td><td>'+g.actions+'</td></tr>';}).join('');
+  var risksHtml=(p.risks||[]).map(function(r){return '<tr><td>'+r.risk+'</td><td>'+r.trigger+'</td><td>'+r.response+'</td><td>'+r.measure+'</td><td>'+r.safeguard+'</td></tr>';}).join('');
+  var rightsHtml=(p.rights||[]).filter(function(r){return r.modified==='Yes';}).map(function(r){
+    return '<tr><td style="font-weight:700">'+r.right+'</td><td>'
+      +'<b>Description:</b> '+r.desc+'<br>'
+      +'<b>Diagnosis:</b> '+r.dx+'<br>'
+      +'<b>Prior Interventions:</b> '+r.prior+'<br>'
+      +'<b>Timeframe:</b> '+r.timeframe+'<br>'
+      +'<b>No Harm Assurance:</b> '+r.noHarm
+      +'</td></tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>PCSP - '+p.nameLast+', '+p.nameFirst+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:14px;text-align:center}h2{font-size:11px;background:#5856D6;color:#fff;padding:4px 8px;margin:12px 0 5px}table{width:100%;border-collapse:collapse;margin-bottom:8px}td,th{border:1px solid #ccc;padding:3px 6px;vertical-align:top}th{background:#f5f5f5;font-weight:700}.sig{border-bottom:1px solid #000;height:40px}</style></head><body>'
+    +'<h1>Number One Adult Daycare — Person Centered Service Plan (PCSP)</h1>'
+    +'<div style="text-align:center;font-size:9px;margin-bottom:10px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248 · Version: 2026.05</div>'
+    +'<h2>PCSP Completion Information</h2><table><tr><th>작성자</th><td>'+p.writer+'</td><th>작성일</th><td>'+p.wdate+'</td><th>갱신예정일</th><td>'+p.nextdate+'</td></tr></table>'
+    +'<h2>Participant Information</h2><table><tr><th>Name</th><td>'+p.nameLast+', '+p.nameFirst+' ('+p.nameKr+')</td><th>DOB</th><td>'+p.dob+'</td></tr><tr><th>Address</th><td>'+p.addr+'</td><th>Phone</th><td>'+p.phone+'</td></tr><tr><th>Language</th><td>'+p.lang+'</td><th>Gender</th><td>'+p.gender+' / '+p.genderid+'</td></tr><tr><th>Insurance</th><td>'+p.ins+' · '+p.medicaid+'</td><th>Lives With</th><td>'+p.livewith+' '+p.livewithname+'</td></tr><tr><th>Attendance</th><td colspan="3">'+days+' · '+p.time+' · '+p.transport+'</td></tr></table>'
+    +'<h2>Care Managers & PCP</h2><table><tr><th>Primary CM</th><td>'+p.cm1name+' · '+p.cm1phone+' · '+p.cm1email+'</td></tr>'+(p.cm2name?'<tr><th>Secondary CM</th><td>'+p.cm2name+' · '+p.cm2phone+'</td></tr>':'')+'<tr><th>PCP</th><td>'+p.pcpname+' · '+p.pcpphone+' · '+p.pcpemail+'</td></tr></table>'
+    +'<h2>Health Information</h2><table><tr><th>Diagnoses</th><td>'+p.diag+'</td></tr><tr><th>Medications</th><td>Assist: '+p.medassist+' ('+p.medlevel+')<br>'+p.meds+'</td></tr><tr><th>Allergies</th><td>'+p.allergy+'</td></tr><tr><th>Diet Restrictions</th><td>'+p.diet+'</td></tr><tr><th>Nutrition</th><td>'+p.nutrition+'</td></tr></table>'
+    +'<h2>Functional Assessment (ADL)</h2><table><tr><th>ADL</th><th>Level of Care</th><th>Assistive Device</th></tr>'+adlRows+'</table>'
+    +'<table><tr><th>Communicate Needs</th><td>'+p.comm+'</td><th>Make Decisions</th><td>'+p.decision+'</td><th>Unsupervised</th><td>'+p.alone+'</td><th>Pain/Sensory</th><td>'+p.pain+'</td></tr><tr><td colspan="8">'+p.cap_desc+'</td></tr></table>'
+    +'<h2>Risk Management</h2>'+(risksHtml?'<table><tr><th>Risk</th><th>Trigger</th><th>Response</th><th>Measure</th><th>Safeguard</th></tr>'+risksHtml+'</table>':'<p>No known risks identified</p>')
+    +'<h2>Preferences, Strengths & Needs</h2><table><tr><th>Preferences</th><td>'+p.prefs+'</td></tr><tr><th>Strengths</th><td>'+p.strengths+'</td></tr><tr><th>Needs</th><td>'+p.needs+'</td></tr></table>'
+    +'<h2>Goals & Activities</h2>'+(goalsHtml?'<table><tr><th>#</th><th>Goal</th><th>Outcome Criteria</th><th>Actions/Steps</th></tr>'+goalsHtml+'</table>':'<p>No goals</p>')
+    +'<table><tr><th>SADC Activities</th><td>'+p.sadc_act+'</td></tr><tr><th>Work/Volunteer</th><td>'+p.work+' '+p.work_desc+'</td></tr></table>'
+    +'<h2>Modifications to Rights</h2>'+(rightsHtml?'<table><tr><th>Right</th><th>Justification & Details</th></tr>'+rightsHtml+'</table>':'<p>No modifications to rights</p>')
+    +'<h2>PCSP Acknowledgement</h2><p style="font-size:9px;border:1px solid #ccc;padding:8px;line-height:1.5">I confirm that I led the person centered planning process, was offered various opportunities and choices, and the information in this PCSP is accurate.</p>'
+    +'<table><tr><th>Participant/Representative Signature</th><th>Date</th></tr><tr><td><div class="sig">'+p.sig+'</div></td><td>'+p.sigdate+'</td></tr></table>'
+    +'<br><button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button></body></html>';
+  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
+  w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+}
 
 // ── Staff (간소화) ────────────────────────────────────────
 function renderOpStaff(){
@@ -931,6 +1414,58 @@ function openStaffModal(){ window.location.href='index.html'; }
 // ── 초기화 ────────────────────────────────────────────────
 function initData(){
   renderAudit();
+  // URL 파라미터 처리 (케어 관리 앱에서 넘어온 경우)
+  var params = new URLSearchParams(window.location.search);
+  var tab = params.get('tab');
+  var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
+  if(tab === 'pcsp'){
+    localStorage.removeItem('pcsp_prefill_mid');
+    // PCSP 탭으로 이동
+    var pcspTab = document.querySelector('.tab[onclick*="pcsp"]');
+    goTab('pcsp', pcspTab);
+    // 멤버 정보 prefill
+    if(mid){
+      setTimeout(function(){
+        prefillPCSPFromMember(mid);
+      }, 300);
+    } else {
+      setTimeout(function(){ openPCSPForm(); }, 300);
+    }
+  }
+}
+
+function prefillPCSPFromMember(mid){
+  // Sheets에서 멤버 정보 가져오기
+  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+    var member = null;
+    if(res.ok && res.data){
+      member = res.data.find(function(r){ return String(r['ID']) === String(mid); });
+    }
+    openPCSPForm();
+    if(member){
+      var days = member['출석요일'] ? member['출석요일'].split(',').map(function(d){return d.trim();}) : [];
+      setTimeout(function(){
+        var el = document.getElementById('p-last');
+        var en = (member['영문이름']||'').trim();
+        var parts = en.split(/[\s,]+/);
+        if(el) el.value = parts[0]||'';
+        var el2 = document.getElementById('p-first');
+        if(el2) el2.value = parts.slice(1).join(' ')||'';
+        var kr = document.getElementById('p-kr'); if(kr) kr.value = member['한글이름']||'';
+        var ins = document.getElementById('p-ins'); if(ins) ins.value = member['보험사']||'Anthem MLTC';
+        var med = document.getElementById('p-medicaid'); if(med) med.value = member['Medicaid']||'';
+        var pcp = document.getElementById('p-pcpname'); if(pcp) pcp.value = member['주치의']||'';
+        var phone = document.getElementById('p-phone'); if(phone) phone.value = member['전화']||'';
+        var addr = document.getElementById('p-addr'); if(addr) addr.value = member['주소']||'';
+        var dob = document.getElementById('p-dob'); if(dob) dob.value = (member['생년월일']||'').slice(0,10);
+        // 출석 요일 설정
+        _pcspDays = new Set(days);
+        initPCSPDayBtns();
+      }, 100);
+    }
+  }).catch(function(){
+    openPCSPForm();
+  });
 }
 </script>
 </body>
