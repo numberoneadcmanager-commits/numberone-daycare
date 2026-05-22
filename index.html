@@ -1518,8 +1518,9 @@ async function saveMemberEdit(){
     apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{
       'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,
       '주치의':m.pcp,'출석요일':m.days.join(','),'전화':m.phone,'주소':m.addr,
-      '생년월일':m.dob?m.dob.slice(0,10):'','차트번호':m.chartNo||'','보험사':m.ins,'상태':m.status||'active',
-      'Disenroll날짜':m.disenrollDate||'','메모':m.memo||''
+      '생년월일':m.dob?m.dob.slice(0,10):'','보험사':m.ins,'상태':m.status||'active',
+      'Disenroll날짜':m.disenrollDate||'','메모':m.memo||'',
+      'avBg':m.avBg||'#E6F1FB','avColor':m.avColor||'#185FA5'
     }}).catch(function(e){console.log(e);});
   }
   saveToStorage();closeOv('ov-medit');filterM();renderAtt();
@@ -1753,8 +1754,9 @@ async function uploadMembersToSheets(){
       await apiCall({},{action:'upsert',sheet:'멤버',key:'ID',value:m.id,data:{
         'ID':m.id,'한글이름':m.kr,'영문이름':m.en,'Medicaid':m.medicaid,'MLTC':m.mltc,
         '주치의':m.pcp||'','출석요일':(m.days||[]).join(','),'전화':m.phone||'',
-        '주소':m.addr||'','생년월일':m.dob?m.dob.slice(0,10):'','차트번호':m.chartNo||m.id||'','보험사':m.ins||'',
-        '상태':m.status||'active','Disenroll날짜':m.disenrollDate||'','메모':m.memo||''
+        '주소':m.addr||'','생년월일':m.dob?m.dob.slice(0,10):'','보험사':m.ins||'',
+        '상태':m.status||'active','Disenroll날짜':m.disenrollDate||'','메모':m.memo||'',
+        'avBg':m.avBg||'#E6F1FB','avColor':m.avColor||'#185FA5'
       }});ok++;
     }catch(e){}
     if(btn&&i%10===0)btn.textContent='업로드 중... '+(i+1)+'/'+MEMBERS.length;
@@ -2010,6 +2012,39 @@ function updateDashNow(){
   document.getElementById('ds-hospital').textContent=hC;
   document.getElementById('day-count').textContent='출석 '+inC+'명';
 }
+function updateCertAlert() {
+  var el = document.getElementById('ds-cert-alert');
+  if (!el) return;
+  var today = todayISO;
+  var expired = [], soon = [];
+  (STAFF.length ? STAFF : DEFAULT_STAFF).forEach(function(s) {
+    (s.certs||[]).forEach(function(c) {
+      if (!c.exp) return;
+      var diff = Math.floor((new Date(c.exp) - new Date(today)) / 86400000);
+      if (diff < 0) expired.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
+      else if (diff <= 90) soon.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
+    });
+  });
+  if (!expired.length && !soon.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  var html = '';
+  if (expired.length) {
+    html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;margin-bottom:6px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
+      + '<div style="font-size:13px;font-weight:700;color:#900">❌ 만료된 자격증 ' + expired.length + '건</div>'
+      + expired.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+'</div>'; }).join('')
+      + (expired.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(expired.length-3)+'건...</div>' : '')
+      + '</div>';
+  }
+  if (soon.length) {
+    html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
+      + '<div style="font-size:13px;font-weight:700;color:#B35900">⚠️ 90일내 만료 자격증 ' + soon.length + '건</div>'
+      + soon.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+' ('+x.diff+'일)</div>'; }).join('')
+      + (soon.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(soon.length-3)+'건...</div>' : '')
+      + '</div>';
+  }
+  el.innerHTML = html;
+}
+
 function renderDash(){
   updateDashNow();
   const iso=todayISO,dow=dowKey(iso),list=MEMBERS.filter(m=>m.days.includes(dow)),recs=getRec(iso);
@@ -2021,7 +2056,7 @@ function renderDash(){
   const si=incidents.filter(i=>i['날짜']&&i['날짜'].slice(0,7)===thisMonth&&i['심각도']==='Serious');
   document.getElementById('ds-inc').textContent=si.length;
   // 스태프 자격증 만료 알림
-  updateCertAlert();
+  if(typeof updateCertAlert === 'function') updateCertAlert();
   let html=list.slice(0,8).map(m=>{const r=recs[m.id]||{},s=r.status||'';return `<div class="att-row" style="flex-direction:row;align-items:center;gap:9px;padding:10px 14px"><div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div><div style="flex:1"><div class="att-name">${m.kr}</div><div class="att-id">${insBadge(m.ins||'Anthem_MLTC')} ${statusBadge(m)} ${r.memo||''}</div></div>${badgeHTML(s)}</div>`;}).join('');
   document.getElementById('dash-list').innerHTML=html||'<div class="empty-msg">출결 기록 없음</div>';
   // followup alerts
@@ -2438,11 +2473,12 @@ async function testApi(){
 async function initSheets(){document.getElementById('api-msg').textContent='시트 초기화 중...';try{const res=await apiCall({action:'initSheets'});document.getElementById('api-msg').textContent=res.ok?'✅ 완료: '+JSON.stringify(res.data):'❌ '+res.error;}catch(e){document.getElementById('api-msg').textContent='❌ '+e.message;}}
 async function loadAllData(){
   try{
-    const [iR,aR,cR,authR]=await Promise.all([
+    const [iR,aR,cR,authR,mR]=await Promise.all([
       apiCall({action:'read',sheet:'incident'}),
       apiCall({action:'read',sheet:'activity'}),
       apiCall({action:'read',sheet:'caselog'}),
-      apiCall({action:'read',sheet:'auth'})
+      apiCall({action:'read',sheet:'auth'}),
+      apiCall({action:'read',sheet:'멤버'})
     ]);
     if(iR.ok)incidents=iR.data||[];
     if(aR.ok)activities=aR.data||[];
@@ -2463,7 +2499,37 @@ async function loadAllData(){
       });
       saveAuthStorage();
     }
+    // 멤버 데이터 로드 (Sheets에 데이터가 있으면 사용)
+    if(mR.ok && mR.data && mR.data.length > 10){
+      var loaded = mR.data.map(function(r){
+        return {
+          id: String(r['ID']||r['id']||''),
+          kr: r['한글이름']||'',
+          en: r['영문이름']||'',
+          medicaid: r['Medicaid']||'',
+          mltc: r['MLTC']||'',
+          pcp: r['주치의']||'',
+          days: r['출석요일']?r['출석요일'].split(',').map(function(d){return d.trim();}).filter(Boolean):[],
+          phone: r['전화']||'',
+          addr: r['주소']||'',
+          dob: r['생년월일']||'',
+          ins: r['보험사']||'Anthem_MLTC',
+          status: r['상태']||'active',
+          disenrollDate: r['Disenroll날짜']||'',
+          disenrollNote: r['메모']||'',
+          memo: r['메모2']||'',
+          avBg: r['avBg']||'#E6F1FB',
+          avColor: r['avColor']||'#185FA5',
+          chartNo: r['ID']||'',
+        };
+      }).filter(function(m){return m.id && m.kr;});
+      if(loaded.length > 0){
+        MEMBERS = loaded;
+        console.log('✅ 멤버 '+MEMBERS.length+'명 Sheets에서 로드됨');
+      }
+    }
     renderIncidents();renderActivities();renderCases();updateDashNow();renderAuthList();
+    renderMembers&&renderMembers();
   }catch(e){console.log(e);}
 }
 async function syncToSheets(iso){
@@ -3716,39 +3782,6 @@ function renderAuthList() {
   });
   var el2 = document.getElementById('auth-list');
   if(el2) el2.innerHTML = html;
-}
-
-function updateCertAlert() {
-  var el = document.getElementById('ds-cert-alert');
-  if (!el) return;
-  var today = todayISO;
-  var expired = [], soon = [];
-  (STAFF.length ? STAFF : DEFAULT_STAFF).forEach(function(s) {
-    (s.certs||[]).forEach(function(c) {
-      if (!c.exp) return;
-      var diff = Math.floor((new Date(c.exp) - new Date(today)) / 86400000);
-      if (diff < 0) expired.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
-      else if (diff <= 90) soon.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
-    });
-  });
-  if (!expired.length && !soon.length) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
-  var html = '';
-  if (expired.length) {
-    html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;margin-bottom:6px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
-      + '<div style="font-size:13px;font-weight:700;color:#900">❌ 만료된 자격증 ' + expired.length + '건</div>'
-      + expired.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+'</div>'; }).join('')
-      + (expired.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(expired.length-3)+'건...</div>' : '')
-      + '</div>';
-  }
-  if (soon.length) {
-    html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
-      + '<div style="font-size:13px;font-weight:700;color:#B35900">⚠️ 90일내 만료 자격증 ' + soon.length + '건</div>'
-      + soon.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+' ('+x.diff+'일)</div>'; }).join('')
-      + (soon.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(soon.length-3)+'건...</div>' : '')
-      + '</div>';
-  }
-  el.innerHTML = html;
 }
 
 function updateAuthAlert(soon, expired) {
