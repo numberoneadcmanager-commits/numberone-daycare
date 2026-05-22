@@ -385,23 +385,41 @@ function handleCredentialResponse(response) {
 }
 
 function showApp(user) {
+  _currentUser = user;
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
+  // 앱 선택 화면 표시
+  var sel = document.getElementById('app-select-screen');
+  sel.style.display = 'flex';
+  var userEl = document.getElementById('app-select-user');
+  if(userEl) userEl.textContent = (user.name||user.email) + ' 님 안녕하세요 👋';
+}
 
+function selectApp(type) {
+  document.getElementById('app-select-screen').style.display = 'none';
+  if(type === 'ops') {
+    window.location.href = 'operations.html';
+    return;
+  }
+  // 케어 관리 앱 시작
+  document.getElementById('app').style.display = 'flex';
   // 헤더에 사용자 표시
   var pill = document.getElementById('api-pill');
   if (pill) {
-    var nameShort = user.name ? user.name.split(' ')[0] : user.email.split('@')[0];
-    // 사용자 아이콘 추가
+    var nameShort = _currentUser.name ? _currentUser.name.split(' ')[0] : _currentUser.email.split('@')[0];
     var userEl = document.getElementById('hdr-user');
     if (!userEl) {
       userEl = document.createElement('div');
       userEl.id = 'hdr-user';
       userEl.style.cssText = 'display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer';
-      userEl.innerHTML = (user.picture ? '<img src="'+user.picture+'" style="width:20px;height:20px;border-radius:50%">' : '')
+      userEl.innerHTML = (_currentUser.picture ? '<img src="'+_currentUser.picture+'" style="width:20px;height:20px;border-radius:50%">' : '')
         + '<span style="font-size:10px;color:#3C3C43;font-weight:600">'+nameShort+'</span>'
         + '<span style="font-size:9px;color:#C7C7CC">▼</span>';
-      userEl.onclick = function() { if(confirm('로그아웃 하시겠습니까?')) logout(); };
+      userEl.onclick = function() {
+        if(confirm('앱 선택 화면으로 돌아가시겠습니까?')) {
+          document.getElementById('app').style.display = 'none';
+          document.getElementById('app-select-screen').style.display = 'flex';
+        }
+      };
       pill.parentNode.insertBefore(userEl, pill.nextSibling);
     }
   }
@@ -457,6 +475,27 @@ window.addEventListener('load', function() {
   </div>
 </div>
 
+<!-- 앱 선택 화면 -->
+<div id="app-select-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#D85A30 0%,#B84520 100%);z-index:99998;align-items:center;justify-content:center;flex-direction:column">
+  <div style="text-align:center;margin-bottom:32px">
+    <div style="font-size:22px;font-weight:800;color:#fff">넘버원 어덜트 데이케어</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:4px" id="app-select-user"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:14px;width:90%;max-width:340px">
+    <button onclick="selectApp('care')" style="background:#fff;border:none;border-radius:16px;padding:20px;text-align:left;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2)">
+      <div style="font-size:28px;margin-bottom:6px">🏥</div>
+      <div style="font-size:16px;font-weight:800;color:#1C1C1E">케어 관리</div>
+      <div style="font-size:12px;color:#8E8E93;margin-top:3px">출결 · 멤버 · Authorization · Incident · Case Log</div>
+    </button>
+    <button onclick="selectApp('ops')" style="background:#fff;border:none;border-radius:16px;padding:20px;text-align:left;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.2)">
+      <div style="font-size:28px;margin-bottom:6px">📋</div>
+      <div style="font-size:16px;font-weight:800;color:#1C1C1E">업무 관리</div>
+      <div style="font-size:12px;color:#8E8E93;margin-top:3px">PCSP · 빌링 · 스태프 · Audit · 문서보관함</div>
+    </button>
+  </div>
+  <button onclick="logout()" style="margin-top:24px;background:rgba(255,255,255,.2);border:none;border-radius:10px;padding:8px 20px;color:#fff;font-size:12px;cursor:pointer">로그아웃</button>
+</div>
+
 <div id="app" style="display:none">
 
   <!-- Header -->
@@ -510,6 +549,7 @@ window.addEventListener('load', function() {
         <div class="sbox"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
       <div id="ds-auth-alert" style="display:none;margin-bottom:10px"></div>
+      <div id="ds-cert-alert" style="display:none;margin-bottom:10px"></div>
       <div style="margin-bottom:10px">
         <button class="btn-full" style="background:linear-gradient(135deg,#5856D6,#007AFF);color:#fff;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer" onclick="window.location.href='operations.html'">
           📋 업무 관리 앱으로 이동 →
@@ -1244,11 +1284,12 @@ window.addEventListener('load', function() {
       <div class="settings-card">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px">📋 필요한 시트 구조</div>
         <div style="font-size:12px;color:#3C3C43;line-height:2">
-          <div><b>출결</b> · <b>멤버</b> · <b>PCSP</b></div>
+          <div><b>출결</b> · <b>멤버</b> · <b>PCSP</b> · <b>스태프</b></div>
           <div><b>incident</b> · <b>activity</b> · <b>caselog</b></div>
-          <div><b>auth</b> (Authorization 관리)</div>
+          <div><b>auth</b> · <b>visitor</b> · <b>council</b></div>
+          <div><b>grievance</b> · <b>firedrill</b> · <b>templog</b></div>
         </div>
-        <div style="font-size:11px;color:#8E8E93;margin-top:8px">💡 "Sheets 초기화"를 누르면 7개 시트와 헤더가 자동 생성됩니다.</div>
+        <div style="font-size:11px;color:#8E8E93;margin-top:8px">💡 "Sheets 초기화"를 누르면 시트와 헤더가 자동 생성됩니다.</div>
       </div>
     </div>
 
@@ -1979,6 +2020,8 @@ function renderDash(){
   const thisMonth=todayISO.slice(0,7);
   const si=incidents.filter(i=>i['날짜']&&i['날짜'].slice(0,7)===thisMonth&&i['심각도']==='Serious');
   document.getElementById('ds-inc').textContent=si.length;
+  // 스태프 자격증 만료 알림
+  updateCertAlert();
   let html=list.slice(0,8).map(m=>{const r=recs[m.id]||{},s=r.status||'';return `<div class="att-row" style="flex-direction:row;align-items:center;gap:9px;padding:10px 14px"><div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div><div style="flex:1"><div class="att-name">${m.kr}</div><div class="att-id">${insBadge(m.ins||'Anthem_MLTC')} ${statusBadge(m)} ${r.memo||''}</div></div>${badgeHTML(s)}</div>`;}).join('');
   document.getElementById('dash-list').innerHTML=html||'<div class="empty-msg">출결 기록 없음</div>';
   // followup alerts
@@ -3673,6 +3716,39 @@ function renderAuthList() {
   });
   var el2 = document.getElementById('auth-list');
   if(el2) el2.innerHTML = html;
+}
+
+function updateCertAlert() {
+  var el = document.getElementById('ds-cert-alert');
+  if (!el) return;
+  var today = todayISO;
+  var expired = [], soon = [];
+  (STAFF.length ? STAFF : DEFAULT_STAFF).forEach(function(s) {
+    (s.certs||[]).forEach(function(c) {
+      if (!c.exp) return;
+      var diff = Math.floor((new Date(c.exp) - new Date(today)) / 86400000);
+      if (diff < 0) expired.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
+      else if (diff <= 90) soon.push({staff: s.nameKr||s.name||'', cert: c.name, diff: diff});
+    });
+  });
+  if (!expired.length && !soon.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  var html = '';
+  if (expired.length) {
+    html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;margin-bottom:6px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
+      + '<div style="font-size:13px;font-weight:700;color:#900">❌ 만료된 자격증 ' + expired.length + '건</div>'
+      + expired.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+'</div>'; }).join('')
+      + (expired.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(expired.length-3)+'건...</div>' : '')
+      + '</div>';
+  }
+  if (soon.length) {
+    html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
+      + '<div style="font-size:13px;font-weight:700;color:#B35900">⚠️ 90일내 만료 자격증 ' + soon.length + '건</div>'
+      + soon.slice(0,3).map(function(x){ return '<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+x.staff+' · '+x.cert+' ('+x.diff+'일)</div>'; }).join('')
+      + (soon.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 '+(soon.length-3)+'건...</div>' : '')
+      + '</div>';
+  }
+  el.innerHTML = html;
 }
 
 function updateAuthAlert(soon, expired) {
