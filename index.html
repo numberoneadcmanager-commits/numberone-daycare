@@ -2090,7 +2090,7 @@ function setMDay(f,btn){document.querySelectorAll('.fpill[data-mf]').forEach(b=>
 function renderMG(){
   document.getElementById('m-cnt').textContent='검색 결과: '+mFilt.length+'명';
   const sl=mFilt.slice(mPage*PER,(mPage+1)*PER);
-  document.getElementById('mgrid').innerHTML=sl.map(m=>`<div class="mc ${isActive(m) ? '' : 'disenrolled-card'}" onclick="openPCSPForm('${m.id}')">
+  document.getElementById('mgrid').innerHTML=sl.map(m=>`<div class="mc ${isActive(m) ? '' : 'disenrolled-card'}">
     <div class="mc-top"><div class="mc-av" style="background:${m.avBg};color:${m.avColor};overflow:hidden;padding:0">${m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover">':m.kr[0]}</div>
     <div style="flex:1;min-width:0"><div class="mc-name">${m.kr}</div><div class="mc-en">${m.en}</div></div></div>
     <div class="mc-grid">
@@ -2103,7 +2103,15 @@ function renderMG(){
     </div>
     <div class="mc-days" style="margin-top:7px">${m.days.map(d=>`<span class="mc-day">${DKR[d]}</span>`).join('')}</div>
     ${m.memo?`<div style="font-size:11px;color:#D85A30;background:#FFF3EE;border-radius:8px;padding:5px 9px;margin-top:6px">📝 ${m.memo}</div>`:''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px"><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openMemberEdit('${m.id}')">✏️ 정보 수정</button><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openStatusModal('${m.id}')">● 상태 변경</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px"><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();openPhotoUpload('${m.id}')">📸 사진</button><button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#FFF3EE;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="event.stopPropagation();generateMemberChart('${m.id}')">🪪 차트</button></div><button class="btn-full btn-primary" style="margin-top:6px;padding:10px;font-size:13px" onclick="event.stopPropagation();openPCSPForm('${m.id}')">PCSP 입력 →</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+      <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="openMemberEdit('${m.id}')">✏️ 정보 수정</button>
+      <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="openStatusModal('${m.id}')">● 상태 변경</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+      <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="openPhotoUpload('${m.id}')">📸 사진</button>
+      <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#FFF3EE;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="generateMemberChart('${m.id}')">🪪 차트</button>
+    </div>
+    <a href="operations.html?tab=pcsp&mid=${m.id}" onclick="localStorage.setItem('pcsp_prefill_mid','${m.id}')" style="display:block;margin-top:6px;padding:10px;background:#D85A30;color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-align:center;text-decoration:none">📋 PCSP 입력 →</a>
   </div>`).join('');
   const tot=Math.ceil(mFilt.length/PER);
   if(tot<=1){document.getElementById('mpg').innerHTML='';return;}
@@ -2128,25 +2136,11 @@ function renderPCSPList(){
 }
 
 function openPCSPForm(mid){
-  const m=MEMBERS.find(x=>x.id===mid);
-  if(m){
-    const pts=m.en.trim().split(/[\s,]+/);
-    document.getElementById('f-last').value=pts[0]||'';
-    document.getElementById('f-first').value=pts.slice(1).join(' ')||'';
-    document.getElementById('f-kr').value=m.kr;
-    document.getElementById('f-ins').value='Anthem';
-    document.getElementById('f-medicaid').value=m.medicaid;
-    document.getElementById('f-mltc').value=m.mltc;
-    document.getElementById('f-pcp').value=m.pcp||'';
-    document.getElementById('f-wdate').value=todayISO;
-    selDays=new Set(m.days);
-    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{const b=document.getElementById('db-'+d);if(b)b.classList.toggle('sel',m.days.includes(d));});
-    updatePreview();
+  // PCSP는 업무 관리 앱(operations.html)에서 작성
+  if(mid){
+    localStorage.setItem('pcsp_prefill_mid', mid);
   }
-  document.getElementById('pcsp-list-v').style.display='none';
-  document.getElementById('pcsp-form-v').style.display='block';
-  goStep(0);
-  document.querySelector('.content').scrollTop=0;
+  window.location.href = 'operations.html?tab=pcsp&mid=' + (mid||'');
 }
 
 function goStep(s){
