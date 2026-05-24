@@ -527,6 +527,7 @@ window.addEventListener('load', function() {
     <div class="tab" onclick="goTab('logs',this)">로그</div>
     <div class="tab" onclick="goTab('report',this)">보고서</div>
     <div class="tab" onclick="goTab('authorization',this)">Auth</div>
+    <div class="tab" onclick="goTab('forms',this)">Assessment</div>
     <div class="tab" onclick="goTab('visitor',this)">방문자</div>
     <div class="tab" onclick="goTab('council',this)">회의록</div>
     <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
@@ -1927,6 +1928,7 @@ function goTab(tab,el){
   if(tab==='logs')renderIncidents();
   if(tab==='staff')renderStaff();
   if(tab==='report')renderReport();
+  if(tab==='forms')initFormsTab&&initFormsTab();
   if(tab==='authorization')renderAuthList();
   if(tab==='visitor')renderVisitorList();
   if(tab==='council')renderCouncilList();
