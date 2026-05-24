@@ -170,7 +170,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
         </div>
         <div id="pcsp-list"></div>
-        <button class="btn-full btn-primary" style="margin-top:8px" onclick="openPCSPForm()">➕ PCSP 새로 작성</button>
+        <button class="btn-full btn-primary" style="margin-top:8px" onclick="openPCSPMemberSelect()">➕ PCSP 새로 작성</button>
+      </div>
+
+      <!-- 멤버 선택 화면 -->
+      <div id="pcsp-member-select" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <button class="btn-sm" onclick="showPCSPList()">← 목록으로</button>
+          <span style="font-size:14px;font-weight:700">멤버 선택</span>
+        </div>
+        <div class="search-wrap"><span>🔍</span><input id="pcsp-member-q" placeholder="이름 검색..." oninput="renderPCSPMemberList()"></div>
+        <div id="pcsp-member-list" style="max-height:60dvh;overflow-y:auto"></div>
       </div>
 
       <!-- PCSP 7단계 폼 -->
@@ -1211,7 +1221,99 @@ function renderPCSPList(){
   var el=document.getElementById('pcsp-list');if(el)el.innerHTML=html;
 }
 
-function showPCSPList(){document.getElementById('pcsp-list-view').style.display='block';document.getElementById('pcsp-form-view').style.display='none';renderPCSPList();}
+function showPCSPList(){
+  document.getElementById('pcsp-list-view').style.display='block';
+  document.getElementById('pcsp-member-select').style.display='none';
+  document.getElementById('pcsp-form-view').style.display='none';
+  renderPCSPList();
+}
+
+function openPCSPMemberSelect(){
+  document.getElementById('pcsp-list-view').style.display='none';
+  document.getElementById('pcsp-member-select').style.display='block';
+  document.getElementById('pcsp-form-view').style.display='none';
+  document.getElementById('pcsp-member-q').value='';
+  renderPCSPMemberList();
+}
+
+function renderPCSPMemberList(){
+  var q=(document.getElementById('pcsp-member-q').value||'').toLowerCase();
+  var el=document.getElementById('pcsp-member-list');
+  if(!el)return;
+
+  // Sheets에서 멤버 로드
+  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+    var members=[];
+    if(res.ok&&res.data){
+      members=res.data.filter(function(r){
+        return r['상태']!=='disenrolled' && r['ID'] &&
+          (!q||(r['한글이름']||'').includes(q)||(r['영문이름']||'').toLowerCase().includes(q));
+      });
+    }
+    if(!members.length){
+      el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
+      return;
+    }
+    el.innerHTML=members.map(function(m){
+      return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
+        +'<div class="log-top">'
+        +'<div class="log-name">'+m['한글이름']+'</div>'
+        +'<span style="font-size:11px;color:#8E8E93">'+m['영문이름']+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+m['Medicaid']+'  ·  '+m['보험사']+'</div>'
+        +'</div>';
+    }).join('');
+  }).catch(function(){
+    el.innerHTML='<div class="empty-msg">멤버 로드 실패 — Sheets 연결을 확인해주세요</div>';
+  });
+}
+
+function selectPCSPMember(m){
+  document.getElementById('pcsp-member-select').style.display='none';
+  document.getElementById('pcsp-form-view').style.display='block';
+  _pcspDays=new Set();_pcspContacts=[];_pcspRisks=[];_pcspGoals=[];_pcspCommunity=[];
+  document.getElementById('pcsp-edit-id').value='';
+
+  // 기본값 설정
+  var today=new Date().toISOString().slice(0,10);
+  var nextYear=new Date();nextYear.setFullYear(nextYear.getFullYear()+1);
+  document.getElementById('p-wdate').value=today;
+  document.getElementById('p-sigdate').value=today;
+  document.getElementById('p-nextdate').value=nextYear.toISOString().slice(0,10);
+  document.getElementById('p-writer').value=_currentUser?(_currentUser.name||''):'';
+
+  // 멤버 정보 자동 채우기
+  var en=(m['영문이름']||'').trim();
+  var parts=en.split(/[\s,]+/);
+  document.getElementById('p-last').value=parts[0]||'';
+  document.getElementById('p-first').value=parts.slice(1).join(' ')||'';
+  document.getElementById('p-kr').value=m['한글이름']||'';
+  document.getElementById('p-ins').value=m['보험사']||'Anthem MLTC';
+  document.getElementById('p-medicaid').value=m['Medicaid']||'';
+  document.getElementById('p-phone').value=m['전화']||'';
+  document.getElementById('p-addr').value=m['주소']||'';
+  document.getElementById('p-pcpname').value=m['주치의']||'';
+  var dob=document.getElementById('p-dob');
+  if(dob)dob.value=(m['생년월일']||'').slice(0,10);
+
+  // 출석 요일 설정
+  var days=(m['출석요일']||'').split(',').map(function(d){return d.trim();}).filter(Boolean);
+  _pcspDays=new Set(days);
+
+  // MLTC 번호를 ins2에
+  if(m['MLTC']){
+    document.getElementById('p-ins2id').value=m['MLTC']||'';
+  }
+
+  initPCSPDayBtns();
+  initPCSPAdlList();
+  initPCSPRightsList();
+  renderPCSPContacts();
+  renderPCSPRisks();
+  renderPCSPGoals();
+  renderPCSPCommunity();
+  pcspGoStep(0);
+}
 
 function openPCSPForm(id){
   document.getElementById('pcsp-list-view').style.display='none';
@@ -1435,37 +1537,17 @@ function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  // Sheets에서 멤버 정보 가져오기
   apiCall({action:'read',sheet:'멤버'}).then(function(res){
-    var member = null;
-    if(res.ok && res.data){
-      member = res.data.find(function(r){ return String(r['ID']) === String(mid); });
+    var member=null;
+    if(res.ok&&res.data){
+      member=res.data.find(function(r){return String(r['ID'])===String(mid);});
     }
-    openPCSPForm();
     if(member){
-      var days = member['출석요일'] ? member['출석요일'].split(',').map(function(d){return d.trim();}) : [];
-      setTimeout(function(){
-        var el = document.getElementById('p-last');
-        var en = (member['영문이름']||'').trim();
-        var parts = en.split(/[\s,]+/);
-        if(el) el.value = parts[0]||'';
-        var el2 = document.getElementById('p-first');
-        if(el2) el2.value = parts.slice(1).join(' ')||'';
-        var kr = document.getElementById('p-kr'); if(kr) kr.value = member['한글이름']||'';
-        var ins = document.getElementById('p-ins'); if(ins) ins.value = member['보험사']||'Anthem MLTC';
-        var med = document.getElementById('p-medicaid'); if(med) med.value = member['Medicaid']||'';
-        var pcp = document.getElementById('p-pcpname'); if(pcp) pcp.value = member['주치의']||'';
-        var phone = document.getElementById('p-phone'); if(phone) phone.value = member['전화']||'';
-        var addr = document.getElementById('p-addr'); if(addr) addr.value = member['주소']||'';
-        var dob = document.getElementById('p-dob'); if(dob) dob.value = (member['생년월일']||'').slice(0,10);
-        // 출석 요일 설정
-        _pcspDays = new Set(days);
-        initPCSPDayBtns();
-      }, 100);
+      selectPCSPMember(member);
+    } else {
+      openPCSPForm();
     }
-  }).catch(function(){
-    openPCSPForm();
-  });
+  }).catch(function(){openPCSPForm();});
 }
 </script>
 </body>
