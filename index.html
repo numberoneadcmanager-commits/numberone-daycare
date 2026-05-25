@@ -1145,6 +1145,17 @@ window.addEventListener('load', function() {
             <div class="fg"><div class="fl">프로그램 기대</div><textarea class="fta" id="ph-hopes" rows="3" placeholder="사회적 교류, 건강 유지 등"></textarea></div>
             <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 서명 후 "PDF 생성" 버튼을 눌러주세요.</div>
             <div style="margin-top:14px">
+              <div style="font-size:12px;font-weight:700;color:#3C3C43;margin-bottom:8px">참여자 서명 (Participant Signature)</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <div style="font-size:11px;color:#3C3C43">서명</div>
+                <button onclick="clearPtSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
+              </div>
+              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
+                <canvas id="pt-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas>
+                <div id="pt-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>참여자 서명</div></div>
+              </div>
+            </div>
+            <div style="margin-top:14px">
               <div style="font-size:12px;font-weight:700;color:#3C3C43;margin-bottom:8px">평가자 서명 (Assessor Signature)</div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
                 <div style="font-size:11px;color:#3C3C43">서명</div>
@@ -2590,7 +2601,7 @@ function goAssessStep(n) {
   if(pf) pf.style.width = Math.round((n+1)/steps.length*100)+'%';
   var content = document.querySelector('.content');
   if(content) content.scrollTop = 0;
-  if(n===6) setTimeout(initAsSigCanvas, 100);
+  if(n===6) setTimeout(function(){ initAsSigCanvas(); initPtSigCanvas(); }, 100);
 }
 
 function nextAssessStep() {
@@ -2652,6 +2663,7 @@ function generateAssessmentPDF() {
 
   var w = window.open('','_blank');
   var sigHtml = _asSig ? '<img src="'+_asSig+'" style="max-height:60px;max-width:100%;display:block;margin-bottom:4px">' : '<div style="height:60px"></div>';
+  var ptSigHtml = _ptSig ? '<img src="'+_ptSig+'" style="max-height:60px;max-width:100%;display:block;margin-bottom:4px">' : '<div style="height:60px"></div>';
   var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
     + '<title>Assessment - ' + m.en + '</title>'
     + '<style>'
@@ -2671,7 +2683,7 @@ function generateAssessmentPDF() {
     + '.lbl{font-weight:bold;min-width:120px;font-size:9px}'
     + '.val{border-bottom:1px solid #000;flex:1;font-size:9px;padding-left:3px}'
     + '.cb-row{display:flex;gap:15px;margin-bottom:4px;font-size:9px;flex-wrap:wrap}'
-    + '.sig-area{margin-top:15px;display:grid;grid-template-columns:1fr 1fr;gap:20px}'
+    + '.sig-area{margin-top:15px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px}'
     + '.sig-line{border-top:1px solid #000;padding-top:3px;font-size:9px;margin-top:30px}'
     + '.comments{border:1px solid #000;min-height:35px;padding:4px;margin-top:4px;font-size:9px}'
     + '.note{font-size:8.5px;font-style:italic;margin-bottom:6px}'
@@ -2824,6 +2836,7 @@ function generateAssessmentPDF() {
     + '</table>'
 
     + '<div class="sig-area">'
+    + '<div>' + ptSigHtml + '<div class="sig-line">Participant Signature / 참여자 서명</div></div>'
     + '<div>' + sigHtml + '<div class="sig-line">Assessor Signature / ' + assessorName + '</div></div>'
     + '<div><div style="height:60px"></div><div class="sig-line">Date: ' + dateF + '</div></div>'
     + '</div>'
@@ -3267,11 +3280,20 @@ function generateNutritionPDF() {
 
 // ── Assessment 서명 ───────────────────────────────────────────
 var _asSig = null;
+var _ptSig = null;
 
 function initAsSigCanvas() {
-  var canvas = document.getElementById('as-sig-canvas');
-  if(!canvas || canvas._asInit) return;
-  canvas._asInit = true;
+  initSigCanvas('as-sig-canvas','as-sig-empty',function(data){_asSig=data;});
+}
+
+function initPtSigCanvas() {
+  initSigCanvas('pt-sig-canvas','pt-sig-empty',function(data){_ptSig=data;});
+}
+
+function initSigCanvas(canvasId, emptyId, onSave) {
+  var canvas = document.getElementById(canvasId);
+  if(!canvas || canvas._sigInit) return;
+  canvas._sigInit = true;
   var ctx = canvas.getContext('2d');
   ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -3283,13 +3305,13 @@ function initAsSigCanvas() {
     return {x:(e.clientX-rect.left)*sx, y:(e.clientY-rect.top)*sy};
   }
   function start(e){ e.preventDefault(); drawing=true; var p=getPos(e); lx=p.x; ly=p.y;
-    var empty=document.getElementById('as-sig-empty');
+    var empty=document.getElementById(emptyId);
     if(empty) empty.style.display='none';
   }
   function draw(e){ if(!drawing)return; e.preventDefault(); var p=getPos(e);
     ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(p.x,p.y); ctx.stroke(); lx=p.x; ly=p.y;
   }
-  function stop(){ if(!drawing)return; drawing=false; _asSig=canvas.toDataURL('image/png'); }
+  function stop(){ if(!drawing)return; drawing=false; onSave(canvas.toDataURL('image/png')); }
   canvas.addEventListener('mousedown',start);
   canvas.addEventListener('mousemove',draw);
   canvas.addEventListener('mouseup',stop);
@@ -3301,9 +3323,17 @@ function initAsSigCanvas() {
 
 function clearAsSig() {
   var canvas = document.getElementById('as-sig-canvas');
-  if(canvas) { canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas._asInit=false; }
+  if(canvas) { canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas._sigInit=false; }
   _asSig = null;
   var empty = document.getElementById('as-sig-empty');
+  if(empty) empty.style.display='flex';
+}
+
+function clearPtSig() {
+  var canvas = document.getElementById('pt-sig-canvas');
+  if(canvas) { canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); canvas._sigInit=false; }
+  _ptSig = null;
+  var empty = document.getElementById('pt-sig-empty');
   if(empty) empty.style.display='flex';
 }
 
@@ -3404,53 +3434,69 @@ function generateMemberRightsPDF() {
 
     +'<p style="margin-bottom:8px;font-size:9.5px">As a participant of Number One Adult Daycare, you have the right to:</p>'
 
-    +'<div class="section"><h2>I. Dignity, Safety & Freedom / 존엄성, 안전 및 자유</h2>'
-    +'<div class="right-item"><b>Non-Discrimination:</b> You have the right not to be discriminated against by race, skin color, or national origin.</div>'
-    +'<div class="kr">차별 금지: 인종, 피부색 또는 국가에 의한 차별을 받지 않을 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Dignity & Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint, abuse, neglect, intimidation, and coercion.</div>'
-    +'<div class="kr">존엄성 및 안전: 프라이버시, 존엄성 및 존중을 받을 권리, 모든 형태의 억제와 학대로부터 자유로울 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Safe Environment:</b> You have the right to a safe and pleasant environment.</div>'
-    +'<div class="kr">안전한 환경: 안전하고 쾌적한 환경에서 서비스를 받을 권리가 있습니다.</div>'
+    +'<div class="section"><h2>I. Fundamental Rights: Dignity, Safety, and Freedom / 기본 권리: 존엄성, 안전 및 자유</h2>'
+    +'<div class="right-item"><b>Non-Discrimination and Respect:</b> You have the right not to be discriminated against by race, skin color, or national origin. You have the right to respect and treatment as an adult, and you have the right to personal treatment and help.</div>'
+    +'<div class="kr">차별 금지 및 존중: 인종, 피부색 또는 국가에 의한 차별을 받지 않을 권리가 있으며, 성인으로서 존중과 대우를 받을 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Dignity and Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of abuse, neglect, intimidation, coercion, and seclusion.</div>'
+    +'<div class="kr">존엄성 및 안전: 프라이버시, 존엄성 및 존중을 받을 권리, 학대, 방임, 위협, 강압, 격리로부터 자유로울 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Freedom from Restraints:</b> You have the right to be free from any form of restraint, including chemical, physical, or mechanical restraints, used for purposes of discipline or convenience.</div>'
+    +'<div class="kr">억제로부터 자유: 징계나 편의를 목적으로 사용되는 화학적, 물리적, 기계적 억제를 포함한 어떠한 형태의 억제로부터도 자유로울 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Safe Environment:</b> You have the right to a safe and pleasant environment with careful attention.</div>'
+    +'<div class="kr">안전한 환경: 세심한 관심과 편안한 환경에서 서비스를 받을 권리가 있습니다.</div>'
     +'</div>'
 
-    +'<div class="section"><h2>II. Self-Determination / 자기 결정권</h2>'
-    +'<div class="right-item"><b>Service Choice:</b> You have the right to choose your own daycare services and activities, and to direct your service plan.</div>'
-    +'<div class="kr">서비스 선택: 서비스 및 활동을 선택하고 자신의 서비스 계획을 주도적으로 결정할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Program Involvement:</b> You have the right to participate in the organization and operation of the program.</div>'
-    +'<div class="kr">프로그램 참여: 프로그램 구성과 운용에 참여할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Personal Control:</b> You have control over personal finances and daily schedule. You may stop the program at any time.</div>'
-    +'<div class="kr">개인 통제: 개인 재정 및 일일 일정을 통제할 권리, 언제든지 프로그램을 중단할 권리가 있습니다.</div>'
+    +'<div class="section"><h2>II. Rights to Control and Self-Determination / 통제 및 자기 결정권</h2>'
+    +'<div class="right-item"><b>Service Choice:</b> You have the right to choose your own daycare services and activities, and to direct or lead your service plan.</div>'
+    +'<div class="kr">서비스 선택: 데이케어 서비스 및 활동을 선택하고 자신의 서비스 계획을 주도적으로 결정할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Program Involvement:</b> You have the right to participate in the organization and operation of the program. You have the right to participate or not participate in suggestions and activities for better programming initiatives.</div>'
+    +'<div class="kr">프로그램 참여: 프로그램 구성과 운용에 참여할 권리, 더 나은 프로그램을 위한 제안과 활동에 참여하거나 불참할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Personal Development:</b> You have the right to pursue personal interests and develop your hobbies.</div>'
+    +'<div class="kr">개인 발달: 개인의 관심과 취미생활을 발전시킬 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Personal Control:</b> You have control over personal finances, money, and funds. You have control over your daily schedule and activities, including the right to participate with the support of modifications if needed.</div>'
+    +'<div class="kr">개인 통제: 개인 재정 및 자금에 대한 통제권, 일일 일정 및 활동을 통제할 권리가 있으며, 필요시 수정된 지원을 받아 참여할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Preferred Staff and Withdrawal:</b> You have the right to request your preferred staff to assist with personal care needs. You have the right to stop the adult day care program at any time.</div>'
+    +'<div class="kr">선호 직원 및 중단: 개인 간호를 위한 선호 직원을 요청할 권리, 언제든지 프로그램을 중단할 권리가 있습니다.</div>'
     +'</div>'
 
-    +'<div class="section"><h2>III. Communication & Privacy / 소통 및 프라이버시</h2>'
-    +'<div class="right-item"><b>Private Space:</b> You have access to a private space for dining, phone calls, and meeting visitors.</div>'
+    +'<div class="section"><h2>III. Rights to Communication, Privacy, and Information / 소통, 프라이버시 및 정보 권리</h2>'
+    +'<div class="right-item"><b>Private Space:</b> You have access to a private space for dining, speaking on the phone, and meeting with visitors.</div>'
     +'<div class="kr">사적 공간: 식사, 전화 통화, 방문객과의 만남을 위한 사적 공간에 접근할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Communication:</b> You have the right to communicate with other participants and the community.</div>'
+    +'<div class="right-item"><b>Communication:</b> You have the right to exchange and communicate with other participants and the community.</div>'
     +'<div class="kr">소통: 다른 참여자 및 커뮤니티와 소통할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Information Access:</b> You have the right to information about your rights and to review consent forms.</div>'
-    +'<div class="kr">정보 접근: 권리에 대한 정보 및 동의서를 확인할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Grievance:</b> You have the right to file a complaint regarding discriminatory treatment.</div>'
-    +'<div class="kr">고충 처리: 차별적 대우에 관한 고충을 제기할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Information Access:</b> You have the right to receive information about your rights and to review consent forms related to personal information disclosure.</div>'
+    +'<div class="kr">정보 접근: 권리에 대한 정보를 제공받을 권리, 개인정보 유출과 관련된 동의서를 확인할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Grievance:</b> You have the right to request correction of injustice regarding discriminatory treatment.</div>'
+    +'<div class="kr">고충 처리: 차별적 대우에 관한 부당함의 시정을 요청할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Notification:</b> You have the right to be informed of any rejection of services and the consequences thereof.</div>'
+    +'<div class="kr">고지: 서비스 거부와 그 결과에 대한 안내를 받을 권리가 있습니다.</div>'
     +'</div>'
 
-    +'<div class="section"><h2>IV. Choices & Opportunities / 선택 및 기회</h2>'
-    +'<div class="right-item"><b>Choices:</b> You have choices of services, meals, activities, and community integration activities.</div>'
-    +'<div class="kr">선택: 서비스, 식사, 활동 및 지역사회 통합 활동을 선택할 권리가 있습니다.</div>'
-    +'<div class="right-item"><b>Opportunities:</b> You have opportunities to seek employment or volunteer opportunities.</div>'
-    +'<div class="kr">기회: 고용 또는 자원봉사 기회를 모색할 권리가 있습니다.</div>'
+    +'<div class="section"><h2>IV. Rights to Opportunities and Choices / 기회 및 선택의 권리</h2>'
+    +'<div class="right-item"><b>Opportunities:</b> You have opportunities to seek employment or volunteer opportunities in the community.</div>'
+    +'<div class="kr">기회: 지역사회에서 고용 또는 자원봉사 기회를 모색할 권리가 있습니다.</div>'
+    +'<div class="right-item"><b>Choices:</b> You have choices of services and visitors; choices of meals and flexibility in mealtimes; choices of alternatives to services, meals, and activities; choices of community integration activities; and choices of attending appointments and social opportunities.</div>'
+    +'<div class="kr">선택: 서비스와 방문객 선택권, 식사 및 식사 시간 선택권, 서비스·식사·활동 대안 선택권, 지역사회 통합 활동 선택권, 약속 및 사회적 기회 참석 선택권이 있습니다.</div>'
     +'</div>'
 
     +'<div class="sig-area">'
-    +'<p style="margin-bottom:10px;font-size:9.5px"><b>Acknowledgment / 확인</b><br>'
-    +'I have received, read, and/or had the Participant\'s Bill of Rights explained to me in a language I understand.<br>'
-    +'<span style="font-size:9px;color:#555">본인은 권리에 관한 내용을 이해할 수 있는 언어로 제공받았으며, 충분히 이해하였음을 확인합니다.</span></p>'
-    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:flex-end">'
+    +'<p style="margin-bottom:10px;font-size:9.5px"><b>Acknowledgment of Participant Rights / 참여자 권리 확인</b><br>'
+    +'I, the undersigned, have received, read, and/or had the Participant\'s Bill of Rights explained to me in a language I understand. I acknowledge that I understand my rights and expectations as a participant at Number One Adult Daycare.<br>'
+    +'<span style="font-size:9px;color:#555">본인은 본인의 권리에 관한 내용을 이해할 수 있는 언어로 제공받았으며, 이를 읽고 충분히 이해하였음을 확인합니다.</span></p>'
+    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:flex-end;margin-bottom:16px">'
     +'<div>'
     +(_mrSig?'<img src="'+_mrSig+'" style="max-height:55px;max-width:100%;display:block;margin-bottom:4px">':'<div style="height:55px"></div>')
     +'<div style="border-top:1px solid #000;font-size:9px;padding-top:3px">Participant Signature / 참여자 서명</div>'
     +'</div>'
+    +'<div><div style="font-size:11px;margin-bottom:20px">Date / 날짜: '+dateF+'</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:flex-end">'
     +'<div>'
-    +'<div style="font-size:11px;margin-bottom:20px">Date: '+dateF+'</div>'
+    +'<div style="height:40px"></div>'
+    +'<div style="border-top:1px solid #000;font-size:9px;padding-top:3px">Authorized Representative/Guardian (if applicable) / 대리인/보호자 (해당 시)</div>'
+    +'</div>'
+    +'<div>'
+    +'<div style="height:40px"></div>'
+    +'<div style="border-top:1px solid #000;font-size:9px;padding-top:3px">Representative Relationship / 관계 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date / 날짜</div>'
     +'</div>'
     +'</div>'
     +'</div>'
