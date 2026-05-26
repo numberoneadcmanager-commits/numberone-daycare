@@ -380,6 +380,60 @@ document.addEventListener('DOMContentLoaded', function () {
     if (f) f.value = weekAgoISO; if (t) t.value = todayISO;
   });
 
+  // ── 이벤트 바인딩 (인라인 oninput/onchange 대체) ─────────
+  const bind = (id, evt, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); };
+
+  // 출결
+  bind('asearch', 'input', () => renderAtt());
+
+  // 멤버
+  bind('msearch', 'input', () => filterM());
+  bind('status-filter', 'change', () => filterM());
+
+  // PCSP
+  bind('psearch', 'input', () => renderPCSPList());
+
+  // PCSP 폼
+  bind('f-first', 'input', () => updatePreview());
+  bind('f-last',  'input', () => updatePreview());
+  bind('f-kr',    'input', () => updatePreview());
+
+  // 로그 날짜 필터
+  bind('inc-from', 'change', () => renderIncidents());
+  bind('inc-to',   'change', () => renderIncidents());
+  bind('act-from', 'change', () => renderActivities());
+  bind('act-to',   'change', () => renderActivities());
+  bind('case-from','change', () => renderCases());
+  bind('case-to',  'change', () => renderCases());
+
+  // 보고서
+  bind('rpt-from', 'change', () => renderReport());
+  bind('rpt-to',   'change', () => renderReport());
+
+  // Assessment
+  bind('frm-search', 'input', () => filterFrmMembers && filterFrmMembers());
+  bind('ns-height',  'input', () => calcNSBMI && calcNSBMI());
+  bind('ns-weight',  'input', () => calcNSBMI && calcNSBMI());
+
+  // 방문자/회의록
+  bind('vis-search',     'input', () => renderVisitorList());
+  bind('council-search', 'input', () => renderCouncilList());
+
+  // Auth
+  bind('auth-search',        'input', () => renderAuthList());
+  bind('auth-member-search', 'input', () => filterAuthMemberList());
+  bind('auth-start', 'input', function() { autoFormatDate(this); });
+  bind('auth-end',   'input', function() { autoFormatDate(this); });
+
+  // 로그 모달 멤버 검색
+  bind('inc-msearch',  'input', () => filterMSel('inc'));
+  bind('act-msearch',  'input', () => filterMSel('act'));
+  bind('case-msearch', 'input', () => filterMSel('case'));
+
+  // 상태 변경 라디오
+  bind('sm-active',      'change', () => toggleStatusRadio());
+  bind('sm-disenrolled', 'change', () => toggleStatusRadio());
+
   // API URL 표시
   document.getElementById('api-url-input').value = apiUrl;
 
