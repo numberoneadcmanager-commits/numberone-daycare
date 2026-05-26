@@ -103,16 +103,16 @@ function goTab(tab, el) {
   const panel = document.getElementById('panel-' + tab);
   if (panel) panel.classList.add('active');
   closeModal();
-  if (tab === 'attendance')    renderAtt();
-  if (tab === 'dashboard')     renderDash();
-  if (tab === 'members')       filterM();
-  if (tab === 'absence')       renderAbsence();
-  if (tab === 'logs')          renderIncidents();
-  if (tab === 'report')        renderReport();
-  if (tab === 'forms')         initFormsTab && initFormsTab();
-  if (tab === 'authorization') renderAuthList();
-  if (tab === 'visitor')       renderVisitorList();
-  if (tab === 'council')       renderCouncilList();
+  if (tab === 'attendance'    && typeof renderAtt          === 'function') renderAtt();
+  if (tab === 'dashboard'     && typeof renderDash         === 'function') renderDash();
+  if (tab === 'members'       && typeof filterM            === 'function') filterM();
+  if (tab === 'absence'       && typeof renderAbsence      === 'function') renderAbsence();
+  if (tab === 'logs'          && typeof renderIncidents    === 'function') renderIncidents();
+  if (tab === 'report'        && typeof renderReport       === 'function') renderReport();
+  if (tab === 'forms'         && typeof initFormsTab       === 'function') initFormsTab();
+  if (tab === 'authorization' && typeof renderAuthList     === 'function') renderAuthList();
+  if (tab === 'visitor'       && typeof renderVisitorList  === 'function') renderVisitorList();
+  if (tab === 'council'       && typeof renderCouncilList  === 'function') renderCouncilList();
 }
 
 // ── API 관련 ──────────────────────────────────────────────────
