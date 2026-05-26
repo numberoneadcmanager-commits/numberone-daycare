@@ -1328,6 +1328,10 @@ window.addEventListener('load', function() {
       <div class="modal-input-wrap"><label>종료일</label><input class="m-input" type="date" id="m-end"></div>
     </div>
   </div>
+  <div class="modal-date-row" style="margin-bottom:8px">
+    <div class="modal-input-wrap"><label>🕐 Sign-in 시간</label><input class="m-input" type="time" id="m-signin"></div>
+    <div class="modal-input-wrap"><label>🕔 Sign-out 시간</label><input class="m-input" type="time" id="m-signout"></div>
+  </div>
   <div class="chip-row" id="m-chips"></div>
   <textarea class="m-textarea" id="m-memo" placeholder="메모를 입력하세요..."></textarea>
   <div class="modal-btns">
@@ -1959,10 +1963,11 @@ function renderAtt(){
     let ds='';if(r.start&&['travel','hospital','leave'].includes(s))ds=' ('+r.start.slice(5)+(r.end?' ~ '+r.end.slice(5):' ~')+')';
     const etag=r.editedAt?'<span class="etag">수정됨</span>':'';
     const hm=!!(r.memo&&r.memo.trim());
+    const sigStr=(r.signIn||r.signOut)?`<div style="font-size:10px;color:#34C759;margin-top:2px">🕐 ${r.signIn||'—'} ~ 🕔 ${r.signOut||'—'}</div>`:'';
     return `<div class="att-row ${isActive(m) ? '' : 'disenrolled-row'}">
       <div class="att-top">
         <div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
-        <div class="att-info"><div class="att-name">${m.kr}${etag}</div><div class="att-id">${m.medicaid} ${insBadge(m.ins||'Anthem_MLTC')} ${statusBadge(m)}</div></div>
+        <div class="att-info"><div class="att-name">${m.kr}${etag}</div><div class="att-id">${m.medicaid} ${insBadge(m.ins||'Anthem_MLTC')} ${statusBadge(m)}</div>${sigStr}</div>
         <div>${badgeHTML(s)}${ds?`<div style="font-size:10px;color:#8E8E93;margin-top:2px">${ds}</div>`:''}</div>
       </div>
       <div class="att-btns">
@@ -1988,7 +1993,13 @@ function renderAtt(){
 function qSet(iso,mid,st){
   const r=getRec(iso),prev=(r[mid]||{}).status,past=iso<todayISO;
   if(prev===st){if(allR[iso])delete allR[iso][mid];}
-  else{const ex=r[mid]||{},upd={...ex,status:st,updatedAt:now2()};if(past&&ex.status&&ex.status!==st)upd.editedAt=now2();setRec(iso,mid,upd);}
+  else{
+    const ex=r[mid]||{},upd={...ex,status:st,updatedAt:now2()};
+    if(past&&ex.status&&ex.status!==st)upd.editedAt=now2();
+    // 출석/지각 → Sign-in 자동 기록 (아직 없을 때만)
+    if((st==='in'||st==='late')&&!ex.signIn&&!past) upd.signIn=now2();
+    setRec(iso,mid,upd);
+  }
   renderAtt(); saveToStorage(); syncToSheets(iso);
 }
 function qMemo(iso,mid,val){const ex=(getRec(iso)[mid])||{},past=iso<todayISO,upd={...ex,memo:val,updatedAt:now2()};if(past&&ex.memo!==undefined)upd.editedAt=now2();setRec(iso,mid,upd);}
@@ -2410,10 +2421,14 @@ function openAttModal(iso,mid,fs){
   document.getElementById('m-memo').value=r.memo||'';
   document.getElementById('m-start').value=r.start||'';
   document.getElementById('m-end').value=r.end||'';
+  document.getElementById('m-signin').value=r.signIn||'';
+  document.getElementById('m-signout').value=r.signOut||'';
   mCurSt=fs||r.status||null;
   ['in','late','absent','travel','hospital','leave'].forEach(s=>{document.getElementById('mst-'+s).className='mst'+(mCurSt===s?' a-'+s:'');});
   document.getElementById('att-modal-date-section').style.display=['travel','hospital','leave'].includes(mCurSt||'')?'block':'none';
   if(fs&&!r.start)document.getElementById('m-start').value=iso;
+  // 출석/지각이고 Sign-in 없으면 현재 시간 자동 입력
+  if((fs==='in'||fs==='late')&&!r.signIn) document.getElementById('m-signin').value=now2();
   document.getElementById('m-chips').innerHTML=(QT[mCurSt||'']||QT['absent']).map(t=>`<button class="chip" onclick="addChip('${t}')">${t}</button>`).join('');
   openOv('ov-att');
 }
@@ -2422,7 +2437,7 @@ function addChip(t){const ta=document.getElementById('m-memo');ta.value=ta.value
 function saveAttModal(){
   if(!popId||!popDate)return;
   const past=popDate<todayISO,ex=(getRec(popDate)[popId])||{};
-  const data={status:mCurSt||'',memo:document.getElementById('m-memo').value,start:document.getElementById('m-start').value,end:document.getElementById('m-end').value,updatedAt:now2()};
+  const data={status:mCurSt||'',memo:document.getElementById('m-memo').value,start:document.getElementById('m-start').value,end:document.getElementById('m-end').value,signIn:document.getElementById('m-signin').value,signOut:document.getElementById('m-signout').value,updatedAt:now2()};
   if(past&&ex.status)data.editedAt=now2();
   setRec(popDate,popId,data);saveToStorage();closeOv('ov-att');renderAtt();syncToSheets(popDate);
 }
@@ -2489,7 +2504,7 @@ async function loadAllData(){
 async function syncToSheets(iso){
   try{
     const recs = getRec(iso);
-    await SheetsAPI.syncAttendance(iso, recs);
+    await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
   } catch(e){}
 }
 async function syncLog(sheet, data){
