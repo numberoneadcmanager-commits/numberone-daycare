@@ -339,8 +339,9 @@ td:first-child{font-weight:700;color:#555;width:100px}
   w.document.close();
 }
 
-// ── 초기화 ────────────────────────────────────────────────────
+// ── 초기화 (모든 스크립트 로드 완료 후) ──────────────────────
 window.addEventListener('load', function () {
+  // Google Auth
   if (typeof google !== 'undefined' && google.accounts) {
     initGoogleAuth();
   } else {
@@ -351,10 +352,7 @@ window.addEventListener('load', function () {
       }
     }, 200);
   }
-});
 
-// DOM 로드 후 초기화
-document.addEventListener('DOMContentLoaded', function () {
   // 헤더 날짜
   const now0 = new Date();
   document.getElementById('hdr-date').textContent = now0.getFullYear() + '년 ' + (now0.getMonth() + 1) + '월 ' + now0.getDate() + '일';
