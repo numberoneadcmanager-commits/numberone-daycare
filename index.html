@@ -316,6 +316,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 
 </style>
 
+<script src="core/api.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com', 'chouung11@gmail.com', 'numberone.adc.lee@gmail.com'];
@@ -1398,7 +1399,8 @@ const DEFAULT_STAFF = [
    certs:[{name:'LCSW',exp:'2025-12-31'},{name:'CPR/AED',exp:'2025-11-15'},{name:'SNAP Certification',exp:'2026-05-01'}],
    avBg:'#EEEDFE',avColor:'#534AB7'},
 ];
-var apiUrl = localStorage.getItem('api_url') || 'https://script.google.com/macros/s/AKfycbwBcK5Bs9MekS5wz5TMDkXdPa5ElKPwpqIaghCC9LY2ROXhtE712Zt2GdD8RqRMuD6z/exec';
+// apiUrl, apiCall → core/api.js 의 SheetsAPI 사용
+var apiUrl = SheetsAPI.URL;
 var MEMBERS = MEMBERS_DATA.map(function(m){ return Object.assign({}, m); });
 var STAFF = [];
 </script>
@@ -1614,47 +1616,26 @@ async function deleteStaff(sid){
   renderStaff();
 }
 
-// ── Sheets 로드 ───────────────────────────────────────────────
+// ── Sheets 로드 → SheetsAPI 사용 ────────────────────────────
 async function loadFromSheets(){
-  if(!apiUrl)return false;
   try{
     showLoadingOverlay('Google Sheets에서 데이터 로드 중...');
-    var mRes=await apiCall({action:'read',sheet:'멤버'});
-    if(mRes.ok&&mRes.data&&mRes.data.length>0){
-      MEMBERS.length=0;
-      mRes.data.forEach(function(r){
-        var id=String(r['ID']||'');if(!id)return;
-        var existM=MEMBERS.find(function(x){return x.id===id;});
-        var COLORS=[{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'},{bg:'#FAEEDA',color:'#854F0B'},{bg:'#FBEAF0',color:'#72243E'},{bg:'#EAF3DE',color:'#3B6D11'},{bg:'#E6F1FB',color:'#0C447C'}];
-        var n=0;for(var i=0;i<id.length;i++)n+=id.charCodeAt(i);var clr=COLORS[n%COLORS.length];
-        MEMBERS.push({
-          id:id,kr:String(r['한글이름']||''),en:String(r['영문이름']||'').toUpperCase(),
-          medicaid:String(r['Medicaid']||'').toUpperCase(),mltc:String(r['MLTC']||''),
-          pcp:String(r['주치의']||''),days:r['출석요일']?String(r['출석요일']).split(',').filter(Boolean):[],
-          phone:String(r['전화']||''),addr:String(r['주소']||''),dob:(String(r['생년월일']||'').slice(0,10).replace('T','').substring(0,10))||(existM&&existM.dob)||'',
-          chartNo:String(r['차트번호']||existM&&existM.chartNo||String(r['ID']||'')),
-          ins:String(r['보험사']&&r['보험사']!=='Anthem_MLTC'?r['보험사']:existM&&existM.ins?existM.ins:'Anthem_MLTC'),status:String(r['상태']||'active'),
-          disenrollDate:String(r['Disenroll날짜']||''),disenrollNote:'',memo:String(r['메모']||''),
-          avBg:clr.bg,avColor:clr.color
-        });
-      });
-      mFilt=[...MEMBERS];
+    const members = await SheetsAPI.loadMembers();
+    if(members && members.length > 0){
+      MEMBERS.length = 0;
+      members.forEach(function(m){ MEMBERS.push(m); });
+      mFilt = [...MEMBERS];
     }
-    var sRes=await apiCall({action:'read',sheet:'스태프'});
-    if(sRes.ok&&sRes.data&&sRes.data.length>0){
-      STAFF=sRes.data.map(function(r){
-        var certs=[];try{certs=JSON.parse(r['자격증']||'[]');}catch(e){}
-        return{id:String(r['ID']||''),name:String(r['영문이름']||''),nameKr:String(r['한글이름']||''),
-          role:String(r['직책']||''),phone:String(r['전화']||''),email:String(r['이메일']||''),
-          certs:certs,avBg:String(r['avBg']||'#FAECE7'),avColor:String(r['avColor']||'#993C1D')};
-      });
-    }else{
-      STAFF=DEFAULT_STAFF.slice();
+    const staff = await SheetsAPI.loadStaff();
+    if(staff && staff.length > 0){
+      STAFF = staff;
+    } else {
+      STAFF = DEFAULT_STAFF.slice();
       uploadDefaultStaff();
     }
     hideLoadingOverlay();
     return true;
-  }catch(e){hideLoadingOverlay();console.log('Sheets load error:',e);return false;}
+  } catch(e){ hideLoadingOverlay(); console.log('Sheets load error:', e); return false; }
 }
 
 function showLoadingOverlay(msg){
@@ -2465,85 +2446,55 @@ function setApiStatus(ok){
   el.className='api-pill '+(ok?'api-ok':'api-no');
   el.textContent=ok?'✅ Sheets 연동됨':'⚡ Sheets 미연동';
 }
-async function apiCall(params,body=null){
-  if(!apiUrl)throw new Error('API URL 없음');
-  if(body){const res=await fetch(apiUrl,{method:'POST',body:JSON.stringify(body)});return res.json();}
-  const qs=new URLSearchParams(params).toString();
-  const res=await fetch(apiUrl+'?'+qs);return res.json();
-}
-function saveApiUrl(){apiUrl=document.getElementById('api-url-input').value.trim();localStorage.setItem('api_url',apiUrl);testApi();}
+// ── API 함수들 → SheetsAPI 사용 ──────────────────────────────
+function saveApiUrl(){ testApi(); }
 async function testApi(){
   document.getElementById('api-msg').textContent='연결 테스트 중...';
-  try{const res=await apiCall({action:'ping'});if(res.ok){setApiStatus(true);document.getElementById('api-msg').textContent='✅ 연결 성공! '+res.data.time;loadAllData();}else{setApiStatus(false);document.getElementById('api-msg').textContent='❌ '+res.error;}}
-  catch(e){setApiStatus(false);document.getElementById('api-msg').textContent='❌ '+e.message;}
+  try{
+    const ok = await SheetsAPI.ping();
+    if(ok){
+      SheetsAPI.setStatusPill(true);
+      document.getElementById('api-msg').textContent='✅ 연결 성공!';
+      loadAllData();
+    } else {
+      SheetsAPI.setStatusPill(false);
+      document.getElementById('api-msg').textContent='❌ 연결 실패';
+    }
+  } catch(e){ SheetsAPI.setStatusPill(false); document.getElementById('api-msg').textContent='❌ '+e.message; }
 }
-async function initSheets(){document.getElementById('api-msg').textContent='시트 초기화 중...';try{const res=await apiCall({action:'initSheets'});document.getElementById('api-msg').textContent=res.ok?'✅ 완료: '+JSON.stringify(res.data):'❌ '+res.error;}catch(e){document.getElementById('api-msg').textContent='❌ '+e.message;}}
+async function initSheets(){
+  document.getElementById('api-msg').textContent='시트 초기화 중...';
+  try{
+    const res = await SheetsAPI.initSheets();
+    document.getElementById('api-msg').textContent = res.ok ? '✅ 완료!' : '❌ '+res.error;
+  } catch(e){ document.getElementById('api-msg').textContent='❌ '+e.message; }
+}
 async function loadAllData(){
   try{
-    const [iR,aR,cR,authR,mR]=await Promise.all([
-      apiCall({action:'read',sheet:'incident'}),
-      apiCall({action:'read',sheet:'activity'}),
-      apiCall({action:'read',sheet:'caselog'}),
-      apiCall({action:'read',sheet:'auth'}),
-      apiCall({action:'read',sheet:'멤버'})
-    ]);
-    if(iR.ok)incidents=iR.data||[];
-    if(aR.ok)activities=aR.data||[];
-    if(cR.ok)cases=cR.data||[];
-    if(authR.ok && authR.data && authR.data.length){
-      AUTH_LIST = authR.data.map(function(r){
-        return {
-          id: r['ID'] || r['id'] || '',
-          memberId: r['멤버ID'] || r['memberId'] || '',
-          insurer: r['보험사'] || r['insurer'] || '',
-          authNo: r['Auth번호'] || r['authNo'] || '',
-          startDate: r['시작일'] || r['startDate'] || '',
-          endDate: r['종료일'] || r['endDate'] || '',
-          service: r['서비스유형'] || r['service'] || '',
-          note: r['메모'] || r['note'] || '',
-          updatedAt: r['수정시각'] || r['updatedAt'] || ''
-        };
-      });
-      saveAuthStorage();
+    const members = await SheetsAPI.loadMembers();
+    if(members && members.length > 0){
+      MEMBERS.length = 0;
+      members.forEach(function(m){ MEMBERS.push(m); });
+      mFilt = [...MEMBERS];
     }
-    // 멤버 데이터 로드 (Sheets에 데이터가 있으면 사용)
-    if(mR.ok && mR.data && mR.data.length > 10){
-      var loaded = mR.data.map(function(r){
-        return {
-          id: String(r['ID']||r['id']||''),
-          kr: r['한글이름']||'',
-          en: r['영문이름']||'',
-          medicaid: r['Medicaid']||'',
-          mltc: r['MLTC']||'',
-          pcp: r['주치의']||'',
-          days: r['출석요일']?r['출석요일'].split(',').map(function(d){return d.trim();}).filter(Boolean):[],
-          phone: r['전화']||'',
-          addr: r['주소']||'',
-          dob: r['생년월일']||'',
-          ins: r['보험사']||'Anthem_MLTC',
-          status: r['상태']||'active',
-          disenrollDate: r['Disenroll날짜']||'',
-          disenrollNote: r['메모']||'',
-          memo: r['메모2']||'',
-          avBg: r['avBg']||'#E6F1FB',
-          avColor: r['avColor']||'#185FA5',
-          chartNo: r['ID']||'',
-        };
-      }).filter(function(m){return m.id && m.kr;});
-      if(loaded.length > 0){
-        MEMBERS = loaded;
-        console.log('✅ 멤버 '+MEMBERS.length+'명 Sheets에서 로드됨');
-      }
-    }
-    renderIncidents();renderActivities();renderCases();updateDashNow();renderAuthList();
-    renderMembers&&renderMembers();
-  }catch(e){console.log(e);}
+    const all = await SheetsAPI.loadAll();
+    incidents  = all.incidents;
+    activities = all.activities;
+    cases      = all.cases;
+    if(all.authList.length){ AUTH_LIST = all.authList; saveAuthStorage(); }
+    renderIncidents(); renderActivities(); renderCases();
+    updateDashNow(); renderAuthList(); filterM();
+  } catch(e){ console.log('loadAllData error:', e); }
 }
 async function syncToSheets(iso){
-  if(!apiUrl)return;
-  try{const recs=getRec(iso);Object.entries(recs).forEach(([mid,r])=>{apiCall({},{action:'upsert',sheet:'출결',key:'날짜',value:iso+'_'+mid,data:{날짜:iso,멤버ID:mid,...r}});});}catch(e){}
+  try{
+    const recs = getRec(iso);
+    await SheetsAPI.syncAttendance(iso, recs);
+  } catch(e){}
 }
-async function syncLog(sheet,data){if(!apiUrl)return;try{await apiCall({},{action:editId?'update':'append',sheet,id:editId,data});}catch(e){}}
+async function syncLog(sheet, data){
+  try{ await SheetsAPI.post({action: editId?'update':'append', sheet, id: editId, data}); } catch(e){}
+}
 
 
 // ══════════════════════════════════════════════════════════════
@@ -3634,7 +3585,11 @@ updateDN();renderDash();renderPCSPList();renderStaff();
 renderIncidents();renderActivities();renderCases();
 setTimeout(initBilling,100);
 // Sheets에서 최신 데이터 로드
-if(apiUrl){loadFromSheets().then(function(ok){if(ok){renderDash();renderAtt();filterM();renderStaff();}});}
+// Sheets 자동 연결
+SheetsAPI.ping().then(function(ok){
+  SheetsAPI.setStatusPill(ok);
+  if(ok){ loadFromSheets().then(function(ok2){ if(ok2){ renderDash();renderAtt();filterM();renderStaff(); } }); }
+});
 document.getElementById('rpt-from').value=weekAgoISO;
 document.getElementById('rpt-to').value=todayISO;
 </script>
