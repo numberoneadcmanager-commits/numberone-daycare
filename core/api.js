@@ -207,20 +207,26 @@ const SheetsAPI = {
   // 출결
   // ══════════════════════════════════════════════════════════════
 
-  async syncAttendance(iso, recs) {
-    // recs = { memberId: { status, memo, start, end, ... } }
+  async syncAttendance(iso, recs, members) {
+    // recs = { memberId: { status, memo, start, end, signIn, signOut, ... } }
+    // members = MEMBERS 배열 (한글이름 조회용, 선택적)
     const entries = Object.entries(recs);
     for (const [mid, r] of entries) {
       if (!r.status) continue;
       try {
+        const nameKr = (members && members.find(function(m){return m.id===mid;})||{}).kr || '';
         await this.upsert('출결', '날짜', iso + '_' + mid, {
-          '날짜':   iso,
-          '멤버ID': mid,
-          '상태':   r.status || '',
-          '메모':   r.memo || '',
-          '시작일': r.start || '',
-          '종료일': r.end || '',
+          '날짜':     iso,
+          '멤버ID':   mid,
+          '한글이름': nameKr,
+          '상태':     r.status || '',
+          'Sign-in':  r.signIn || '',
+          'Sign-out': r.signOut || '',
+          '메모':     r.memo || '',
+          '시작일':   r.start || '',
+          '종료일':   r.end || '',
           '수정시각': new Date().toLocaleString('ko-KR'),
+          '작성자':   r.writer || '',
         });
       } catch (e) { console.warn('출결 동기화 실패:', mid, e); }
     }
@@ -236,10 +242,13 @@ const SheetsAPI = {
       if (!iso || !mid) return;
       if (!result[iso]) result[iso] = {};
       result[iso][mid] = {
-        status: r['상태'] || '',
-        memo:   r['메모'] || '',
-        start:  r['시작일'] || '',
-        end:    r['종료일'] || '',
+        status:   r['상태'] || '',
+        signIn:   r['Sign-in'] || '',
+        signOut:  r['Sign-out'] || '',
+        memo:     r['메모'] || '',
+        start:    r['시작일'] || '',
+        end:      r['종료일'] || '',
+        writer:   r['작성자'] || '',
       };
     });
     return result;
@@ -395,4 +404,3 @@ function apiCall(params, body = null) {
   return SheetsAPI.get(params);
 }
 var apiUrl = SheetsAPI.URL; // 기존 코드 호환용
-
