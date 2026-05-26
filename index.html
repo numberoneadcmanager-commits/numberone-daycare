@@ -448,14 +448,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox"><div class="sv c-blue" id="att-travel">0</div><div class="sl">여행</div></div>
         <div class="sbox"><div class="sv c-orange" id="att-pend">0</div><div class="sl">미확인</div></div>
       </div>
-      <div class="search-wrap"><span>🔍</span><input type="search" id="asearch" placeholder="이름으로 검색..." oninput="renderAtt()"></div>
+      <div class="search-wrap"><span>🔍</span><input type="search" id="asearch" placeholder="이름으로 검색..."></div>
       <div class="section-lbl" id="att-title">출결 체크</div>
       <div class="card" id="att-list"></div>
     </div>
 
     <!-- Members -->
     <div class="panel" id="panel-members">
-      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><div class="search-wrap" style="flex:1;margin:0"><span>🔍</span><input type="search" id="msearch" placeholder="이름, Medicaid ID 검색..." oninput="filterM()"></div><button style="padding:10px 14px;border-radius:11px;background:#D85A30;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="openAddMember()">➕ 추가</button></div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center"><div class="search-wrap" style="flex:1;margin:0"><span>🔍</span><input type="search" id="msearch" placeholder="이름, Medicaid ID 검색..."></div><button style="padding:10px 14px;border-radius:11px;background:#D85A30;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="openAddMember()">➕ 추가</button></div>
       <div class="f-row">
         <button class="fpill active" data-mf onclick="setMDay('',this)">전체</button>
         <button class="fpill" data-mf onclick="setMDay('Mon',this)">월</button>
@@ -465,7 +465,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <button class="fpill" data-mf onclick="setMDay('Fri',this)">금</button>
         <button class="fpill" data-mf onclick="setMDay('Sat',this)">토</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:11px;color:#8E8E93;font-weight:600">상태:</span><select id="status-filter" onchange="filterM()" style="font-size:12px;padding:6px 12px;border-radius:20px;border:1.5px solid #E5E5EA;background:#fff;color:#3C3C43;font-weight:600;cursor:pointer"><option value="all">전체</option><option value="active">&#9679; Active만</option><option value="disenrolled">&#9679; Disenrolled만</option></select></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="font-size:11px;color:#8E8E93;font-weight:600">상태:</span><select id="status-filter" style="font-size:12px;padding:6px 12px;border-radius:20px;border:1.5px solid #E5E5EA;background:#fff;color:#3C3C43;font-weight:600;cursor:pointer"><option value="all">전체</option><option value="active">&#9679; Active만</option><option value="disenrolled">&#9679; Disenrolled만</option></select></div>
       <div class="section-lbl" id="m-cnt"></div>
       <div id="mgrid"></div>
       <div class="pg" id="mpg"></div>
@@ -484,7 +484,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <!-- PCSP -->
     <div class="panel" id="panel-pcsp">
       <div id="pcsp-list-v">
-        <div class="search-wrap"><span>🔍</span><input type="search" id="psearch" placeholder="이름으로 검색..." oninput="renderPCSPList()"></div>
+        <div class="search-wrap"><span>🔍</span><input type="search" id="psearch" placeholder="이름으로 검색..."></div>
         <div class="section-lbl">멤버를 선택하고 PCSP를 작성하세요</div>
         <div id="pcsp-list"></div>
       </div>
@@ -507,8 +507,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
             <div class="frow"><div class="fg" style="margin:0"><div class="fl">작성자 <span class="freq">*</span></div><input class="fi" id="f-writer" placeholder="홍길동, RN"></div><div class="fg" style="margin:0"><div class="fl">작성일</div><input class="fi" type="date" id="f-wdate"></div></div>
             <div style="height:12px"></div>
             <div class="fname-row">
-              <div class="fname-box"><div class="fname-lbl fname-en">🇺🇸 English</div><div class="fl" style="font-size:11px">First Name</div><input class="fi" id="f-first" style="margin-bottom:8px" oninput="updatePreview()"><div class="fl" style="font-size:11px">Last Name</div><input class="fi" id="f-last" oninput="updatePreview()"></div>
-              <div class="fname-box"><div class="fname-lbl fname-kr">🇰🇷 한국어</div><div class="fl" style="font-size:11px">한글 이름</div><input class="fi" id="f-kr" oninput="updatePreview()"></div>
+              <div class="fname-box"><div class="fname-lbl fname-en">🇺🇸 English</div><div class="fl" style="font-size:11px">First Name</div><input class="fi" id="f-first" style="margin-bottom:8px"><div class="fl" style="font-size:11px">Last Name</div><input class="fi" id="f-last"></div>
+              <div class="fname-box"><div class="fname-lbl fname-kr">🇰🇷 한국어</div><div class="fl" style="font-size:11px">한글 이름</div><input class="fi" id="f-kr"></div>
             </div>
             <div class="name-preview" id="name-preview">문서 표시: —</div>
             <div style="height:12px"></div>
@@ -610,8 +610,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <div class="sbox"><div class="sv c-green" id="inc-minor">0</div><div class="sl">🟢 Minor</div></div>
         </div>
         <div class="frow" style="margin-bottom:10px">
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="inc-from" onchange="renderIncidents()"></div>
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="inc-to" onchange="renderIncidents()"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="inc-from"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="inc-to"></div>
         </div>
         <button class="btn-full btn-primary" onclick="openIncModal()">+ 새 Incident 기록</button>
         <div id="inc-list"></div>
@@ -627,8 +627,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <div class="sbox"><div class="sv" id="act-total">0</div><div class="sl">전체</div></div>
         </div>
         <div class="frow" style="margin-bottom:10px">
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="act-from" onchange="renderActivities()"></div>
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="act-to" onchange="renderActivities()"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="act-from"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="act-to"></div>
         </div>
         <button class="btn-full btn-primary" onclick="openActModal()">+ 새 Activity 기록</button>
         <div id="act-list"></div>
@@ -644,8 +644,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <div class="sbox"><div class="sv" id="case-total">0</div><div class="sl">전체</div></div>
         </div>
         <div class="frow" style="margin-bottom:10px">
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="case-from" onchange="renderCases()"></div>
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="case-to" onchange="renderCases()"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="case-from"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="case-to"></div>
         </div>
         <button class="btn-full btn-primary" onclick="openCaseModal()">+ 새 Case 기록</button>
         <div id="case-list"></div>
@@ -670,8 +670,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       <div class="report-section">
         <div class="report-title">📊 기간 보고서</div>
         <div class="frow" style="margin-bottom:12px">
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="rpt-from" onchange="renderReport()"></div>
-          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="rpt-to" onchange="renderReport()"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="rpt-from"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="rpt-to"></div>
         </div>
         <button class="btn-full btn-primary" onclick="renderReport()">보고서 생성</button>
         <button class="btn-full" style="background:#F2F2F7;color:#1C1C1E;font-weight:700;padding:13px;border-radius:12px;border:none;cursor:pointer;font-size:15px" onclick="printReport()">🖨️ 인쇄 / PDF 저장</button>
@@ -690,7 +690,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <!-- Forms -->
     <div class="panel" id="panel-forms">
       <div id="frm-list">
-        <div class="search-wrap"><span>🔍</span><input type="search" id="frm-search" placeholder="멤버 이름으로 검색..." oninput="filterFrmMembers()"></div>
+        <div class="search-wrap"><span>🔍</span><input type="search" id="frm-search" placeholder="멤버 이름으로 검색..."></div>
         <div class="section-lbl">멤버를 선택하고 Assessment를 작성하세요</div>
         <div id="frm-member-list"></div>
       </div>
@@ -742,8 +742,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
           <div style="font-size:14px;font-weight:700;margin-bottom:12px">🥗 Nutrition Screening / 영양 스크리닝</div>
           <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px"><div style="font-size:13px;font-weight:700" id="ns-name"></div><div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="ns-dob"></span></div></div>
-          <div class="frow" style="margin-bottom:10px"><div><div class="fl">날짜</div><input class="fi" type="date" id="ns-date"></div><div><div class="fl">Height (inches)</div><input class="fi" type="number" id="ns-height" placeholder="60" oninput="calcNSBMI()"></div></div>
-          <div class="frow" style="margin-bottom:10px"><div><div class="fl">Weight (lbs)</div><input class="fi" type="number" id="ns-weight" placeholder="140" oninput="calcNSBMI()"></div><div><div class="fl">BMI (자동계산)</div><input class="fi" type="text" id="ns-bmi" readonly style="background:#F2F2F7;font-weight:700;font-size:16px"></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">날짜</div><input class="fi" type="date" id="ns-date"></div><div><div class="fl">Height (inches)</div><input class="fi" type="number" id="ns-height" placeholder="60"></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">Weight (lbs)</div><input class="fi" type="number" id="ns-weight" placeholder="140"></div><div><div class="fl">BMI (자동계산)</div><input class="fi" type="text" id="ns-bmi" readonly style="background:#F2F2F7;font-weight:700;font-size:16px"></div></div>
           <div class="fg"><div class="fl">Assessment(체중진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-assess-normal"> Normal(정상)</label><label><input type="checkbox" id="ns-assess-under"> Underweight(미달)</label><label><input type="checkbox" id="ns-assess-over"> Overweight(과체중)</label><label><input type="checkbox" id="ns-assess-obese"> Obese(비만)</label></div></div>
           <div class="fg"><div class="fl">Diagnosis(진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-dx-htn"> Hypertension(고혈압)</label><label><input type="checkbox" id="ns-dx-hld"> Hyperlipidemia(고지혈증)</label><label><input type="checkbox" id="ns-dx-dm"> Diabetes(당뇨)</label><label><input type="checkbox" id="ns-dx-ckd"> Kidney Disease(신부전)</label><label><input type="checkbox" id="ns-dx-other"> Others</label></div></div>
           <div class="fg"><div class="fl">Current Diet(현재식단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-diet-na"> 2gm Na(저염)</label><label><input type="checkbox" id="ns-diet-lf"> Low fat(저지방)</label><label><input type="checkbox" id="ns-diet-carb"> Consistent Carb.</label><label><input type="checkbox" id="ns-diet-renal"> Renal(신장)</label></div><input class="fi" id="ns-diet-other" placeholder="Others 설명" style="margin-top:6px"></div>
@@ -1102,14 +1102,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox"><div class="sv c-blue" id="vis-month">0</div><div class="sl">이번달</div></div>
         <div class="sbox"><div class="sv c-green" id="vis-total">0</div><div class="sl">전체</div></div>
       </div>
-      <div class="search-wrap"><span>🔍</span><input id="vis-search" placeholder="방문자 이름 검색" oninput="renderVisitorList()"></div>
+      <div class="search-wrap"><span>🔍</span><input id="vis-search" placeholder="방문자 이름 검색"></div>
       <div id="vis-list"></div>
       <button class="btn-full btn-primary" style="margin-top:8px" onclick="openVisitorModal()">➕ 방문자 추가</button>
     </div>
 
     <!-- Council Meeting -->
     <div class="panel" id="panel-council">
-      <div class="search-wrap"><span>🔍</span><input id="council-search" placeholder="회의 검색" oninput="renderCouncilList()"></div>
+      <div class="search-wrap"><span>🔍</span><input id="council-search" placeholder="회의 검색"></div>
       <div id="council-list"></div>
       <button class="btn-full btn-primary" style="margin-top:8px" onclick="openCouncilModal()">➕ 회의록 추가</button>
     </div>
@@ -1122,7 +1122,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox"><div class="sv c-orange" id="auth-soon">0</div><div class="sl">⚠️ 30일내</div></div>
         <div class="sbox"><div class="sv c-red" id="auth-exp">0</div><div class="sl">❌ 만료</div></div>
       </div>
-      <div class="search-wrap"><span>🔍</span><input id="auth-search" placeholder="멤버 이름 / Auth# 검색" oninput="renderAuthList()"></div>
+      <div class="search-wrap"><span>🔍</span><input id="auth-search" placeholder="멤버 이름 / Auth# 검색"></div>
       <div class="f-row">
         <div class="fpill active" onclick="setAuthFilter('all',this)">전체</div>
         <div class="fpill" onclick="setAuthFilter('active',this)">✅ 유효</div>
@@ -1219,7 +1219,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-title"><span>⚠️ Incident 기록</span><button class="modal-close" onclick="closeOv('ov-inc')">✕</button></div>
   <div class="doh-note">Serious → DOH 24시간 이내 보고 필수</div>
   <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="inc-date"></div><div class="fg" style="margin:0"><div class="fl">시간</div><input class="m-input" type="time" id="inc-time"></div></div>
-  <div class="fg" style="margin-top:10px"><div class="fl">멤버</div><input class="member-search-input" id="inc-msearch" placeholder="이름 검색..." oninput="filterMSel('inc')"><select class="member-sel" id="inc-msel" size="3"></select></div>
+  <div class="fg" style="margin-top:10px"><div class="fl">멤버</div><input class="member-search-input" id="inc-msearch" placeholder="이름 검색..."><select class="member-sel" id="inc-msel" size="3"></select></div>
   <div class="frow" style="margin-top:8px"><div class="fg" style="margin:0"><div class="fl">심각도</div><select class="m-select" id="inc-sev"><option>Minor</option><option>Moderate</option><option>Serious</option></select></div><div class="fg" style="margin:0"><div class="fl">유형</div><select class="m-select" id="inc-type"><option>낙상</option><option>행동 문제</option><option>의료 응급</option><option>분실/도난</option><option>학대/방임 의심</option><option>교통 사고</option><option>기타</option></select></div></div>
   <div class="fg" style="margin-top:8px"><div class="fl">발생 장소</div><input class="m-input" id="inc-loc" placeholder="식당, 화장실 등"></div>
   <div class="fg"><div class="fl">사고 내용 <span class="freq">*</span></div><textarea class="m-textarea" id="inc-desc" placeholder="언제, 어디서, 어떻게 발생했는지 구체적으로"></textarea></div>
@@ -1236,7 +1236,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-title"><span>📋 Activity 기록</span><button class="modal-close" onclick="closeOv('ov-act')">✕</button></div>
   <div class="omig-note">활동 참여 기록은 Medicaid 청구 근거가 됩니다.</div>
   <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="act-date"></div><div class="fg" style="margin:0"><div class="fl">카테고리</div><select class="m-select" id="act-cat"><option>운동/신체</option><option>미술/공예</option><option>음악</option><option>사회/교류</option><option>인지/교육</option><option>식사</option><option>개인위생</option><option>기타</option></select></div></div>
-  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="act-msearch" placeholder="이름 검색..." oninput="filterMSel('act')"><select class="member-sel" id="act-msel" size="3"></select></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="act-msearch" placeholder="이름 검색..."><select class="member-sel" id="act-msel" size="3"></select></div>
   <div class="frow" style="margin-top:8px"><div class="fg" style="margin:0"><div class="fl">활동명 <span class="freq">*</span></div><input class="m-input" id="act-name" placeholder="그룹 스트레칭, 수채화 등"></div><div class="fg" style="margin:0"><div class="fl">참여도</div><select class="m-select" id="act-part"><option>Active — 적극 참여</option><option>Passive — 소극적 참여</option><option>Refused — 참여 거부</option><option>Absent — 결석</option></select></div></div>
   <div class="fg" style="margin-top:8px"><div class="fl">메모</div><textarea class="m-textarea" id="act-memo" placeholder="반응, 특이사항 등"></textarea></div>
   <div class="fg"><div class="fl">작성자</div><input class="m-input" id="act-writer" placeholder="이름, 직책"></div>
@@ -1249,7 +1249,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-handle"></div>
   <div class="modal-title"><span>📂 Case 기록</span><button class="modal-close" onclick="closeOv('ov-case')">✕</button></div>
   <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="case-date"></div><div class="fg" style="margin:0"><div class="fl">유형</div><select class="m-select" id="case-type"><option>Medicaid 갱신</option><option>SNAP</option><option>주거 지원</option><option>교통 지원</option><option>법률 지원</option><option>가족 상담</option><option>타 기관 연계</option><option>기타</option></select></div></div>
-  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="case-msearch" placeholder="이름 검색..." oninput="filterMSel('case')"><select class="member-sel" id="case-msel" size="3"></select></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="case-msearch" placeholder="이름 검색..."><select class="member-sel" id="case-msel" size="3"></select></div>
   <div class="fg" style="margin-top:8px"><div class="fl">제목 <span class="freq">*</span></div><input class="m-input" id="case-title" placeholder="Medicaid 2026년 갱신 신청 등"></div>
   <div class="fg"><div class="fl">내용</div><textarea class="m-textarea" id="case-content" placeholder="상세 내용, 현황, 필요 서류 등"></textarea></div>
   <div class="frow"><div class="fg" style="margin:0"><div class="fl">담당 기관</div><input class="m-input" id="case-agency" placeholder="HRA, DSS 등"></div><div class="fg" style="margin:0"><div class="fl">담당자</div><input class="m-input" id="case-contact" placeholder="이름, 연락처"></div></div>
@@ -1264,8 +1264,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-handle"></div>
   <div class="modal-title"><span id="sm-name">상태 변경</span><button class="modal-close" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">&#10005;</button></div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
-    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
-    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" onchange="toggleStatusRadio()" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
   </div>
   <div id="sm-date-wrap" style="display:none;margin-bottom:10px">
     <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">Disenroll 날짜</div>
@@ -1313,7 +1313,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   </div>
   <div class="modal-input-wrap" style="margin-bottom:10px">
     <label>멤버 *</label>
-    <input class="m-input" id="auth-member-search" placeholder="이름 검색 후 선택..." oninput="filterAuthMemberList()" autocomplete="off" style="margin-bottom:6px">
+    <input class="m-input" id="auth-member-search" placeholder="이름 검색 후 선택..." autocomplete="off" style="margin-bottom:6px">
     <select id="auth-member-sel" style="width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:8px 12px;font-size:13px;background:#fff;outline:none;height:120px;display:block" size="6"></select>
     <div id="auth-member-selected" style="font-size:12px;color:#34C759;font-weight:600;margin-top:4px;display:none">✅ 선택됨</div>
   </div>
@@ -1330,8 +1330,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="modal-input-wrap"><label>Auth # *</label><input class="m-input" id="auth-number" placeholder="승인번호"></div>
   </div>
   <div class="modal-date-row">
-    <div class="modal-input-wrap"><label>승인 시작일 * (MM/DD/YYYY)</label><input class="m-input" id="auth-start" type="text" placeholder="01/01/2026" oninput="autoFormatDate(this)"></div>
-    <div class="modal-input-wrap"><label>승인 종료일 * (MM/DD/YYYY)</label><input class="m-input" id="auth-end" type="text" placeholder="12/31/2026" oninput="autoFormatDate(this)"></div>
+    <div class="modal-input-wrap"><label>승인 시작일 * (MM/DD/YYYY)</label><input class="m-input" id="auth-start" type="text" placeholder="01/01/2026"></div>
+    <div class="modal-input-wrap"><label>승인 종료일 * (MM/DD/YYYY)</label><input class="m-input" id="auth-end" type="text" placeholder="12/31/2026"></div>
   </div>
   <div class="modal-input-wrap" style="margin-bottom:10px">
     <label>서비스 유형</label>
