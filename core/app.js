@@ -1,0 +1,404 @@
+// ══════════════════════════════════════════════════════════════
+// 넘버원 어덜트 데이케어 — 앱 진입점 & 라우팅
+// core/app.js
+// ══════════════════════════════════════════════════════════════
+
+// ── Google Auth ───────────────────────────────────────────────
+function initGoogleAuth() {
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: handleCredentialResponse,
+    auto_select: true,
+    cancel_on_tap_outside: false,
+  });
+
+  const saved = localStorage.getItem('noad_session');
+  if (saved) {
+    try {
+      const user = JSON.parse(saved);
+      if (user && user.email && ALLOWED_EMAILS.includes(user.email)) {
+        _currentUser = user;
+        showApp(user);
+        return;
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+
+  google.accounts.id.renderButton(
+    document.getElementById('g-signin-btn'),
+    { theme: 'outline', size: 'large', width: 300, text: 'signin_with', shape: 'rectangular', logo_alignment: 'left' }
+  );
+  google.accounts.id.prompt();
+}
+
+function handleCredentialResponse(response) {
+  const payload = parseJwt(response.credential);
+  const email   = payload.email;
+  if (!ALLOWED_EMAILS.includes(email)) {
+    const err = document.getElementById('login-error');
+    if (err) { err.style.display = 'block'; err.textContent = '❌ 접속 권한이 없습니다: ' + email; }
+    return;
+  }
+  _currentUser = { email, name: payload.name, picture: payload.picture };
+  localStorage.setItem('noad_session', JSON.stringify(_currentUser));
+  showApp(_currentUser);
+}
+
+function showApp(user) {
+  _currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+  const sel = document.getElementById('app-select-screen');
+  sel.style.display = 'flex';
+  const userEl = document.getElementById('app-select-user');
+  if (userEl) userEl.textContent = (user.name || user.email) + ' 님 안녕하세요 👋';
+}
+
+function selectApp(type) {
+  document.getElementById('app-select-screen').style.display = 'none';
+  if (type === 'ops') { window.location.href = 'operations.html'; return; }
+  document.getElementById('app').style.display = 'flex';
+  const pill = document.getElementById('api-pill');
+  if (pill) {
+    const nameShort = _currentUser.name ? _currentUser.name.split(' ')[0] : _currentUser.email.split('@')[0];
+    let userEl = document.getElementById('hdr-user');
+    if (!userEl) {
+      userEl = document.createElement('div');
+      userEl.id = 'hdr-user';
+      userEl.style.cssText = 'display:flex;align-items:center;gap:5px;margin-top:3px;cursor:pointer';
+      userEl.innerHTML = (_currentUser.picture ? '<img src="' + _currentUser.picture + '" style="width:20px;height:20px;border-radius:50%">' : '')
+        + '<span style="font-size:10px;color:#3C3C43;font-weight:600">' + nameShort + '</span>'
+        + '<span style="font-size:9px;color:#C7C7CC">▼</span>';
+      userEl.onclick = function () {
+        if (confirm('앱 선택 화면으로 돌아가시겠습니까?')) {
+          document.getElementById('app').style.display = 'none';
+          document.getElementById('app-select-screen').style.display = 'flex';
+        }
+      };
+      pill.parentNode.insertBefore(userEl, pill.nextSibling);
+    }
+  }
+}
+
+function logout() {
+  localStorage.removeItem('noad_session');
+  _currentUser = null;
+  google.accounts.id.disableAutoSelect();
+  location.reload();
+}
+
+function parseJwt(token) {
+  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const json   = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
+}
+
+// ── 탭 라우팅 ─────────────────────────────────────────────────
+function goTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + tab);
+  if (panel) panel.classList.add('active');
+  closeModal();
+  if (tab === 'attendance')    renderAtt();
+  if (tab === 'dashboard')     renderDash();
+  if (tab === 'members')       filterM();
+  if (tab === 'absence')       renderAbsence();
+  if (tab === 'logs')          renderIncidents();
+  if (tab === 'report')        renderReport();
+  if (tab === 'forms')         initFormsTab && initFormsTab();
+  if (tab === 'authorization') renderAuthList();
+  if (tab === 'visitor')       renderVisitorList();
+  if (tab === 'council')       renderCouncilList();
+}
+
+// ── API 관련 ──────────────────────────────────────────────────
+function setApiStatus(ok) {
+  const el = document.getElementById('api-pill');
+  el.className = 'api-pill ' + (ok ? 'api-ok' : 'api-no');
+  el.textContent = ok ? '✅ Sheets 연동됨' : '⚡ Sheets 미연동';
+}
+
+function saveApiUrl() { testApi(); }
+
+async function testApi() {
+  document.getElementById('api-msg').textContent = '연결 테스트 중...';
+  try {
+    const ok = await SheetsAPI.ping();
+    if (ok) {
+      SheetsAPI.setStatusPill(true);
+      document.getElementById('api-msg').textContent = '✅ 연결 성공!';
+      loadAllData();
+    } else {
+      SheetsAPI.setStatusPill(false);
+      document.getElementById('api-msg').textContent = '❌ 연결 실패';
+    }
+  } catch (e) { SheetsAPI.setStatusPill(false); document.getElementById('api-msg').textContent = '❌ ' + e.message; }
+}
+
+async function initSheets() {
+  document.getElementById('api-msg').textContent = '시트 초기화 중...';
+  try {
+    const res = await SheetsAPI.initSheets();
+    document.getElementById('api-msg').textContent = res.ok ? '✅ 완료!' : '❌ ' + res.error;
+  } catch (e) { document.getElementById('api-msg').textContent = '❌ ' + e.message; }
+}
+
+async function loadAllData() {
+  try {
+    const members = await SheetsAPI.loadMembers();
+    if (members && members.length > 0) {
+      MEMBERS.length = 0;
+      members.forEach(m => MEMBERS.push(m));
+      mFilt = [...MEMBERS];
+    }
+    const all = await SheetsAPI.loadAll();
+    incidents  = all.incidents;
+    activities = all.activities;
+    cases      = all.cases;
+    if (all.authList.length) { AUTH_LIST = all.authList; saveAuthStorage(); }
+    renderIncidents(); renderActivities(); renderCases();
+    updateDashNow(); renderAuthList(); filterM();
+  } catch (e) { console.log('loadAllData error:', e); }
+}
+
+async function loadFromSheets() {
+  try {
+    showLoadingOverlay('Google Sheets에서 데이터 로드 중...');
+    const members = await SheetsAPI.loadMembers();
+    if (members && members.length > 0) { MEMBERS.length = 0; members.forEach(m => MEMBERS.push(m)); mFilt = [...MEMBERS]; }
+    const staff = await SheetsAPI.loadStaff();
+    if (staff && staff.length > 0) { STAFF = staff; }
+    else { STAFF = DEFAULT_STAFF.slice(); uploadDefaultStaff(); }
+    hideLoadingOverlay();
+    return true;
+  } catch (e) { hideLoadingOverlay(); console.log('Sheets load error:', e); return false; }
+}
+
+async function uploadDefaultStaff() {
+  if (!apiUrl) return;
+  for (let i = 0; i < DEFAULT_STAFF.length; i++) {
+    const s = DEFAULT_STAFF[i];
+    try {
+      await apiCall({}, { action: 'upsert', sheet: '스태프', key: 'ID', value: s.id, data: {
+        'ID': s.id, '한글이름': s.nameKr, '영문이름': s.name, '직책': s.role,
+        '전화': s.phone, '이메일': s.email, '자격증': JSON.stringify(s.certs),
+        'avBg': s.avBg, 'avColor': s.avColor,
+      }});
+    } catch (e) {}
+  }
+}
+
+// ── 스태프 ────────────────────────────────────────────────────
+function renderStaff() {
+  document.getElementById('staff-list').innerHTML = STAFF.map(s => {
+    const certHTML = s.certs.map(c => {
+      const daysLeft = Math.round((new Date(c.exp) - new Date()) / (24 * 3600 * 1000));
+      const cls  = daysLeft < 0 ? 'cert-exp' : daysLeft < 90 ? 'cert-warn' : 'cert-ok';
+      const icon = daysLeft < 0 ? '❌' : daysLeft < 90 ? '⚠️' : '✅';
+      return `<span class="cert-badge ${cls}">${icon} ${c.name} (${c.exp})</span>`;
+    }).join('');
+    return `<div class="staff-card">
+      <div class="staff-top">
+        <div class="staff-av" style="background:${s.avBg};color:${s.avColor}">${s.name[0]}</div>
+        <div style="flex:1">
+          <div class="staff-name">${s.nameKr} <span style="font-size:12px;font-weight:400;color:#8E8E93">${s.name}</span></div>
+          <div class="staff-role">${s.role}</div>
+          <div style="font-size:12px;color:#3C3C43;margin-top:2px">📞 ${s.phone} · ${s.email}</div>
+        </div>
+      </div>
+      <div class="staff-certs">${certHTML}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── PCSP 관련 ─────────────────────────────────────────────────
+function showPCSPList() {
+  document.getElementById('pcsp-list-v').style.display = 'block';
+  document.getElementById('pcsp-form-v').style.display = 'none';
+  renderPCSPList();
+}
+
+function renderPCSPList() {
+  const q    = (document.getElementById('psearch') || {}).value || '';
+  const list = q
+    ? MEMBERS.filter(m => m.kr.includes(q) || m.en.toLowerCase().includes(q.toLowerCase()) || m.medicaid.toLowerCase().includes(q.toLowerCase()))
+    : MEMBERS;
+  document.getElementById('pcsp-list').innerHTML = list.slice(0, 25).map(m =>
+    `<div class="mc ${isActive(m) ? '' : 'disenrolled-card'}" onclick="openPCSPForm('${m.id}')">
+      <div class="mc-top">
+        <div class="mc-av" style="background:${m.avBg};color:${m.avColor};overflow:hidden;padding:0">
+          ${m.photo ? '<img src="' + m.photo + '" style="width:100%;height:100%;object-fit:cover">' : m.kr[0]}
+        </div>
+        <div><div class="mc-name">${m.kr} <span style="font-size:11px;font-weight:400;color:#8E8E93">${m.en}</span></div>
+        <div class="mc-en">Medicaid: ${m.medicaid} | ${m.pcp || '—'}</div></div>
+      </div>
+      <button class="btn-full btn-primary" style="margin-top:8px;padding:10px;font-size:13px" onclick="event.stopPropagation();openPCSPForm('${m.id}')">PCSP 입력 시작 →</button>
+    </div>`
+  ).join('');
+}
+
+function openPCSPForm(mid) {
+  if (mid) localStorage.setItem('pcsp_prefill_mid', mid);
+  window.location.href = 'operations.html?tab=pcsp&mid=' + (mid || '');
+}
+
+// PCSP 스텝 관련
+function goStep(s) {
+  document.querySelectorAll('.pstep').forEach(p => p.classList.remove('active'));
+  document.getElementById('ps-' + s).classList.add('active');
+  document.querySelectorAll('.ptab').forEach((t, i) => { t.className = 'ptab' + (i === s ? ' active' : i < s ? ' done' : ''); });
+  curStep = s;
+  document.getElementById('pctr').textContent = (s + 1) + ' / 7';
+  document.getElementById('ps-prev').style.visibility = s === 0 ? 'hidden' : 'visible';
+  document.getElementById('ps-next').textContent = s === 6 ? '완료' : '다음';
+  document.getElementById('pcsp-pf').style.width = Math.round((s + 1) / 7 * 100) + '%';
+  if (s === 6) buildSummary();
+  document.querySelector('.content').scrollTop = 0;
+}
+function nextStep() { if (curStep < 6) goStep(curStep + 1); }
+function prevStep() { if (curStep > 0) goStep(curStep - 1); }
+function toggleDay(btn, day) {
+  if (selDays.has(day)) { selDays.delete(day); btn.classList.remove('sel'); }
+  else                  { selDays.add(day);    btn.classList.add('sel'); }
+}
+function updatePreview() {
+  const f = document.getElementById('f-first').value, l = document.getElementById('f-last').value, kr = document.getElementById('f-kr').value;
+  let d = ''; if (f || l) d += (l && f ? l + ', ' + f : l || f); if (kr) d += (d ? ' (' + kr + ')' : kr);
+  document.getElementById('name-preview').textContent = '문서 표시: ' + (d || '—');
+}
+function buildSummary() {
+  const f = gv('f-first'), l = gv('f-last'), kr = gv('f-kr');
+  const en   = (l && f ? l + ', ' + f : l || f) || '—';
+  const days = [...selDays].map(d => DKR[d] || d).join(', ') || '—';
+  document.getElementById('pcsp-summary').innerHTML = `
+    <div><b>참여자:</b> ${en}${kr ? ' (' + kr + ')' : ''}</div>
+    <div><b>생년월일:</b> ${gv('f-dob') || '—'} | <b>언어:</b> ${gv('f-lang')}</div>
+    <div><b>작성자:</b> ${gv('f-writer') || '—'} / ${gv('f-wdate') || '—'}</div>
+    <div><b>보험사:</b> ${gv('f-ins') || '—'} | Medicaid: ${gv('f-medicaid') || '—'} | MLTC: ${gv('f-mltc') || '—'}</div>
+    <div><b>주치의:</b> ${gv('f-pcp') || '—'}</div>
+    <div><b>출석 요일:</b> ${days}</div>
+    <div><b>진단:</b> ${(gv('f-diag') || '—').substring(0, 60)}</div>`;
+}
+function generatePCSP() {
+  const f = gv('f-first'), l = gv('f-last');
+  if (!f && !l) { alert('참여자 이름을 입력해주세요.'); goStep(0); return; }
+  alert('PCSP 작성은 업무 관리 앱에서 진행됩니다.');
+  window.location.href = 'operations.html?tab=pcsp';
+}
+
+// ── 멤버 차트 PDF ─────────────────────────────────────────────
+function generateMemberChart(mid) {
+  const m = MEMBERS.find(x => x.id === mid); if (!m) return;
+  const dobF   = m.dob ? new Date(m.dob.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US') : '—';
+  const days   = (m.days || []).map(d => ({Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'}[d] || d)).join(', ');
+  const insStr = {Anthem_MLTC:'Anthem MLTC',Anthem_MAP:'Anthem MAP',CLP:'Centerlight PACE',SWH:'Senior Whole Health'}[m.ins] || m.ins;
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Chart - ${m.en}</title>
+<style>@page{size:letter;margin:0.6in}body{font-family:Arial,sans-serif;font-size:10px}
+.hd{text-align:center;border-bottom:2px solid #D85A30;padding-bottom:8px;margin-bottom:14px}
+h1{font-size:13px;font-weight:bold;color:#D85A30}
+.grid{display:grid;grid-template-columns:140px 1fr;gap:16px}
+.photo{width:140px;height:170px;border:1.5px solid #ccc;border-radius:8px;overflow:hidden;background:#F2F2F7;display:flex;align-items:center;justify-content:center}
+table{width:100%;border-collapse:collapse}
+td{padding:4px 6px;border-bottom:.5px solid #E5E5EA;font-size:9.5px}
+td:first-child{font-weight:700;color:#555;width:100px}
+.name{font-size:20px;font-weight:800;color:#D85A30;margin-bottom:2px}
+.sub{font-size:12px;color:#555;margin-bottom:10px}
+</style></head><body>
+<div class="hd"><h1>NUMBER ONE ADULT DAYCARE / 넘버원 어덜트 데이케어</h1>
+<div style="font-size:9px;color:#666">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</div></div>
+<div class="grid">
+<div>
+<div class="photo">${m.photo ? `<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">` : '<div style="text-align:center;color:#C7C7CC"><div style="font-size:30px">👤</div><div>사진 없음</div></div>'}</div>
+<div style="text-align:center;margin-top:6px;font-size:9px;color:#8E8E93">차트번호: <b style="color:#D85A30;font-size:11px">${m.chartNo || m.id}</b></div>
+</div>
+<div>
+<div class="name">${m.kr}</div>
+<div class="sub">${m.en}</div>
+<table>
+<tr><td>생년월일</td><td>${dobF}</td></tr>
+<tr><td>Medicaid</td><td>${m.medicaid}</td></tr>
+<tr><td>MLTC ID</td><td>${m.mltc || '—'}</td></tr>
+<tr><td>보험사</td><td>${insStr}</td></tr>
+<tr><td>출석 요일</td><td>${days}</td></tr>
+<tr><td>전화</td><td>${m.phone || '—'}</td></tr>
+<tr><td>주소</td><td>${m.addr || '—'}</td></tr>
+<tr><td>주치의</td><td>${m.pcp || '—'}</td></tr>
+</table>
+</div></div>
+<div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:30px">
+<div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div><div style="font-size:9px;color:#555">작성자 서명</div></div>
+<div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div><div style="font-size:9px;color:#555">Date</div></div>
+</div>
+<button onclick="window.print()" style="margin-top:10px;padding:8px 16px;background:#D85A30;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ 인쇄</button>
+</body></html>`);
+  w.document.close();
+}
+
+// ── 초기화 ────────────────────────────────────────────────────
+window.addEventListener('load', function () {
+  if (typeof google !== 'undefined' && google.accounts) {
+    initGoogleAuth();
+  } else {
+    const checkInterval = setInterval(function () {
+      if (typeof google !== 'undefined' && google.accounts) {
+        clearInterval(checkInterval);
+        initGoogleAuth();
+      }
+    }, 200);
+  }
+});
+
+// DOM 로드 후 초기화
+document.addEventListener('DOMContentLoaded', function () {
+  // 헤더 날짜
+  const now0 = new Date();
+  document.getElementById('hdr-date').textContent = now0.getFullYear() + '년 ' + (now0.getMonth() + 1) + '월 ' + now0.getDate() + '일';
+  document.getElementById('hdr-dow').textContent  = DNAMES[now0.getDay()] + '요일';
+  DKEYS.forEach(d => { const p = document.getElementById('pip-' + d); if (p && d === DKEYS[now0.getDay()]) p.classList.add('on'); });
+
+  // ADL 필드
+  document.getElementById('adl-fields').innerHTML = ADL_ITEMS.map((item, i) =>
+    `<div class="adl-pair">
+      <div class="fg" style="margin:0"><div class="fl">${item}</div><select class="fs" id="adl-${i}">${ADL_OPTS.map(o => `<option>${o}</option>`).join('')}</select></div>
+      <div class="fg" style="margin:0"><div class="fl">보조 기기</div><input class="fi" id="dev-${i}" placeholder="없음"></div>
+    </div>`).join('');
+
+  // 멤버 select 초기화
+  ['inc', 'act', 'case'].forEach(px => {
+    const sel = document.getElementById(px + '-msel');
+    if (sel) sel.innerHTML = MEMBERS.map(m => `<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
+  });
+
+  // 날짜 범위 기본값
+  ['inc', 'act', 'case'].forEach(px => {
+    const f = document.getElementById(px + '-from'), t = document.getElementById(px + '-to');
+    if (f) f.value = weekAgoISO; if (t) t.value = todayISO;
+  });
+
+  // API URL 표시
+  document.getElementById('api-url-input').value = apiUrl;
+
+  // 로컬 저장소 로드
+  loadFromStorage();
+  setTimeout(() => { const el = document.getElementById('storage-info'); if (el) el.textContent = showStorageInfo(); }, 100);
+
+  // 초기 렌더링
+  updateDN(); renderDash(); renderPCSPList(); renderStaff();
+  renderIncidents(); renderActivities(); renderCases();
+  renderAuthList(); renderVisitorList(); renderCouncilList();
+  setTimeout(() => initBilling && initBilling(), 100);
+
+  // Sheets 자동 연결
+  SheetsAPI.ping().then(ok => {
+    SheetsAPI.setStatusPill(ok);
+    if (ok) loadFromSheets().then(ok2 => { if (ok2) { renderDash(); renderAtt(); filterM(); renderStaff(); } });
+  });
+
+  document.getElementById('rpt-from').value = weekAgoISO;
+  document.getElementById('rpt-to').value   = todayISO;
+});
