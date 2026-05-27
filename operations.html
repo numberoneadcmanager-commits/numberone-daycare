@@ -890,7 +890,8 @@ function toggleAudit(id){
 var GR_LIST = [];
 async function loadGRFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'grievance'});
+    var url=API_URL+'?action=read&sheet=grievance';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data){GR_LIST=res.data.map(function(r){return{id:r['ID']||('gr_'+Date.now()),date:r['날짜']||'',member:r['이름']||'',category:r['유형']||'',content:r['내용']||'',status:r['상태']||'open',resolve:r['해결방법']||'',note:r['메모']||''};});}
   }catch(e){console.log('GR load:',e);}
 }
@@ -955,7 +956,8 @@ function deleteGr(id){if(!confirm('삭제?'))return;GR_LIST=GR_LIST.filter(funct
 var FD_LIST = [];
 async function loadFDFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'firedrill'});
+    var url=API_URL+'?action=read&sheet=firedrill';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data){FD_LIST=res.data.map(function(r){return{id:r['ID']||('fd_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',location:r['장소']||'',attendees:r['참석인원']||'',duration:r['소요시간']||'',note:r['메모']||''};});}
   }catch(e){console.log('FD load:',e);}
 }
@@ -1007,7 +1009,8 @@ function deleteFD(id){if(!confirm('삭제?'))return;FD_LIST=FD_LIST.filter(funct
 var TEMP_LIST = [];
 async function loadTempFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'templog'});
+    var url=API_URL+'?action=read&sheet=templog';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data){TEMP_LIST=res.data.map(function(r){return{id:r['ID']||('temp_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',type:r['유형']||'',value:r['측정값']||'',unit:r['단위']||'',staff:r['기록자']||'',note:r['메모']||''};});}
   }catch(e){console.log('TEMP load:',e);}
 }
@@ -1085,7 +1088,8 @@ var DOCS_DEFAULT=[
 var DOCS_LIST=DOCS_DEFAULT.slice();
 async function loadDocsFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'docs'});
+    var url=API_URL+'?action=read&sheet=docs';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data&&res.data.length){DOCS_LIST=res.data.map(function(r){return{id:r['ID']||('doc_'+Date.now()),name:r['문서명']||'',cat:r['분류']||'기타',issued:r['발급일']||'',expiry:r['만료일']||'',link:r['링크']||'',note:r['메모']||''};});}
   }catch(e){console.log('DOCS load:',e);}
 }
@@ -1151,7 +1155,8 @@ function deleteDoc(id){if(!confirm('삭제?'))return;DOCS_LIST=DOCS_LIST.filter(
 var ACT_LIST = [];
 async function loadActFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'activity'});
+    var url=API_URL+'?action=read&sheet=activity';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data){ACT_LIST=res.data.map(function(r){return{id:r['ID']||('act_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',name:r['활동명']||'',cat:r['분류']||'',staff:r['담당자']||'',note:r['메모']||''};});}
   }catch(e){console.log('ACT load:',e);}
 }
@@ -1210,7 +1215,8 @@ function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(fu
 var PCSP_LIST=[];
 async function loadPCSPFromSheets(){
   try{
-    var res=await apiCall({action:'read',sheet:'pcsp'});
+    var url=API_URL+'?action=read&sheet=pcsp';
+    var r=await fetch(url);var res=await r.json();
     if(res.ok&&res.data){PCSP_LIST=res.data.map(function(r){
       var d={};
       try{d=typeof r['JSON데이터']==='string'?JSON.parse(r['JSON데이터']):{};} catch(e){}
@@ -1282,31 +1288,29 @@ function renderPCSPMemberList(){
   var el=document.getElementById('pcsp-member-list');
   if(!el)return;
 
-  // Sheets에서 멤버 로드
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
-    var members=[];
-    if(res.ok&&res.data){
-      members=res.data.filter(function(r){
-        return r['상태']!=='disenrolled' && r['ID'] &&
-          (!q||(r['한글이름']||'').includes(q)||(r['영문이름']||'').toLowerCase().includes(q));
-      });
-    }
-    if(!members.length){
-      el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
-      return;
-    }
-    el.innerHTML=members.map(function(m){
-      return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
-        +'<div class="log-top">'
-        +'<div class="log-name">'+m['한글이름']+'</div>'
-        +'<span style="font-size:11px;color:#8E8E93">'+m['영문이름']+'</span>'
-        +'</div>'
-        +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+m['Medicaid']+'  ·  '+m['보험사']+'</div>'
-        +'</div>';
-    }).join('');
-  }).catch(function(){
-    el.innerHTML='<div class="empty-msg">멤버 로드 실패 — Sheets 연결을 확인해주세요</div>';
+  // 캐시된 멤버 사용 (GET으로 미리 로드됨)
+  if(!OP_MEMBERS.length){
+    el.innerHTML='<div class="empty-msg">멤버 로드 중... 잠시 후 다시 시도해주세요</div>';
+    // 캐시 없으면 다시 로드 시도
+    loadMembersForOp().then(function(){ renderPCSPMemberList(); });
+    return;
+  }
+  var members = OP_MEMBERS.filter(function(m){
+    return !q || (m['한글이름']||'').includes(q) || (m['영문이름']||'').toLowerCase().includes(q);
   });
+  if(!members.length){
+    el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
+    return;
+  }
+  el.innerHTML=members.map(function(m){
+    return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
+      +'<div class="log-top">'
+      +'<div class="log-name">'+(m['한글이름']||'')+'</div>'
+      +'<span style="font-size:11px;color:#8E8E93">'+(m['영문이름']||'')+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+(m['Medicaid']||'')+'  ·  '+(m['보험사']||'')+'</div>'
+      +'</div>';
+  }).join('');
 }
 
 function selectPCSPMember(m){
@@ -1555,9 +1559,22 @@ async function renderOpStaff(){
 function openStaffModal(){ window.location.href='index.html'; }
 
 // ── 초기화 ────────────────────────────────────────────────
+var OP_MEMBERS = [];  // operations.html 전용 멤버 캐시
+
+async function loadMembersForOp(){
+  try{
+    // GET 방식 = CORS preflight 없음
+    var url = API_URL + '?action=read&sheet=' + encodeURIComponent('멤버');
+    var r = await fetch(url);
+    var res = await r.json();
+    if(res.ok && res.data) OP_MEMBERS = res.data.filter(function(m){ return m['상태'] !== 'disenrolled' && m['ID']; });
+  }catch(e){ console.log('Members load:', e); }
+}
+
 async function initData(){
   // Sheets에서 데이터 로드
   await Promise.all([
+    loadMembersForOp(),
     loadGRFromSheets(),
     loadFDFromSheets(),
     loadTempFromSheets(),
@@ -1587,17 +1604,16 @@ async function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
-    var member=null;
-    if(res.ok&&res.data){
-      member=res.data.find(function(r){return String(r['ID'])===String(mid);});
-    }
-    if(member){
-      selectPCSPMember(member);
-    } else {
-      openPCSPForm();
-    }
-  }).catch(function(){openPCSPForm();});
+  var member = OP_MEMBERS.find(function(r){ return String(r['ID'])===String(mid); });
+  if(member){
+    selectPCSPMember(member);
+  } else {
+    // 캐시에 없으면 다시 로드 후 시도
+    loadMembersForOp().then(function(){
+      var m2 = OP_MEMBERS.find(function(r){ return String(r['ID'])===String(mid); });
+      if(m2) selectPCSPMember(m2); else openPCSPForm();
+    }).catch(function(){ openPCSPForm(); });
+  }
 }
 </script>
 </body>
