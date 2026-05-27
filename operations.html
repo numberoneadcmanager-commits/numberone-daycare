@@ -797,18 +797,12 @@ function goTab(tab,el){
 function openOv(id){document.getElementById(id).classList.add('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='block';}
 function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
 
-// ── API Call (no preflight: Content-Type 헤더 제거) ─────────
+// ── API Call ─────────────────────────────────────────────
 async function apiCall(data){
   try{
     var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(data)});
     return await r.json();
   }catch(e){return {ok:false,error:e.message};}
-}
-async function sheetsPost(payload){
-  try{
-    var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(payload)});
-    return await r.json();
-  }catch(e){console.log('Sheets sync error:',e);return {ok:false};}
 }
 
 // ── AUDIT CHECKLIST ───────────────────────────────────────
@@ -849,7 +843,7 @@ var AUDIT_ITEMS = [
   {id:'a34',label:'Staff Health Assessment & PPD',filter:'common',link:null},
   {id:'a35',label:'Employee Files (10% of staff)',filter:'common',link:null},
 ];
-var AUDIT_DONE = JSON.parse(sessionStorage.getItem('audit_done')||'{}');
+var AUDIT_DONE = JSON.parse(localStorage.getItem('audit_done')||'{}');
 var _auditFilter = 'all';
 
 function setAuditFilter(f,el){
@@ -882,19 +876,13 @@ function renderAudit(){
 
 function toggleAudit(id){
   AUDIT_DONE[id]=!AUDIT_DONE[id];
-  sessionStorage.setItem('audit_done',JSON.stringify(AUDIT_DONE));
+  localStorage.setItem('audit_done',JSON.stringify(AUDIT_DONE));
   renderAudit();
 }
 
 // ── GRIEVANCE ────────────────────────────────────────────
-var GR_LIST = [];
-async function loadGRFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=grievance';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data){GR_LIST=res.data.map(function(r){return{id:r['ID']||('gr_'+Date.now()),date:r['날짜']||'',member:r['이름']||'',category:r['유형']||'',content:r['내용']||'',status:r['상태']||'open',resolve:r['해결방법']||'',note:r['메모']||''};});}
-  }catch(e){console.log('GR load:',e);}
-}
+var GR_LIST = JSON.parse(localStorage.getItem('gr_list')||'[]');
+function saveGRStorage(){localStorage.setItem('gr_list',JSON.stringify(GR_LIST));}
 var _grFilter='all';
 function setGrFilter(f,el){_grFilter=f;document.querySelectorAll('#panel-grievance .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderGrievanceList();}
 
@@ -946,21 +934,16 @@ function saveGrievance(){
   var entry={id:editId||('gr_'+Date.now()),date:date,type:document.getElementById('gr-type').value,member:document.getElementById('gr-member').value.trim(),content:content,action:document.getElementById('gr-action').value.trim(),staff:document.getElementById('gr-staff').value.trim(),status:document.getElementById('gr-status').value,result:document.getElementById('gr-result').value.trim()};
   if(editId){var idx=GR_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)GR_LIST[idx]=entry;else GR_LIST.push(entry);}
   else GR_LIST.push(entry);
-  sheetsPost({action:editId?'update':'append',sheet:'grievance',id:editId||null,data:{'ID':entry.id,'날짜':entry.date,'유형':entry.type,'멤버':entry.member,'내용':entry.content,'조치':entry.action,'담당자':entry.staff,'상태':entry.status,'결과':entry.result}});
+  saveGRStorage();
+  apiCall({action:'append',sheet:'grievance',data:{'ID':entry.id,'날짜':entry.date,'유형':entry.type,'멤버':entry.member,'내용':entry.content,'조치':entry.action,'담당자':entry.staff,'상태':entry.status,'결과':entry.result}}).catch(function(){});
   closeOv('ov-gr');renderGrievanceList();
 }
 function editGr(id){openGrModal(id);}
-function deleteGr(id){if(!confirm('삭제?'))return;GR_LIST=GR_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'grievance',id:id});renderGrievanceList();}
+function deleteGr(id){if(!confirm('삭제?'))return;GR_LIST=GR_LIST.filter(function(x){return x.id!==id;});saveGRStorage();renderGrievanceList();}
 
 // ── FIRE DRILL ────────────────────────────────────────────
-var FD_LIST = [];
-async function loadFDFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=firedrill';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data){FD_LIST=res.data.map(function(r){return{id:r['ID']||('fd_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',location:r['장소']||'',attendees:r['참석인원']||'',duration:r['소요시간']||'',note:r['메모']||''};});}
-  }catch(e){console.log('FD load:',e);}
-}
+var FD_LIST = JSON.parse(localStorage.getItem('fd_list')||'[]');
+function saveFDStorage(){localStorage.setItem('fd_list',JSON.stringify(FD_LIST));}
 
 function renderFDList(){
   var thisYear=new Date().getFullYear().toString();
@@ -999,21 +982,16 @@ function saveFireDrill(){
   var entry={id:editId||('fd_'+Date.now()),date:date,time:document.getElementById('fd-time').value,count:document.getElementById('fd-count').value,duration:document.getElementById('fd-duration').value,type:document.getElementById('fd-type').value,staff:document.getElementById('fd-staff').value.trim(),note:document.getElementById('fd-note').value.trim()};
   if(editId){var idx=FD_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)FD_LIST[idx]=entry;else FD_LIST.push(entry);}
   else FD_LIST.push(entry);
-  sheetsPost({action:editId?'update':'append',sheet:'firedrill',id:editId||null,data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'참석인원':entry.count,'소요시간':entry.duration,'유형':entry.type,'담당자':entry.staff,'메모':entry.note}});
+  saveFDStorage();
+  apiCall({action:'append',sheet:'firedrill',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'참석인원':entry.count,'소요시간':entry.duration,'유형':entry.type,'담당자':entry.staff,'메모':entry.note}}).catch(function(){});
   closeOv('ov-fd');renderFDList();
 }
 function editFD(id){openFDModal(id);}
-function deleteFD(id){if(!confirm('삭제?'))return;FD_LIST=FD_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'firedrill',id:id});renderFDList();}
+function deleteFD(id){if(!confirm('삭제?'))return;FD_LIST=FD_LIST.filter(function(x){return x.id!==id;});saveFDStorage();renderFDList();}
 
 // ── TEMPERATURE LOG ───────────────────────────────────────
-var TEMP_LIST = [];
-async function loadTempFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=templog';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data){TEMP_LIST=res.data.map(function(r){return{id:r['ID']||('temp_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',type:r['유형']||'',value:r['측정값']||'',unit:r['단위']||'',staff:r['기록자']||'',note:r['메모']||''};});}
-  }catch(e){console.log('TEMP load:',e);}
-}
+var TEMP_LIST = JSON.parse(localStorage.getItem('temp_list')||'[]');
+function saveTempStorage(){localStorage.setItem('temp_list',JSON.stringify(TEMP_LIST));}
 var _tempFilter='fridge';
 function setTempFilter(f,el){_tempFilter=f;document.querySelectorAll('#panel-templog .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderTempList();}
 
@@ -1067,32 +1045,26 @@ function saveTemp(){
   if(!date||!value){alert('날짜와 측정값은 필수입니다');return;}
   var entry={id:'temp_'+Date.now(),date:date,time:document.getElementById('temp-time').value,type:document.getElementById('temp-type').value.split(' ')[0],value:value,unit:document.getElementById('temp-unit').value,staff:document.getElementById('temp-staff').value.trim(),note:document.getElementById('temp-note').value.trim()};
   TEMP_LIST.push(entry);
-  sheetsPost({action:'append',sheet:'templog',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'유형':entry.type,'측정값':entry.value,'단위':entry.unit,'기록자':entry.staff,'메모':entry.note}});
+  saveTempStorage();
+  apiCall({action:'append',sheet:'templog',data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'유형':entry.type,'측정값':entry.value,'단위':entry.unit,'기록자':entry.staff,'메모':entry.note}}).catch(function(){});
   closeOv('ov-temp');renderTempList();
 }
-function deleteTemp(id){if(!confirm('삭제?'))return;TEMP_LIST=TEMP_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'templog',id:id});renderTempList();}
+function deleteTemp(id){if(!confirm('삭제?'))return;TEMP_LIST=TEMP_LIST.filter(function(x){return x.id!==id;});saveTempStorage();renderTempList();}
 
 // ── DOCUMENT VAULT ────────────────────────────────────────
-var DOCS_DEFAULT=[
-  {id:'doc_1',name:'OMIG Certification',cat:'인증/허가',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_2',name:'DFTA Registration',cat:'인증/허가',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_3',name:'Liability Insurance',cat:'보험',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_4',name:'Certificate of Occupancy',cat:'시설',expiry:'',link:'',note:''},
-  {id:'doc_5',name:'Food Service Permit',cat:'인증/허가',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_6',name:'Registered Dietician License',cat:'직원',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_7',name:'Registered Nurse License',cat:'직원',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_8',name:'Food Handler Certification',cat:'직원',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_9',name:'Elevator Inspection',cat:'시설',expiry:'2026-12-31',link:'',note:''},
-  {id:'doc_10',name:'Fire Inspection',cat:'시설',expiry:'2026-12-31',link:'',note:''}
-];
-var DOCS_LIST=DOCS_DEFAULT.slice();
-async function loadDocsFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=docs';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data&&res.data.length){DOCS_LIST=res.data.map(function(r){return{id:r['ID']||('doc_'+Date.now()),name:r['문서명']||'',cat:r['분류']||'기타',issued:r['발급일']||'',expiry:r['만료일']||'',link:r['링크']||'',note:r['메모']||''};});}
-  }catch(e){console.log('DOCS load:',e);}
-}
+var DOCS_LIST = JSON.parse(localStorage.getItem('docs_list')||'['+
+  '{"id":"doc_1","name":"OMIG Certification","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_2","name":"DFTA Registration","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_3","name":"Liability Insurance","cat":"보험","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_4","name":"Certificate of Occupancy","cat":"시설","expiry":"","link":"","note":""},' +
+  '{"id":"doc_5","name":"Food Service Permit","cat":"인증/허가","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_6","name":"Registered Dietician License","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_7","name":"Registered Nurse License","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_8","name":"Food Handler Certification","cat":"직원","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_9","name":"Elevator Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""},' +
+  '{"id":"doc_10","name":"Fire Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""}' +
+']');
+function saveDocsStorage(){localStorage.setItem('docs_list',JSON.stringify(DOCS_LIST));}
 
 function docStatus(expiry){
   if(!expiry)return 'none';
@@ -1145,21 +1117,14 @@ function saveDoc(){
   var entry={id:editId||('doc_'+Date.now()),name:name,cat:document.getElementById('doc-cat').value,issued:document.getElementById('doc-issued').value,expiry:document.getElementById('doc-expiry').value,link:document.getElementById('doc-link').value.trim(),note:document.getElementById('doc-note').value.trim()};
   if(editId){var idx=DOCS_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)DOCS_LIST[idx]=entry;else DOCS_LIST.push(entry);}
   else DOCS_LIST.push(entry);
-  sheetsPost({action:editId?'update':'append',sheet:'docs',id:editId||null,data:{'ID':entry.id,'문서명':entry.name,'분류':entry.cat,'발급일':entry.issued||'','만료일':entry.expiry,'링크':entry.link,'메모':entry.note}});
-  closeOv('ov-doc');renderDocsList();
+  saveDocsStorage();closeOv('ov-doc');renderDocsList();
 }
 function editDoc(id){openDocModal(id);}
-function deleteDoc(id){if(!confirm('삭제?'))return;DOCS_LIST=DOCS_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'docs',id:id});renderDocsList();}
+function deleteDoc(id){if(!confirm('삭제?'))return;DOCS_LIST=DOCS_LIST.filter(function(x){return x.id!==id;});saveDocsStorage();renderDocsList();}
 
 // ── ACTIVITY CALENDAR ─────────────────────────────────────
-var ACT_LIST = [];
-async function loadActFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=activity';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data){ACT_LIST=res.data.map(function(r){return{id:r['ID']||('act_'+Date.now()),date:r['날짜']||'',time:r['시간']||'',name:r['활동명']||'',cat:r['분류']||'',staff:r['담당자']||'',note:r['메모']||''};});}
-  }catch(e){console.log('ACT load:',e);}
-}
+var ACT_LIST = JSON.parse(localStorage.getItem('op_act_list')||'[]');
+function saveActStorage(){localStorage.setItem('op_act_list',JSON.stringify(ACT_LIST));}
 var _actFilter='all';
 function setActFilter(f,el){_actFilter=f;document.querySelectorAll('#panel-activity .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderActivityList();}
 
@@ -1205,25 +1170,14 @@ function saveActivity(){
   var entry={id:editId||('act_'+Date.now()),date:date,time:document.getElementById('act-time').value,name:name,cat:document.getElementById('act-cat').value,staff:document.getElementById('act-staff').value.trim(),note:document.getElementById('act-note').value.trim()};
   if(editId){var idx=ACT_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)ACT_LIST[idx]=entry;else ACT_LIST.push(entry);}
   else ACT_LIST.push(entry);
-  sheetsPost({action:editId?'update':'append',sheet:'activity',id:editId||null,data:{'ID':entry.id,'날짜':entry.date,'시간':entry.time,'활동명':entry.name,'분류':entry.cat,'담당자':entry.staff,'메모':entry.note}});
-  closeOv('ov-act');renderActivityList();
+  saveActStorage();closeOv('ov-act');renderActivityList();
 }
 function editAct(id){openActModal(id);}
-function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'activity',id:id});renderActivityList();}
+function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(function(x){return x.id!==id;});saveActStorage();renderActivityList();}
 
 // ── PCSP 7단계 ───────────────────────────────────────────
-var PCSP_LIST=[];
-async function loadPCSPFromSheets(){
-  try{
-    var url=API_URL+'?action=read&sheet=pcsp';
-    var r=await fetch(url);var res=await r.json();
-    if(res.ok&&res.data){PCSP_LIST=res.data.map(function(r){
-      var d={};
-      try{d=typeof r['JSON데이터']==='string'?JSON.parse(r['JSON데이터']):{};} catch(e){}
-      return Object.assign({id:r['ID']||('pcsp_'+Date.now()),memberId:r['멤버ID']||'',nameKr:r['한글이름']||'',nameFirst:r['First']||'',nameLast:r['Last']||'',wdate:r['작성일']||'',nextdate:r['갱신예정일']||'',diag:r['진단명']||''},d);
-    });}
-  }catch(e){console.log('PCSP load:',e);}
-}
+var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PCSP_LIST));}
 var _pcspStep=0,_pcspDays=new Set(),_pcspContacts=[],_pcspRisks=[],_pcspGoals=[],_pcspCommunity=[],_pcspFilter='all';
 var PCSP_ADL_ITEMS=['Mobility','Transfers','Toileting','Continence','Eating'];
 var PCSP_ADL_LEVELS=['Independent','Supervision Only','Minimal Hands-On','Moderate Hands-On','Total Hands-On'];
@@ -1245,9 +1199,8 @@ function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-pcs
 function renderPCSPList(){
   var q=(document.getElementById('pcsp-search')||{}).value||'';
   var today=new Date().toISOString().slice(0,10);
-  var ql=q.toLowerCase();
   var list=PCSP_LIST.filter(function(p){
-    var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').toLowerCase().includes(ql)||(p.nameFirst||'').toLowerCase().includes(ql);
+    var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').includes(q);
     var due=p.nextdate&&p.nextdate<=today;
     return (_pcspFilter==='all'||(_pcspFilter==='due'&&due)||(_pcspFilter==='ok'&&!due))&&match;
   }).sort(function(a,b){return (a.nextdate||'9999')>(b.nextdate||'9999')?1:-1;});
@@ -1288,29 +1241,31 @@ function renderPCSPMemberList(){
   var el=document.getElementById('pcsp-member-list');
   if(!el)return;
 
-  // 캐시된 멤버 사용 (GET으로 미리 로드됨)
-  if(!OP_MEMBERS.length){
-    el.innerHTML='<div class="empty-msg">멤버 로드 중... 잠시 후 다시 시도해주세요</div>';
-    // 캐시 없으면 다시 로드 시도
-    loadMembersForOp().then(function(){ renderPCSPMemberList(); });
-    return;
-  }
-  var members = OP_MEMBERS.filter(function(m){
-    return !q || (m['한글이름']||'').includes(q) || (m['영문이름']||'').toLowerCase().includes(q);
+  // Sheets에서 멤버 로드
+  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+    var members=[];
+    if(res.ok&&res.data){
+      members=res.data.filter(function(r){
+        return r['상태']!=='disenrolled' && r['ID'] &&
+          (!q||(r['한글이름']||'').includes(q)||(r['영문이름']||'').toLowerCase().includes(q));
+      });
+    }
+    if(!members.length){
+      el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
+      return;
+    }
+    el.innerHTML=members.map(function(m){
+      return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
+        +'<div class="log-top">'
+        +'<div class="log-name">'+m['한글이름']+'</div>'
+        +'<span style="font-size:11px;color:#8E8E93">'+m['영문이름']+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+m['Medicaid']+'  ·  '+m['보험사']+'</div>'
+        +'</div>';
+    }).join('');
+  }).catch(function(){
+    el.innerHTML='<div class="empty-msg">멤버 로드 실패 — Sheets 연결을 확인해주세요</div>';
   });
-  if(!members.length){
-    el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
-    return;
-  }
-  el.innerHTML=members.map(function(m){
-    return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
-      +'<div class="log-top">'
-      +'<div class="log-name">'+(m['한글이름']||'')+'</div>'
-      +'<span style="font-size:11px;color:#8E8E93">'+(m['영문이름']||'')+'</span>'
-      +'</div>'
-      +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+(m['Medicaid']||'')+'  ·  '+(m['보험사']||'')+'</div>'
-      +'</div>';
-  }).join('');
 }
 
 function selectPCSPMember(m){
@@ -1493,12 +1448,13 @@ function savePCSPFull(){
   var editId=document.getElementById('pcsp-edit-id').value;
   var entry={id:editId||('pcsp_'+Date.now()),writer:gp('writer'),wdate:wdate,nextdate:gp('nextdate'),type:gp('type'),nameLast:last,nameFirst:first,nameKr:gp('kr'),dob:gp('dob'),gender:gp('gender'),genderid:gp('genderid'),addr:gp('addr'),phone:gp('phone'),email:gp('email'),lang:gp('lang'),livewith:gp('livewith'),caresupp:gp('caresupp'),livewithname:gp('livewithname'),ins:gp('ins'),medicaid:gp('medicaid'),ins2:gp('ins2'),ins2id:gp('ins2id'),days:Array.from(_pcspDays),time:gp('time'),transport:gp('transport'),cm1name:gp('cm1name'),cm1phone:gp('cm1phone'),cm1email:gp('cm1email'),cm2name:gp('cm2name'),cm2phone:gp('cm2phone'),cm2email:gp('cm2email'),pcpname:gp('pcpname'),pcpphone:gp('pcpphone'),pcpemail:gp('pcpemail'),contacts:_pcspContacts,diag:gp('diag'),medassist:gp('medassist'),medlevel:gp('medlevel'),meds:gp('meds'),allergy:gp('allergy'),diet:gp('diet'),nutrition:gp('nutrition'),nutr_acc:gp('nutr-acc'),nutr_how:gp('nutr-how'),comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),alone:gp('alone'),pain:gp('pain'),cap_desc:gp('cap-desc'),adl:adl,carepref:gp('carepref'),carepref_acc:gp('carepref-acc'),carepref_desc:gp('carepref-desc'),carepref_notified:gp('carepref-notified'),risks:_pcspRisks.length?_pcspRisks:[{risk:'No known risks',trigger:'',response:'',measure:'',safeguard:''}],prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,work:gp('work'),work_desc:gp('work-desc'),rights:rights,sig:gp('sig'),sigdate:gp('sigdate'),writersig:gp('writersig'),status:'active',updatedAt:new Date().toISOString()};
   if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}else PCSP_LIST.push(entry);
-  sheetsPost({action:editId?'update':'append',sheet:'pcsp',id:editId||null,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':entry.memberId||'','한글이름':entry.nameKr,'First':entry.nameFirst,'Last':entry.nameLast,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단명':(entry.diag||'').slice(0,200),'JSON데이터':JSON.stringify(entry)}});
+  savePCSPStorage();
+  apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':'','한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag,'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':entry.status}}).catch(function(){});
   alert('✅ PCSP 저장 완료!');showPCSPList();
 }
 
 function editPCSP(id){openPCSPForm(id);}
-function deletePCSP(id){if(!confirm('삭제?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});sheetsPost({action:'delete',sheet:'pcsp',id:id});renderPCSPList();}
+function deletePCSP(id){if(!confirm('삭제?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});savePCSPStorage();renderPCSPList();}
 
 function printPCSP(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});
@@ -1516,7 +1472,11 @@ function printPCSP(id){
       +'<b>No Harm Assurance:</b> '+r.noHarm
       +'</td></tr>';
   }).join('');
-  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>PCSP - '+p.nameLast+', '+p.nameFirst+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:14px;text-align:center}h2{font-size:11px;background:#5856D6;color:#fff;padding:4px 8px;margin:12px 0 5px}table{width:100%;border-collapse:collapse;margin-bottom:8px}td,th{border:1px solid #ccc;padding:3px 6px;vertical-align:top}th{background:#f5f5f5;font-weight:700}.sig{border-bottom:1px solid #000;height:40px}</style></head><body>'
+  var _apiUrl = API_URL;
+  var _meta = {memberId: p.memberId||'', memberName: p.nameKr||p.nameLast||'', fileType:'PCSP'};
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>PCSP - '+p.nameLast+', '+p.nameFirst+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:14px;text-align:center}h2{font-size:11px;background:#5856D6;color:#fff;padding:4px 8px;margin:12px 0 5px}table{width:100%;border-collapse:collapse;margin-bottom:8px}td,th{border:1px solid #ccc;padding:3px 6px;vertical-align:top}th{background:#f5f5f5;font-weight:700}.sig{border-bottom:1px solid #000;height:40px}.action-bar{margin-top:16px;display:flex;gap:8px;align-items:center}@media print{.action-bar{display:none}}</style>'
+    +'</head><body>'
     +'<h1>Number One Adult Daycare — Person Centered Service Plan (PCSP)</h1>'
     +'<div style="text-align:center;font-size:9px;margin-bottom:10px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248 · Version: 2026.05</div>'
     +'<h2>PCSP Completion Information</h2><table><tr><th>작성자</th><td>'+p.writer+'</td><th>작성일</th><td>'+p.wdate+'</td><th>갱신예정일</th><td>'+p.nextdate+'</td></tr></table>'
@@ -1532,15 +1492,48 @@ function printPCSP(id){
     +'<h2>Modifications to Rights</h2>'+(rightsHtml?'<table><tr><th>Right</th><th>Justification & Details</th></tr>'+rightsHtml+'</table>':'<p>No modifications to rights</p>')
     +'<h2>PCSP Acknowledgement</h2><p style="font-size:9px;border:1px solid #ccc;padding:8px;line-height:1.5">I confirm that I led the person centered planning process, was offered various opportunities and choices, and the information in this PCSP is accurate.</p>'
     +'<table><tr><th>Participant/Representative Signature</th><th>Date</th></tr><tr><td><div class="sig">'+p.sig+'</div></td><td>'+p.sigdate+'</td></tr></table>'
-    +'<br><button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button></body></html>';
+    +'<div class="action-bar">'
+    +'<button style="padding:8px 16px;background:#5856D6;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>'
+    +'<button id="drive-btn" style="padding:8px 16px;background:#34C759;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer" onclick="saveToDrive()">📤 Google Drive에 저장</button>'
+    +'<span id="drive-status" style="font-size:11px;color:#555"></span>'
+    +'</div>'
+    +'<script>'
+    +'var META='+JSON.stringify({memberId: p.memberId||'', memberName: p.nameKr||p.nameLast||'', fileType:'PCSP', apiUrl: 'https://script.google.com/macros/s/AKfycbwkZCk2MxbIynVZbIxFJHC-eJvkdZGE7IWmpLmlR5JAa2mhq4dDBRhoKkhTXkY-GScT/exec'})+';'
+    +'function saveToDrive(){'
+    +'  var btn=document.getElementById("drive-btn"),st=document.getElementById("drive-status");'
+    +'  btn.disabled=true;btn.textContent="⏳ 저장 중...";st.textContent="";'
+    +'  var s=document.createElement("script");'
+    +'  s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";'
+    +'  s.onload=function(){'
+    +'    var clone=document.body.cloneNode(true);'
+    +'    clone.querySelectorAll(".action-bar").forEach(function(n){n.remove();});'
+    +'    html2pdf().set({margin:10,filename:"PCSP.pdf",jsPDF:{unit:"mm",format:"letter",orientation:"portrait"},html2canvas:{scale:2}}).from(clone).outputPdf("arraybuffer").then(function(buf){'
+    +'      var bytes=new Uint8Array(buf),bin="";'
+    +'      bytes.forEach(function(b){bin+=String.fromCharCode(b);});'
+    +'      var b64=btoa(bin);'
+    +'      return fetch(META.apiUrl,{method:"POST",body:JSON.stringify({action:"savePDF",memberId:META.memberId,memberName:META.memberName,fileType:META.fileType,base64Data:b64,author:"앱"})});'
+    +'    }).then(function(r){return r.json();}).then(function(res){'
+    +'      if(res.ok&&res.data&&res.data.success){'
+    +'        btn.textContent="✅ 완료";'
+    +'        st.innerHTML=\'<a href="\'+res.data.url+\'" target="_blank" style="color:#007AFF">📂 Drive에서 열기</a>\';'
+    +'      }else{'
+    +'        btn.disabled=false;btn.textContent="📤 Google Drive에 저장";'
+    +'        st.textContent="❌ 오류: "+(res.error||"알 수 없는 오류");'
+    +'      }'
+    +'    }).catch(function(e){btn.disabled=false;btn.textContent="📤 Google Drive에 저장";st.textContent="❌ "+e.message;});'
+    +'  };document.head.appendChild(s);'
+    +'}'
+    +'<\/script>'
+    +'</body></html>';
+  // API URL 삽입 (JS 문자열 안에 직접 넣기)
+  html = html.replace('https://script.google.com/macros/s/AKfycbwkZCk2MxbIynVZbIxFJHC-eJvkdZGE7IWmpLmlR5JAa2mhq4dDBRhoKkhTXkY-GScT/exec', _apiUrl);
   var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
   w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
 }
 
 // ── Staff (간소화) ────────────────────────────────────────
-async function renderOpStaff(){
-  var STAFF_OP=[];
-  try{var sr=await apiCall({action:'read',sheet:'스태프'});if(sr.ok&&sr.data)STAFF_OP=sr.data;}catch(e){}
+function renderOpStaff(){
+  var STAFF_OP=JSON.parse(localStorage.getItem('staff_data')||'[]');
   var e=document.getElementById('op-staff-total');if(e)e.textContent=STAFF_OP.length;
   var today=new Date().toISOString().slice(0,10);
   var exp=0,soon=0;
@@ -1559,36 +1552,14 @@ async function renderOpStaff(){
 function openStaffModal(){ window.location.href='index.html'; }
 
 // ── 초기화 ────────────────────────────────────────────────
-var OP_MEMBERS = [];  // operations.html 전용 멤버 캐시
-
-async function loadMembersForOp(){
-  try{
-    // GET 방식 = CORS preflight 없음
-    var url = API_URL + '?action=read&sheet=' + encodeURIComponent('멤버');
-    var r = await fetch(url);
-    var res = await r.json();
-    if(res.ok && res.data) OP_MEMBERS = res.data.filter(function(m){ return m['상태'] !== 'disenrolled' && m['ID']; });
-  }catch(e){ console.log('Members load:', e); }
-}
-
-async function initData(){
-  // Sheets에서 데이터 로드
-  await Promise.all([
-    loadMembersForOp(),
-    loadGRFromSheets(),
-    loadFDFromSheets(),
-    loadTempFromSheets(),
-    loadDocsFromSheets(),
-    loadActFromSheets(),
-    loadPCSPFromSheets(),
-  ]);
+function initData(){
   renderAudit();
   // URL 파라미터 처리 (케어 관리 앱에서 넘어온 경우)
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
-  var mid = params.get('mid') || sessionStorage.getItem('pcsp_prefill_mid');
+  var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
   if(tab === 'pcsp'){
-    sessionStorage.removeItem('pcsp_prefill_mid');
+    localStorage.removeItem('pcsp_prefill_mid');
     // PCSP 탭으로 이동
     var pcspTab = document.querySelector('.tab[onclick*="pcsp"]');
     goTab('pcsp', pcspTab);
@@ -1604,16 +1575,17 @@ async function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  var member = OP_MEMBERS.find(function(r){ return String(r['ID'])===String(mid); });
-  if(member){
-    selectPCSPMember(member);
-  } else {
-    // 캐시에 없으면 다시 로드 후 시도
-    loadMembersForOp().then(function(){
-      var m2 = OP_MEMBERS.find(function(r){ return String(r['ID'])===String(mid); });
-      if(m2) selectPCSPMember(m2); else openPCSPForm();
-    }).catch(function(){ openPCSPForm(); });
-  }
+  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+    var member=null;
+    if(res.ok&&res.data){
+      member=res.data.find(function(r){return String(r['ID'])===String(mid);});
+    }
+    if(member){
+      selectPCSPMember(member);
+    } else {
+      openPCSPForm();
+    }
+  }).catch(function(){openPCSPForm();});
 }
 </script>
 </body>
