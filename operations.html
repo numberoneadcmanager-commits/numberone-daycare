@@ -797,16 +797,16 @@ function goTab(tab,el){
 function openOv(id){document.getElementById(id).classList.add('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='block';}
 function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
 
-// ── API Call ─────────────────────────────────────────────
+// ── API Call (no preflight: Content-Type 헤더 제거) ─────────
 async function apiCall(data){
   try{
-    var r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(data)});
     return await r.json();
   }catch(e){return {ok:false,error:e.message};}
 }
 async function sheetsPost(payload){
   try{
-    var r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(payload)});
     return await r.json();
   }catch(e){console.log('Sheets sync error:',e);return {ok:false};}
 }
