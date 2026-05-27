@@ -456,3 +456,153 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('rpt-from').value = weekAgoISO;
   document.getElementById('rpt-to').value   = todayISO;
 });
+
+// ══════════════════════════════════════════════════════════════
+// Assessment / Forms 탭 함수
+// ══════════════════════════════════════════════════════════════
+
+function initFormsTab() {
+  document.getElementById('frm-list').style.display = 'block';
+  document.getElementById('frm-assessment').style.display = 'none';
+  document.getElementById('frm-nutrition').style.display = 'none';
+  document.getElementById('frm-member-rights').style.display = 'none';
+  filterFrmMembers();
+}
+
+function filterFrmMembers() {
+  const q   = ((document.getElementById('frm-search') || {}).value || '').toLowerCase();
+  const el  = document.getElementById('frm-member-list');
+  if (!el) return;
+  const list = MEMBERS.filter(m =>
+    m.status !== 'disenrolled' &&
+    (!q || (m.kr || '').includes(q) || (m.en || '').toLowerCase().includes(q) || (m.medicaid || '').toLowerCase().includes(q))
+  );
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-msg">멤버를 찾을 수 없어요</div>';
+    return;
+  }
+  el.innerHTML = list.map(m => `
+    <div class="log-card" style="cursor:pointer">
+      <div class="log-top">
+        <div class="log-name" style="display:flex;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;border-radius:50%;background:${m.avBg};color:${m.avColor};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${(m.kr||'').slice(0,1)}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700">${m.kr}</div>
+            <div style="font-size:11px;color:#8E8E93">${m.en}</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#8E8E93;margin:4px 0 8px">Medicaid: ${m.medicaid} · ${m.ins}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-sm" style="background:#E6F1FB;color:#185FA5" onclick="openAssessment('${m.id}')">📋 Assessment</button>
+        <button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="openNutritionScreening('${m.id}')">🥗 Nutrition</button>
+        <button class="btn-sm" style="background:#EEEDFE;color:#534AB7" onclick="openMemberRights('${m.id}')">📄 Member Rights</button>
+      </div>
+    </div>`).join('');
+}
+
+function openAssessment(mid) {
+  const m = MEMBERS.find(x => x.id === mid);
+  if (!m) return;
+  _asmt.mid  = mid;
+  _asmt.step = 0;
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-assessment').style.display = 'block';
+  // 멤버 정보 자동 입력
+  const hdr = document.getElementById('as-member-header');
+  if (hdr) hdr.textContent = m.kr + ' (' + m.en + ')';
+  const nkr = document.getElementById('as-name-kr'); if (nkr) nkr.textContent = m.kr;
+  const nen = document.getElementById('as-name-en'); if (nen) nen.textContent = m.en;
+  const dob = document.getElementById('as-dob');     if (dob) dob.value = m.dob || '';
+  const med = document.getElementById('as-medicaid');if (med) med.value = m.medicaid || '';
+  const phn = document.getElementById('as-phone');   if (phn) phn.value = m.phone || '';
+  const adr = document.getElementById('as-addr');    if (adr) adr.value = m.addr || '';
+  const adate = document.getElementById('as-date');  if (adate) adate.value = new Date().toISOString().slice(0,10);
+  goAssessStep(0);
+  // 서명 캔버스 초기화
+  if (typeof initSigCanvas === 'function') initSigCanvas('as-sig-canvas', function(d){ _asSig = d; });
+}
+
+function openNutritionScreening(mid) {
+  const m = MEMBERS.find(x => x.id === mid);
+  if (!m) return;
+  _nsMid = mid;
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-nutrition').style.display = 'block';
+  const nn = document.getElementById('ns-name'); if (nn) nn.textContent = m.kr + ' (' + m.en + ')';
+  const nd = document.getElementById('ns-dob');  if (nd) nd.textContent = m.dob || '';
+  const ndate = document.getElementById('ns-date'); if (ndate) ndate.value = new Date().toISOString().slice(0,10);
+  if (typeof initSigCanvas === 'function') {
+    initSigCanvas('ns-member-canvas', function(d){ _nsMemberSig = d; });
+    initSigCanvas('ns-staff-canvas',  function(d){ _nsStaffSig  = d; });
+  }
+}
+
+function openMemberRights(mid) {
+  const m = MEMBERS.find(x => x.id === mid);
+  if (!m) return;
+  _mrMid = mid;
+  document.getElementById('frm-list').style.display = 'none';
+  document.getElementById('frm-member-rights').style.display = 'block';
+  const mn = document.getElementById('mr-name'); if (mn) mn.textContent = m.kr + ' (' + m.en + ')';
+  const md = document.getElementById('mr-dob');  if (md) md.textContent = m.dob || '';
+  const mdate = document.getElementById('mr-date'); if (mdate) mdate.value = new Date().toISOString().slice(0,10);
+  if (typeof initSigCanvas === 'function') initSigCanvas('mr-sig-canvas', function(d){ _mrSig = d; });
+}
+
+// ── Assessment 스텝 이동 ──────────────────────────────────────
+function goAssessStep(n) {
+  const steps = document.querySelectorAll('#frm-assessment .as-step');
+  const tabs  = document.querySelectorAll('#frm-assessment .as-tab');
+  steps.forEach((s, i) => s.style.display = i === n ? 'block' : 'none');
+  tabs.forEach((t, i) => t.classList.toggle('active', i === n));
+  _asmt.step = n;
+  const total = steps.length;
+  const pf  = document.getElementById('as-pf');   if (pf)   pf.style.width = ((n+1)/total*100) + '%';
+  const ctr = document.getElementById('as-pctr'); if (ctr)  ctr.textContent = (n+1) + ' / ' + total;
+  const prv = document.getElementById('as-prev'); if (prv)  prv.style.visibility = n === 0 ? 'hidden' : 'visible';
+  const nxt = document.getElementById('as-next'); if (nxt)  nxt.textContent = n === total-1 ? '완료' : '다음';
+  const pcspBtn = document.getElementById('as-pcsp-btn');
+  if (pcspBtn) pcspBtn.style.display = n === total-1 ? 'block' : 'none';
+}
+
+function nextAssessStep() {
+  const steps = document.querySelectorAll('#frm-assessment .as-step');
+  if (_asmt.step < steps.length - 1) goAssessStep(_asmt.step + 1);
+  else { alert('✅ Assessment 완료!'); initFormsTab(); }
+}
+
+function prevAssessStep() {
+  if (_asmt.step > 0) goAssessStep(_asmt.step - 1);
+}
+
+// ── BMI 계산 ──────────────────────────────────────────────────
+function calcNSBMI() {
+  const h = parseFloat(document.getElementById('ns-height').value);
+  const w = parseFloat(document.getElementById('ns-weight').value);
+  const el = document.getElementById('ns-bmi');
+  if (!el) return;
+  if (h > 0 && w > 0) {
+    const bmi = (w / (h * h) * 703).toFixed(1);
+    el.value = bmi;
+  } else {
+    el.value = '';
+  }
+}
+
+// ── 서명 지우기 ───────────────────────────────────────────────
+function clearNSSig(who) {
+  const id  = who === 'member' ? 'ns-member-canvas' : 'ns-staff-canvas';
+  const eid = who === 'member' ? 'ns-member-empty'  : 'ns-staff-empty';
+  const canvas = document.getElementById(id);
+  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  const empty = document.getElementById(eid); if (empty) empty.style.display = 'flex';
+  if (who === 'member') _nsMemberSig = null; else _nsStaffSig = null;
+}
+
+function clearMRSig() {
+  const canvas = document.getElementById('mr-sig-canvas');
+  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  const empty = document.getElementById('mr-sig-empty'); if (empty) empty.style.display = 'flex';
+  _mrSig = null;
+}
