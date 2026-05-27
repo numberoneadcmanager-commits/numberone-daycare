@@ -1534,10 +1534,9 @@ function printPCSP(id){
 }
 
 // ── Staff (간소화) ────────────────────────────────────────
-function renderOpStaff(){
+async function renderOpStaff(){
   var STAFF_OP=[];
   try{var sr=await apiCall({action:'read',sheet:'스태프'});if(sr.ok&&sr.data)STAFF_OP=sr.data;}catch(e){}
-  var __dummy=0;
   var e=document.getElementById('op-staff-total');if(e)e.textContent=STAFF_OP.length;
   var today=new Date().toISOString().slice(0,10);
   var exp=0,soon=0;
