@@ -3,8 +3,6 @@
 // apps/auth.js
 // ══════════════════════════════════════════════════════════════
 
-function saveAuthStorage() { localStorage.setItem('auth_list', JSON.stringify(AUTH_LIST)); }
-
 function authStatus(endDate) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const diff  = Math.floor((new Date(endDate + 'T00:00:00') - today) / 86400000);
@@ -117,7 +115,7 @@ function filterAuthMemberList() {
   const el = document.getElementById('auth-member-selected'); if (el) el.style.display = 'none';
 }
 
-function saveAuth() {
+async function saveAuth() {
   const sel      = document.getElementById('auth-member-sel');
   const memberId = sel && sel.value ? sel.value : '';
   const authNo   = document.getElementById('auth-number').value.trim();
@@ -138,21 +136,23 @@ function saveAuth() {
   };
   if (editId2) { const idx = AUTH_LIST.findIndex(x => x.id === editId2); if (idx >= 0) AUTH_LIST[idx] = entry; else AUTH_LIST.push(entry); }
   else AUTH_LIST.push(entry);
-  saveAuthStorage();
-  if (apiUrl) {
-    apiCall({}, {
-      action: editId2 ? 'update' : 'append', sheet: 'auth', id: editId2 || null,
+
+  try {
+    await SheetsAPI.post({
+      action: editId2 ? 'update' : 'append',
+      sheet: 'auth',
+      id: editId2 || null,
       data: { 'ID': entry.id, '멤버ID': entry.memberId, '보험사': entry.insurer, 'Auth번호': entry.authNo, '시작일': entry.startDate, '종료일': entry.endDate, '서비스유형': entry.service, '메모': entry.note },
-    }).catch(e => console.log('Auth Sheets sync:', e));
-  }
+    });
+  } catch (e) { console.log('Auth Sheets sync:', e); }
+
   closeOv('ov-auth'); renderAuthList();
 }
 
 function editAuth(id)   { openAuthModal(id); }
-function deleteAuth(id) {
+async function deleteAuth(id) {
   if (!confirm('삭제하시겠어요?')) return;
   AUTH_LIST = AUTH_LIST.filter(x => x.id !== id);
-  saveAuthStorage();
-  if (apiUrl) apiCall({}, { action: 'delete', sheet: 'auth', id }).catch(() => {});
+  try { await SheetsAPI.post({ action: 'delete', sheet: 'auth', id }); } catch (e) {}
   renderAuthList();
 }
