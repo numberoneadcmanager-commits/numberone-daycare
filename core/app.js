@@ -342,7 +342,7 @@ td:first-child{font-weight:700;color:#555;width:100px}
 }
 
 // ── 초기화 (모든 스크립트 로드 완료 후) ──────────────────────
-window.addEventListener('load', function () {
+document.addEventListener('DOMContentLoaded', function () {
   // Google Auth
   if (typeof google !== 'undefined' && google.accounts) {
     initGoogleAuth();
