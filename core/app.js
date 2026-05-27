@@ -159,9 +159,11 @@ async function loadAllData() {
     incidents  = all.incidents;
     activities = all.activities;
     cases      = all.cases;
-    if (all.authList.length) { AUTH_LIST = all.authList; saveAuthStorage(); }
+    if (all.authList.length)    AUTH_LIST    = all.authList;
+    if (all.visitorList.length) VISITOR_LIST = all.visitorList;
+    if (all.councilList.length) COUNCIL_LIST = all.councilList;
     renderIncidents(); renderActivities(); renderCases();
-    updateDashNow(); renderAuthList(); filterM();
+    updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
   } catch (e) { console.log('loadAllData error:', e); }
 }
 
