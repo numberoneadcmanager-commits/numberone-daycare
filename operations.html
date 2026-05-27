@@ -798,6 +798,15 @@ function openOv(id){document.getElementById(id).classList.add('open');document.g
 function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
 
 // ── API Call ─────────────────────────────────────────────
+// GET: 읽기 전용 (CORS preflight 없음)
+async function apiGet(params){
+  try{
+    var url=API_URL+'?'+Object.keys(params).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);}).join('&');
+    var r=await fetch(url);
+    return await r.json();
+  }catch(e){return {ok:false,error:e.message};}
+}
+// POST: 쓰기 전용
 async function apiCall(data){
   try{
     var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(data)});
@@ -1177,6 +1186,7 @@ function deleteAct(id){if(!confirm('삭제?'))return;ACT_LIST=ACT_LIST.filter(fu
 
 // ── PCSP 7단계 ───────────────────────────────────────────
 var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+var OP_MEMBERS=[];  // 멤버 캐시 (initData에서 GET으로 한번만 로드)
 function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PCSP_LIST));}
 var _pcspStep=0,_pcspDays=new Set(),_pcspContacts=[],_pcspRisks=[],_pcspGoals=[],_pcspCommunity=[],_pcspFilter='all';
 var PCSP_ADL_ITEMS=['Mobility','Transfers','Toileting','Continence','Eating'];
@@ -1200,7 +1210,7 @@ function renderPCSPList(){
   var q=(document.getElementById('pcsp-search')||{}).value||'';
   var today=new Date().toISOString().slice(0,10);
   var list=PCSP_LIST.filter(function(p){
-    var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').includes(q);
+    var ql=q.toLowerCase();var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').toLowerCase().includes(ql)||(p.nameFirst||'').toLowerCase().includes(ql);
     var due=p.nextdate&&p.nextdate<=today;
     return (_pcspFilter==='all'||(_pcspFilter==='due'&&due)||(_pcspFilter==='ok'&&!due))&&match;
   }).sort(function(a,b){return (a.nextdate||'9999')>(b.nextdate||'9999')?1:-1;});
@@ -1241,31 +1251,31 @@ function renderPCSPMemberList(){
   var el=document.getElementById('pcsp-member-list');
   if(!el)return;
 
-  // Sheets에서 멤버 로드
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
-    var members=[];
-    if(res.ok&&res.data){
-      members=res.data.filter(function(r){
-        return r['상태']!=='disenrolled' && r['ID'] &&
-          (!q||(r['한글이름']||'').includes(q)||(r['영문이름']||'').toLowerCase().includes(q));
-      });
-    }
-    if(!members.length){
+  function renderList(){
+    var filtered=OP_MEMBERS.filter(function(r){
+      return r['상태']!=='disenrolled' && r['ID'] &&
+        (!q||(r['한글이름']||'').includes(q)||(r['영문이름']||'').toLowerCase().includes(q));
+    });
+    if(!filtered.length){
       el.innerHTML='<div class="empty-msg">멤버를 찾을 수 없어요</div>';
       return;
     }
-    el.innerHTML=members.map(function(m){
+    el.innerHTML=filtered.map(function(m){
       return '<div class="log-card" style="cursor:pointer" onclick="selectPCSPMember('+JSON.stringify(m).replace(/"/g,'&quot;')+')">'
         +'<div class="log-top">'
-        +'<div class="log-name">'+m['한글이름']+'</div>'
-        +'<span style="font-size:11px;color:#8E8E93">'+m['영문이름']+'</span>'
+        +'<div class="log-name">'+(m['한글이름']||'')+'</div>'
+        +'<span style="font-size:11px;color:#8E8E93">'+(m['영문이름']||'')+'</span>'
         +'</div>'
-        +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+m['Medicaid']+'  ·  '+m['보험사']+'</div>'
+        +'<div style="font-size:11px;color:#8E8E93">Medicaid: '+(m['Medicaid']||'')+'  ·  '+(m['보험사']||'')+'</div>'
         +'</div>';
     }).join('');
-  }).catch(function(){
-    el.innerHTML='<div class="empty-msg">멤버 로드 실패 — Sheets 연결을 확인해주세요</div>';
-  });
+  }
+
+  if(OP_MEMBERS.length){
+    renderList();
+  } else {
+    el.innerHTML='<div class="empty-msg">멤버 로딩 중... (앱 초기화 후 다시 시도해주세요)</div>';
+  }
 }
 
 function selectPCSPMember(m){
@@ -1552,22 +1562,25 @@ function renderOpStaff(){
 function openStaffModal(){ window.location.href='index.html'; }
 
 // ── 초기화 ────────────────────────────────────────────────
-function initData(){
+async function initData(){
   renderAudit();
+
+  // 멤버 데이터 GET으로 미리 로드 (CORS preflight 없음)
+  try{
+    var res = await apiGet({action:'read', sheet:'멤버'});
+    if(res.ok && res.data) OP_MEMBERS = res.data.filter(function(m){ return m['ID']; });
+  }catch(e){ console.log('멤버 로드 오류:', e); }
+
   // URL 파라미터 처리 (케어 관리 앱에서 넘어온 경우)
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
   var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
   if(tab === 'pcsp'){
     localStorage.removeItem('pcsp_prefill_mid');
-    // PCSP 탭으로 이동
     var pcspTab = document.querySelector('.tab[onclick*="pcsp"]');
     goTab('pcsp', pcspTab);
-    // 멤버 정보 prefill
     if(mid){
-      setTimeout(function(){
-        prefillPCSPFromMember(mid);
-      }, 300);
+      setTimeout(function(){ prefillPCSPFromMember(mid); }, 300);
     } else {
       setTimeout(function(){ openPCSPForm(); }, 300);
     }
@@ -1575,17 +1588,12 @@ function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
-    var member=null;
-    if(res.ok&&res.data){
-      member=res.data.find(function(r){return String(r['ID'])===String(mid);});
-    }
-    if(member){
-      selectPCSPMember(member);
-    } else {
-      openPCSPForm();
-    }
-  }).catch(function(){openPCSPForm();});
+  var member = OP_MEMBERS.find(function(r){ return String(r['ID'])===String(mid); });
+  if(member){
+    selectPCSPMember(member);
+  } else {
+    openPCSPForm();
+  }
 }
 </script>
 </body>
