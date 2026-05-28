@@ -170,14 +170,213 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <option value="">— 멤버 선택 —</option>
         </select>
         <div id="forms-hub-list" style="display:none">
-          <!-- 공식 폼 -->
           <div style="font-size:11px;font-weight:700;color:#8E8E93;margin:8px 0 4px">공식 폼</div>
           <div id="forms-official-list"></div>
-          <!-- 신분증/카드 -->
           <div style="font-size:11px;font-weight:700;color:#8E8E93;margin:10px 0 4px">신분증 / 카드</div>
           <div id="forms-id-list"></div>
         </div>
         <div id="forms-hub-empty" style="font-size:12px;color:#C7C7CC;text-align:center;padding:8px">멤버를 선택하면 폼 목록이 표시됩니다</div>
+      </div>
+
+      <!-- Member Rights 폼 -->
+      <div id="frm-member-rights" style="display:none">
+        <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px">📄 Participant's Bill of Rights / 참여자 권리 장전</div>
+          <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:700" id="mr-name"></div>
+            <div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="mr-dob"></span></div>
+          </div>
+          <div class="fg"><div class="fl">서명 날짜</div><input class="fi" type="date" id="mr-date"></div>
+          <div style="background:#FFF3EE;border:1.5px solid #FECDB8;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.8">
+            <div style="font-weight:700;color:#D85A30;margin-bottom:8px">참여자 권리 요약 (Participant Rights Summary)</div>
+            <div>✅ 차별받지 않을 권리 · Right to non-discrimination</div>
+            <div>✅ 존엄성 및 안전 · Dignity and safety</div>
+            <div>✅ 서비스 선택권 · Right to choose services</div>
+            <div>✅ 프로그램 참여권 · Right to program involvement</div>
+            <div>✅ 사적 공간 접근권 · Access to private space</div>
+            <div>✅ 소통 및 정보 접근 · Communication and information access</div>
+            <div>✅ 고충 처리 권리 · Right to file grievance</div>
+            <div>✅ 프로그램 중단 권리 · Right to stop program at any time</div>
+          </div>
+          <div style="margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:11px;font-weight:700;color:#3C3C43">참여자 서명 (Participant Signature)</div>
+              <button onclick="clearMRSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
+            </div>
+            <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
+              <canvas id="mr-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas>
+              <div id="mr-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>여기에 서명하세요</div></div>
+            </div>
+          </div>
+          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">📄 PDF 생성 및 인쇄</button>
+        </div>
+      </div>
+
+      <!-- Nutrition Screening 폼 -->
+      <div id="frm-nutrition" style="display:none">
+        <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="font-size:14px;font-weight:700;margin-bottom:12px">🥗 Nutrition Screening / 영양 스크리닝</div>
+          <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px"><div style="font-size:13px;font-weight:700" id="ns-name"></div><div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="ns-dob"></span></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">날짜</div><input class="fi" type="date" id="ns-date"></div><div><div class="fl">Height (inches)</div><input class="fi" type="number" id="ns-height" placeholder="60" oninput="calcNSBMI()"></div></div>
+          <div class="frow" style="margin-bottom:10px"><div><div class="fl">Weight (lbs)</div><input class="fi" type="number" id="ns-weight" placeholder="140" oninput="calcNSBMI()"></div><div><div class="fl">BMI (자동계산)</div><input class="fi" type="text" id="ns-bmi" readonly style="background:#F2F2F7;font-weight:700;font-size:16px"></div></div>
+          <div class="fg"><div class="fl">Assessment(체중진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-assess-normal"> Normal(정상)</label><label><input type="checkbox" id="ns-assess-under"> Underweight(미달)</label><label><input type="checkbox" id="ns-assess-over"> Overweight(과체중)</label><label><input type="checkbox" id="ns-assess-obese"> Obese(비만)</label></div></div>
+          <div class="fg"><div class="fl">Diagnosis(진단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-dx-htn"> Hypertension(고혈압)</label><label><input type="checkbox" id="ns-dx-hld"> Hyperlipidemia(고지혈증)</label><label><input type="checkbox" id="ns-dx-dm"> Diabetes(당뇨)</label><label><input type="checkbox" id="ns-dx-ckd"> Kidney Disease(신부전)</label><label><input type="checkbox" id="ns-dx-other"> Others</label></div></div>
+          <div class="fg"><div class="fl">Current Diet(현재식단)</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-diet-na"> 2gm Na(저염)</label><label><input type="checkbox" id="ns-diet-lf"> Low fat(저지방)</label><label><input type="checkbox" id="ns-diet-carb"> Consistent Carb.</label><label><input type="checkbox" id="ns-diet-renal"> Renal(신장)</label></div><input class="fi" id="ns-diet-other" placeholder="Others 설명" style="margin-top:6px"></div>
+          <div class="fg"><div class="fl">Food Allergies(음식 알레르기)</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="ns-allergy-no"> No</label><label style="font-size:13px"><input type="checkbox" id="ns-allergy-yes"> Yes</label><input class="fi" id="ns-allergy-spec" placeholder="Specify" style="flex:1;min-width:120px;margin:0"></div></div>
+          <div class="fl" style="margin-bottom:8px">Yes/No Questions</div>
+          <div style="border:1.5px solid #E5E5EA;border-radius:12px;overflow:hidden;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">1. Underweight(저체중) BMI &lt;18</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q1-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q1-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">2. Obese(비만) BMI &gt;30</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q2-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q2-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">3. Unintentional Weight Loss(급격한 체중감소)</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q3-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q3-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:.5px solid #E5E5EA"><span style="font-size:12px">4. Diabetes or HgbA1c &gt;5.7%</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q4-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q4-yes"> Yes</label></div></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px"><span style="font-size:12px">5. Chronic Kidney Disease(신부전증)</span><div style="display:flex;gap:12px"><label style="font-size:12px"><input type="checkbox" id="ns-q5-no"> No</label><label style="font-size:12px"><input type="checkbox" id="ns-q5-yes"> Yes</label></div></div>
+          </div>
+          <div class="fg"><div class="fl">Nutrition Counselling(영양 상담)</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="ns-counsel-accept"> Accepted(승인)</label><label><input type="checkbox" id="ns-counsel-decline"> Declined(거부)</label></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:11px;font-weight:700;color:#3C3C43">회원 서명</div><button onclick="clearNSSig('member')" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div><div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="ns-member-canvas" width="300" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas><div id="ns-member-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:12px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>회원 서명</div></div></div></div>
+            <div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:11px;font-weight:700;color:#3C3C43">스태프 서명</div><button onclick="clearNSSig('staff')" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div><div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="ns-staff-canvas" width="300" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas><div id="ns-staff-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:12px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>스태프 서명</div></div></div></div>
+          </div>
+          <button class="btn-full btn-primary" onclick="generateNutritionPDF()" style="padding:14px;font-size:14px">🥗 PDF 생성 및 인쇄</button>
+        </div>
+      </div>
+
+      <!-- Assessment 폼 -->
+      <div id="frm-assessment" style="display:none">
+        <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="height:3px;background:#E5E5EA"><div id="as-pf" style="height:3px;background:#D85A30;transition:width .3s;width:14%"></div></div>
+          <div style="display:flex;overflow-x:auto;border-bottom:.5px solid #E5E5EA;-webkit-overflow-scrolling:touch">
+            <div class="as-tab active" onclick="goAssessStep(0)">기본정보</div>
+            <div class="as-tab" onclick="goAssessStep(1)">ADL</div>
+            <div class="as-tab" onclick="goAssessStep(2)">소통/주거</div>
+            <div class="as-tab" onclick="goAssessStep(3)">정신/사회</div>
+            <div class="as-tab" onclick="goAssessStep(4)">영양/건강</div>
+            <div class="as-tab" onclick="goAssessStep(5)">지원/연락처</div>
+            <div class="as-tab" onclick="goAssessStep(6)">개인이력</div>
+          </div>
+          <!-- Step 0 기본정보 -->
+          <div class="as-step pstep" style="padding:14px">
+            <div style="background:#FFF3EE;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:700;color:#D85A30" id="as-member-header">멤버 정보</div>
+            <div class="frow" style="margin-bottom:10px"><div><div class="fl">작성 유형</div><div style="display:flex;gap:12px;margin-top:4px;font-size:13px"><label><input type="radio" name="as-type" id="as-type-initial" value="Initial" checked> Initial</label><label><input type="radio" name="as-type" id="as-type-re" value="Reassessment"> Reassessment</label><label><input type="radio" name="as-type" id="as-type-other" value="Other"> Other</label></div></div><div><div class="fl">평가일</div><input class="fi" type="date" id="as-date"></div></div>
+            <div class="fg"><div class="fl">평가자 이름</div><input class="fi" id="as-assessor" placeholder="평가자 이름, 직책"></div>
+            <div class="fg"><div class="fl">정보 출처</div><div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px"><label><input type="checkbox" id="as-src-pt"> Participant</label><label><input type="checkbox" id="as-src-sp"> Spouse</label><label><input type="checkbox" id="as-src-dr"> Physician</label><label><input type="checkbox" id="as-src-ff"> Family/Friends</label><label><input type="checkbox" id="as-src-ot"> Other</label></div></div>
+            <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">참여자</div><div style="font-size:14px;font-weight:700" id="as-name-kr"></div><div style="font-size:11px;color:#8E8E93" id="as-name-en"></div></div>
+            <div class="frow"><div><div class="fl">생년월일</div><input class="fi" type="date" id="as-dob"></div><div><div class="fl">성별</div><div style="display:flex;gap:12px;margin-top:8px;font-size:13px"><label><input type="radio" name="as-gender" id="as-gender-f" value="Female" checked> Female</label><label><input type="radio" name="as-gender" id="as-gender-m" value="Male"> Male</label></div></div></div>
+            <div class="fg"><div class="fl">Medicaid #</div><input class="fi" id="as-medicaid"></div>
+            <div class="fg"><div class="fl">Medicare #</div><input class="fi" id="as-medicare"></div>
+            <div class="fg"><div class="fl">전화번호</div><input class="fi" type="tel" id="as-phone"></div>
+            <div class="fg"><div class="fl">주소</div><input class="fi" id="as-addr"></div>
+            <div class="fg"><div class="fl">Elevator</div><div style="display:flex;gap:12px;margin-top:4px;font-size:13px"><label><input type="checkbox" id="as-elevator-y"> Yes</label><label><input type="checkbox" id="as-elevator-n"> No</label></div></div>
+            <div class="fg"><div class="fl">SSN (마지막 4자리)</div><input class="fi" id="as-ssn" placeholder="XXX-XX-####"></div>
+            <div class="fg"><div class="fl">Marital Status</div><input class="fi" id="as-marital" placeholder="Single / Married / Widowed"></div>
+            <div class="fg"><div class="fl">Race/Ethnicity</div><input class="fi" id="as-race" placeholder="Korean / Asian"></div>
+            <div class="fg"><div class="fl">U.S. Citizen?</div><div style="display:flex;gap:12px;margin-top:4px;font-size:13px"><label><input type="checkbox" id="as-citizen-y"> Yes</label><label><input type="checkbox" id="as-citizen-n"> No</label></div></div>
+            <div class="fg"><div class="fl">주 언어</div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input class="fi" id="as-lang1" placeholder="Korean" style="width:100px"><label style="font-size:12px"><input type="checkbox" id="as-lang1-sp"> Speaks</label><label style="font-size:12px"><input type="checkbox" id="as-lang1-rd"> Reads</label><label style="font-size:12px"><input type="checkbox" id="as-lang1-un"> Understands</label><label style="font-size:12px"><input type="checkbox" id="as-lang1-wr"> Writes</label></div></div>
+            <div class="fg"><div class="fl">제2언어</div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input class="fi" id="as-lang2" placeholder="English" style="width:100px"><label style="font-size:12px"><input type="checkbox" id="as-lang2-sp"> Speaks</label><label style="font-size:12px"><input type="checkbox" id="as-lang2-rd"> Reads</label><label style="font-size:12px"><input type="checkbox" id="as-lang2-un"> Understands</label><label style="font-size:12px"><input type="checkbox" id="as-lang2-wr"> Writes</label></div></div>
+            <div class="fg"><div class="fl">주치의</div><input class="fi" id="as-pcp"></div>
+          </div>
+          <!-- Step 1 ADL -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="info-note" style="margin-bottom:10px">1=완전독립 · 2=약간도움 · 3=많은도움 · 4=참여거부</div>
+            <div style="font-size:12px;font-weight:700;color:#3C3C43;margin-bottom:8px">ADLs (기본 일상생활)</div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">목욕 (Bathing)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-bathing-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-bathing-met"> Met Home</label><input class="fi" id="adl-bathing-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">개인위생 (Hygiene)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-hygiene-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-hygiene-met"> Met Home</label><input class="fi" id="adl-hygiene-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">옷입기 (Dressing)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-dressing-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-dressing-met"> Met Home</label><input class="fi" id="adl-dressing-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">이동 (Mobility)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-mobility-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-mobility-met"> Met Home</label><input class="fi" id="adl-mobility-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">이동보조 (Transferring)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-transfer-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-transfer-met"> Met Home</label><input class="fi" id="adl-transfer-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">식사 (Eating)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-eating-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-eating-met"> Met Home</label><input class="fi" id="adl-eating-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">화장실 (Toileting)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="adl-toilet-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="adl-toilet-met"> Met Home</label><input class="fi" id="adl-toilet-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div class="fg"><div class="fl">실금 - 소변</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="inc-urine-nev"> Never</label><label><input type="checkbox" id="inc-urine-occ"> Occasionally</label><label><input type="checkbox" id="inc-urine-usu"> Usually</label></div></div>
+            <div class="fg"><div class="fl">실금 - 대변</div><div style="display:flex;gap:10px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="inc-bowel-nev"> Never</label><label><input type="checkbox" id="inc-bowel-occ"> Occasionally</label><label><input type="checkbox" id="inc-bowel-usu"> Usually</label></div></div>
+            <div class="fg"><div class="fl">Special Devices</div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><label style="font-size:13px"><input type="checkbox" id="devices-n"> No</label><label style="font-size:13px"><input type="checkbox" id="devices-y"> Yes</label><input class="fi" id="devices-spec" placeholder="종류" style="flex:1"></div></div>
+            <div class="fg"><div class="fl">ADL Comments</div><textarea class="fta" id="adl-comments" rows="2"></textarea></div>
+            <div style="font-size:12px;font-weight:700;color:#3C3C43;margin:10px 0 8px">IADLs</div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">청소 (Housework)</div><div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:6px"><select class="fs" id="iadl-house-st"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option></select><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="iadl-house-met"> Met Home</label><input class="fi" id="iadl-house-by" placeholder="By Whom" style="font-size:12px"></div></div>
+            <div style="background:#F9F9F9;border-radius:10px;padding:10px;margin-bottom:6px"><div style="font-size:12px;font-weight:700;margin-bottom:6px">쇼핑/세탁/교통/요리</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><select class="fs" id="iadl-shop-st"><option value="">쇼핑</option><option>1</option><option>2</option><option>3</option><option>4</option></select><select class="fs" id="iadl-laundry-st"><option value="">세탁</option><option>1</option><option>2</option><option>3</option><option>4</option></select><select class="fs" id="iadl-trans-st"><option value="">교통</option><option>1</option><option>2</option><option>3</option><option>4</option></select><select class="fs" id="iadl-cook-st"><option value="">요리</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>
+            <div class="fg"><div class="fl">IADL Comments</div><textarea class="fta" id="iadl-comments" rows="2"></textarea></div>
+          </div>
+          <!-- Step 2 소통/주거 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">청력 (Hearing)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:13px"><label><input type="checkbox" id="hear-adeq"> Adequate</label><label><input type="checkbox" id="hear-min"> Minimal Difficulty</label><label><input type="checkbox" id="hear-some"> Sometimes Understood</label><label><input type="checkbox" id="hear-imp"> Highly Impaired</label></div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">의사표현 (Making Self Understood)</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-size:13px"><label><input type="checkbox" id="comm-easy"> Easily Understood</label><label><input type="checkbox" id="comm-some"> Sometimes Understood</label><label><input type="checkbox" id="comm-usu"> Usually Understands</label><label><input type="checkbox" id="comm-rare"> Rarely/Never</label></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="comm-comments" rows="2"></textarea></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">주거 안전</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin-bottom:8px"><label><input type="checkbox" id="house-lock"> Special locks</label><label><input type="checkbox" id="house-rail"> Bathroom rails</label><label><input type="checkbox" id="house-smoke"> Smoke alarm</label><label><input type="checkbox" id="house-door"> Doorman</label></div>
+            <div class="fg"><div class="fl">Neighborhood Safe?</div><input class="fi" id="house-safe" placeholder="Yes / No"></div>
+          </div>
+          <!-- Step 3 정신/사회 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="info-note" style="margin-bottom:10px">지난 1달간 5회 이상: H=자택, P=프로그램</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:11px">
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Short-Term Memory</div><label><input type="checkbox" id="psych-mem-h"> H</label> <label><input type="checkbox" id="psych-mem-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Depression</div><label><input type="checkbox" id="psych-sad-h"> H</label> <label><input type="checkbox" id="psych-sad-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Anxiety</div><label><input type="checkbox" id="psych-anx-h"> H</label> <label><input type="checkbox" id="psych-anx-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Impaired Decision</div><label><input type="checkbox" id="psych-dec-h"> H</label> <label><input type="checkbox" id="psych-dec-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Hallucinations</div><label><input type="checkbox" id="psych-hall-h"> H</label> <label><input type="checkbox" id="psych-hall-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Substance Abuse</div><label><input type="checkbox" id="psych-sub-h"> H</label> <label><input type="checkbox" id="psych-sub-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Anger / Aggression</div><label><input type="checkbox" id="psych-ang-h"> H</label> <label><input type="checkbox" id="psych-ang-p"> P</label></div>
+              <div style="background:#F9F9F9;border-radius:8px;padding:8px"><div style="font-weight:600;margin-bottom:4px">Wandering</div><label><input type="checkbox" id="psych-wand-h"> H</label> <label><input type="checkbox" id="psych-wand-p"> P</label></div>
+            </div>
+            <div class="fg"><div class="fl">정신건강 치료 이력</div><div style="display:flex;gap:12px;font-size:13px;margin-top:4px"><label><input type="checkbox" id="psych-tx-n"> No</label><label><input type="checkbox" id="psych-tx-y"> Yes</label></div></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="psych-comments" rows="2"></textarea></div>
+          </div>
+          <!-- Step 4 영양/건강 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="frow"><div><div class="fl">키</div><input class="fi" id="nut-height" placeholder="5'2&quot;"></div><div><div class="fl">체중</div><input class="fi" id="nut-weight" placeholder="130 lbs"></div></div>
+            <div class="fg"><div class="fl">만성질환</div><div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-top:4px"><label><input type="checkbox" id="ch-heart"> Heart</label><label><input type="checkbox" id="ch-dm"> Diabetes</label><label><input type="checkbox" id="ch-htn"> Hypertension</label><label><input type="checkbox" id="ch-arth"> Arthritis</label><label><input type="checkbox" id="ch-alz"> Alzheimer's</label><label><input type="checkbox" id="ch-copd"> COPD</label><label><input type="checkbox" id="ch-park"> Parkinson's</label><label><input type="checkbox" id="ch-dem"> Dementia</label></div></div>
+            <div class="fg"><div class="fl">보조기기</div><div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;margin-top:4px"><label><input type="checkbox" id="dev-cane"> Cane</label><label><input type="checkbox" id="dev-walker"> Walker</label><label><input type="checkbox" id="dev-wc"> Wheelchair</label><label><input type="checkbox" id="dev-glasses"> Eyeglasses</label><label><input type="checkbox" id="dev-dentures"> Dentures</label><label><input type="checkbox" id="dev-hearing"> Hearing Aid</label></div></div>
+            <div style="font-size:12px;font-weight:700;margin:10px 0 6px">복용 약물</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px;font-size:10px;color:#8E8E93"><span>약물명</span><span>용량/빈도</span><span>복용 이유</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><input class="fi" id="med-1-name" placeholder="약물명" style="font-size:12px"><input class="fi" id="med-1-dose" placeholder="용량" style="font-size:12px"><input class="fi" id="med-1-reason" placeholder="이유" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><input class="fi" id="med-2-name" style="font-size:12px"><input class="fi" id="med-2-dose" style="font-size:12px"><input class="fi" id="med-2-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><input class="fi" id="med-3-name" style="font-size:12px"><input class="fi" id="med-3-dose" style="font-size:12px"><input class="fi" id="med-3-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px"><input class="fi" id="med-4-name" style="font-size:12px"><input class="fi" id="med-4-dose" style="font-size:12px"><input class="fi" id="med-4-reason" style="font-size:12px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><input class="fi" id="med-5-name" style="font-size:12px"><input class="fi" id="med-5-dose" style="font-size:12px"><input class="fi" id="med-5-reason" style="font-size:12px"></div>
+            <div class="fg"><div class="fl">Comments</div><textarea class="fta" id="health-comments" rows="2"></textarea></div>
+          </div>
+          <!-- Step 5 지원/연락처 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">주 보호자 (Primary Caregiver)</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="care-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="care-rel" placeholder="딸/Son"></div><div><div class="fl">전화</div><input class="fi" type="tel" id="care-hphone"></div></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">비상 연락처 1</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="ec1-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="ec1-rel"></div><div><div class="fl">전화</div><input class="fi" type="tel" id="ec1-hphone"></div></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">비상 연락처 2</div>
+            <div class="fg"><div class="fl">이름</div><input class="fi" id="ec2-name"></div>
+            <div class="frow"><div><div class="fl">관계</div><input class="fi" id="ec2-rel"></div><div><div class="fl">전화</div><input class="fi" type="tel" id="ec2-hphone"></div></div>
+            <div style="font-size:12px;font-weight:700;margin:12px 0 8px">거주 환경</div>
+            <div class="fg"><div class="fl">거주 형태</div><input class="fi" id="living-arr" placeholder="혼자 / 가족과 함께"></div>
+          </div>
+          <!-- Step 6 개인이력 -->
+          <div class="as-step pstep" style="display:none;padding:14px">
+            <div class="fg"><div class="fl">직업 배경</div><textarea class="fta" id="ph-work" rows="2" placeholder="전직업, 경력 등"></textarea></div>
+            <div class="fg"><div class="fl">학력</div><input class="fi" id="ph-edu" placeholder="고졸, 대졸 등"></div>
+            <div class="fg"><div class="fl">취미/관심사</div><textarea class="fta" id="ph-hobbies" rows="2" placeholder="한국 음악, 산책 등"></textarea></div>
+            <div class="fg"><div class="fl">종교</div><input class="fi" id="ph-religion" placeholder="기독교, 불교 등"></div>
+            <div class="fg"><div class="fl">프로그램 기대</div><textarea class="fta" id="ph-hopes" rows="3" placeholder="사회적 교류, 건강 유지 등"></textarea></div>
+            <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#085041">✅ 모든 섹션 완료 후 서명 후 저장해주세요.</div>
+            <div style="margin-top:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:12px;font-weight:700">참여자 서명</div><button onclick="clearPtSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div>
+              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="pt-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas><div id="pt-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>참여자 서명</div></div></div>
+            </div>
+            <div style="margin-top:14px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><div style="font-size:12px;font-weight:700">평가자 서명</div><button onclick="clearAsSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button></div>
+              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none"><canvas id="as-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas><div id="as-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>평가자 서명</div></div></div>
+            </div>
+            <button class="btn-full btn-primary" onclick="saveAssessment()" style="margin-top:14px;padding:14px;font-size:14px">💾 Assessment 저장 (Drive)</button>
+          </div>
+          <div id="as-pcsp-btn" style="display:none;margin:10px 14px 0"><button class="btn-full" style="padding:13px;border-radius:12px;background:#E1F5EE;color:#085041;border:1.5px solid #9FE1CB;font-size:14px;font-weight:700;cursor:pointer" onclick="goToFormsAndOpenPCSP()">📋 이 Assessment로 PCSP 자동 작성 →</button></div>
+          <div class="pstep-footer">
+            <button class="pnav pnav-prev" id="as-prev" onclick="prevAssessStep()" style="visibility:hidden">이전</button>
+            <div class="pctr" id="as-pctr">1 / 7</div>
+            <button class="pnav pnav-next" id="as-next" onclick="nextAssessStep()">다음</button>
+          </div>
+        </div>
       </div>
 
       <div style="height:1px;background:#E5E5EA;margin:4px 0 12px"></div>
@@ -1888,16 +2087,176 @@ function renderFormsHub(){
   document.getElementById('forms-id-list').innerHTML = idHtml;
 }
 
-function openPCSPForMember(mid, mName){
-  // PCSP 탭으로 이동하고 멤버 선택
-  prefillPCSPFromMember(mid);
-  document.getElementById('pcsp-list-view').style.display='none';
-  document.getElementById('pcsp-member-select').style.display='none';
+function openPCSPForMember(mid, mName){ prefillPCSPFromMember(mid); }
+
+var _asmt={mid:null,type:'Initial',step:0};
+var _asSig=null,_ptSig=null,_nsMid=null,_nsMemberSig=null,_nsStaffSig=null,_mrMid=null,_mrSig=null;
+
+function closeFrmBack(){
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';
+  ['frm-assessment','frm-nutrition','frm-member-rights'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+  var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='block';
 }
 
-function openAssessmentForMember(mid, mName){ alert('Assessment 기능 준비중입니다.\n멤버: '+mName); }
-function openNutritionForMember(mid, mName){ alert('Nutrition Screening 기능 준비중입니다.\n멤버: '+mName); }
-function openMemberRightsForMember(mid, mName){ alert('Member Rights 기능 준비중입니다.\n멤버: '+mName); }
+function openAssessmentForMember(mid,mName){
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
+  _asmt.mid=mid;_asmt.step=0;
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  document.getElementById('frm-assessment').style.display='block';
+  var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
+  var hdr=document.getElementById('as-member-header');if(hdr)hdr.textContent=member['한글이름']+' ('+member['영문이름']+')';
+  var nkr=document.getElementById('as-name-kr');if(nkr)nkr.textContent=member['한글이름']||'';
+  var nen=document.getElementById('as-name-en');if(nen)nen.textContent=member['영문이름']||'';
+  var dob=document.getElementById('as-dob');if(dob)dob.value=(member['생년월일']||'').slice(0,10);
+  var med=document.getElementById('as-medicaid');if(med)med.value=member['Medicaid']||'';
+  var phn=document.getElementById('as-phone');if(phn)phn.value=member['전화']||'';
+  var adr=document.getElementById('as-addr');if(adr)adr.value=member['주소']||'';
+  var pcp=document.getElementById('as-pcp');if(pcp)pcp.value=member['주치의']||'';
+  var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toISOString().slice(0,10);
+  loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){if(res&&res.ok&&res.data&&res.data.found&&res.data.data)fillAssessmentFromJSON(res.data.data);}).catch(function(){});
+  goAssessStep(0);_ptSig=null;_asSig=null;
+  initSigCanvas('pt-sig-canvas','pt-sig-empty',function(d){_ptSig=d;});
+  initSigCanvas('as-sig-canvas','as-sig-empty',function(d){_asSig=d;});
+}
+function goAssessStep(n){
+  var steps=document.querySelectorAll('#frm-assessment .as-step');
+  var tabs=document.querySelectorAll('#frm-assessment .as-tab');
+  steps.forEach(function(s,i){s.style.display=i===n?'block':'none';});
+  tabs.forEach(function(t,i){t.classList.toggle('active',i===n);});
+  _asmt.step=n;var total=steps.length;
+  var pf=document.getElementById('as-pf');if(pf)pf.style.width=((n+1)/total*100)+'%';
+  var ctr=document.getElementById('as-pctr');if(ctr)ctr.textContent=(n+1)+' / '+total;
+  var prv=document.getElementById('as-prev');if(prv)prv.style.visibility=n===0?'hidden':'visible';
+  var nxt=document.getElementById('as-next');if(nxt)nxt.textContent=n===total-1?'저장':'다음';
+  var btn=document.getElementById('as-pcsp-btn');if(btn)btn.style.display=n===total-1?'block':'none';
+}
+function nextAssessStep(){var steps=document.querySelectorAll('#frm-assessment .as-step');if(_asmt.step<steps.length-1)goAssessStep(_asmt.step+1);else saveAssessment();}
+function prevAssessStep(){if(_asmt.step>0)goAssessStep(_asmt.step-1);}
+function clearPtSig(){clearSigCanvas('pt-sig-canvas','pt-sig-empty');_ptSig=null;}
+function clearAsSig(){clearSigCanvas('as-sig-canvas','as-sig-empty');_asSig=null;}
+function collectAssessmentData(){
+  var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  return{mid:_asmt.mid,date:gv2('as-date'),assessor:gv2('as-assessor'),medicaid:gv2('as-medicaid'),phone:gv2('as-phone'),addr:gv2('as-addr'),pcp:gv2('as-pcp'),dob:gv2('as-dob'),
+    adl:{bathing:gv2('adl-bathing-st'),hygiene:gv2('adl-hygiene-st'),dressing:gv2('adl-dressing-st'),mobility:gv2('adl-mobility-st'),transfer:gv2('adl-transfer-st'),eating:gv2('adl-eating-st'),toilet:gv2('adl-toilet-st')},
+    medications:[{name:gv2('med-1-name'),dose:gv2('med-1-dose'),reason:gv2('med-1-reason')},{name:gv2('med-2-name'),dose:gv2('med-2-dose'),reason:gv2('med-2-reason')},{name:gv2('med-3-name'),dose:gv2('med-3-dose'),reason:gv2('med-3-reason')},{name:gv2('med-4-name'),dose:gv2('med-4-dose'),reason:gv2('med-4-reason')},{name:gv2('med-5-name'),dose:gv2('med-5-dose'),reason:gv2('med-5-reason')}].filter(function(m){return m.name;}),
+    caregiver:{name:gv2('care-name'),rel:gv2('care-rel'),phone:gv2('care-hphone')},
+    ec1:{name:gv2('ec1-name'),rel:gv2('ec1-rel'),phone:gv2('ec1-hphone')},
+    ec2:{name:gv2('ec2-name'),rel:gv2('ec2-rel'),phone:gv2('ec2-hphone')},
+    personal:{work:gv2('ph-work'),edu:gv2('ph-edu'),hobbies:gv2('ph-hobbies'),religion:gv2('ph-religion'),hopes:gv2('ph-hopes')},
+    ptSig:_ptSig||'',asSig:_asSig||'',savedAt:new Date().toISOString()};
+}
+function fillAssessmentFromJSON(data){
+  var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+  if(data.date)sv('as-date',data.date);if(data.assessor)sv('as-assessor',data.assessor);
+  if(data.adl){sv('adl-bathing-st',data.adl.bathing);sv('adl-hygiene-st',data.adl.hygiene);sv('adl-dressing-st',data.adl.dressing);sv('adl-mobility-st',data.adl.mobility);sv('adl-transfer-st',data.adl.transfer);sv('adl-eating-st',data.adl.eating);sv('adl-toilet-st',data.adl.toilet);}
+  if(data.medications)data.medications.forEach(function(m,i){sv('med-'+(i+1)+'-name',m.name);sv('med-'+(i+1)+'-dose',m.dose);sv('med-'+(i+1)+'-reason',m.reason);});
+  if(data.caregiver){sv('care-name',data.caregiver.name);sv('care-rel',data.caregiver.rel);sv('care-hphone',data.caregiver.phone);}
+  if(data.personal){sv('ph-work',data.personal.work);sv('ph-edu',data.personal.edu);sv('ph-hobbies',data.personal.hobbies);sv('ph-religion',data.personal.religion);sv('ph-hopes',data.personal.hopes);}
+}
+function saveAssessment(){
+  if(!_asmt.mid){alert('멤버가 선택되지 않았습니다');return;}
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_asmt.mid);});
+  var mName=member?(member['한글이름']||''):'';
+  var data=collectAssessmentData();
+  var author=_currentUser?(_currentUser.name||''):'';
+  apiCall({action:'upsert',sheet:'PCSP',key:'멤버ID',value:_asmt.mid,data:{'멤버ID':_asmt.mid,'한글이름':mName,'작성일':data.date,'작성자':data.assessor||author,'상태':'Assessment완료'}}).catch(function(){});
+  saveJSONtoDrive(_asmt.mid,mName,'Assessment',data).then(function(res){
+    if(res&&res.ok&&res.data&&res.data.success){alert('✅ Assessment 저장 완료!\n'+mName);closeFrmBack();}
+    else alert('❌ Drive 저장 실패');
+  }).catch(function(){alert('❌ 네트워크 오류');});
+}
+function goToFormsAndOpenPCSP(){closeFrmBack();setTimeout(function(){prefillPCSPFromMember(_asmt.mid);},300);}
+
+function openNutritionForMember(mid,mName){
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
+  _nsMid=mid;
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  document.getElementById('frm-nutrition').style.display='block';
+  var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
+  var nn=document.getElementById('ns-name');if(nn)nn.textContent=member['한글이름']+' ('+member['영문이름']+')';
+  var nd=document.getElementById('ns-dob');if(nd)nd.textContent=(member['생년월일']||'').slice(0,10);
+  var ndate=document.getElementById('ns-date');if(ndate)ndate.value=new Date().toISOString().slice(0,10);
+  _nsMemberSig=null;_nsStaffSig=null;
+  initSigCanvas('ns-member-canvas','ns-member-empty',function(d){_nsMemberSig=d;});
+  initSigCanvas('ns-staff-canvas','ns-staff-empty',function(d){_nsStaffSig=d;});
+}
+function calcNSBMI(){var h=parseFloat((document.getElementById('ns-height')||{}).value||0);var w=parseFloat((document.getElementById('ns-weight')||{}).value||0);var el=document.getElementById('ns-bmi');if(el)el.value=(h>0&&w>0)?(w/(h*h)*703).toFixed(1):'';}
+function clearNSSig(who){var cid=who==='member'?'ns-member-canvas':'ns-staff-canvas';var eid=who==='member'?'ns-member-empty':'ns-staff-empty';clearSigCanvas(cid,eid);if(who==='member')_nsMemberSig=null;else _nsStaffSig=null;}
+function generateNutritionPDF(){
+  if(!_nsMid){alert('멤버가 선택되지 않았습니다');return;}
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
+  var mName=member?(member['한글이름']||''):'';
+  var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
+  var gc=function(id){var el=document.getElementById(id);return el&&el.checked?'✅':'☐';};
+  var nsData={mid:_nsMid,memberName:mName,date:gv2('ns-date'),height:gv2('ns-height'),weight:gv2('ns-weight'),bmi:gv2('ns-bmi'),memberSig:_nsMemberSig||'',staffSig:_nsStaffSig||'',savedAt:new Date().toISOString()};
+  saveJSONtoDrive(_nsMid,mName,'Nutrition',nsData).catch(function(){});
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nutrition - '+mName+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:13px;text-align:center}table{width:100%;border-collapse:collapse;margin-bottom:10px}td,th{border:1px solid #ccc;padding:5px 8px}th{background:#f5f5f5;font-weight:700}.sig{height:60px}@media print{button{display:none}}</style></head><body>'
+    +'<h1>NUMBER ONE ADULT DAYCARE — Nutrition Screening</h1>'
+    +'<table><tr><th>Participant</th><td>'+mName+'</td><th>Date</th><td>'+nsData.date+'</td></tr><tr><th>Height</th><td>'+nsData.height+'"</td><th>Weight</th><td>'+nsData.weight+' lbs</td></tr><tr><th>BMI</th><td colspan="3">'+nsData.bmi+'</td></tr></table>'
+    +'<table><tr><th colspan="3">Questions</th></tr>'
+    +'<tr><td>1. Underweight BMI &lt;18</td><td>'+gc('ns-q1-no')+' No</td><td>'+gc('ns-q1-yes')+' Yes</td></tr>'
+    +'<tr><td>2. Obese BMI &gt;30</td><td>'+gc('ns-q2-no')+' No</td><td>'+gc('ns-q2-yes')+' Yes</td></tr>'
+    +'<tr><td>3. Unintentional Weight Loss</td><td>'+gc('ns-q3-no')+' No</td><td>'+gc('ns-q3-yes')+' Yes</td></tr>'
+    +'<tr><td>4. Diabetes/HgbA1c &gt;5.7%</td><td>'+gc('ns-q4-no')+' No</td><td>'+gc('ns-q4-yes')+' Yes</td></tr>'
+    +'<tr><td>5. Chronic Kidney Disease</td><td>'+gc('ns-q5-no')+' No</td><td>'+gc('ns-q5-yes')+' Yes</td></tr></table>'
+    +'<table><tr><th>Member Sig</th><th>Staff Sig</th></tr><tr><td class="sig">'+(nsData.memberSig?'<img src="'+nsData.memberSig+'" style="height:55px">':'')+'</td><td class="sig">'+(nsData.staffSig?'<img src="'+nsData.staffSig+'" style="height:55px">':'')+'</td></tr></table>'
+    +'<button onclick="window.print()">🖨️ 인쇄</button></body></html>';
+  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+}
+
+function openMemberRightsForMember(mid,mName){
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
+  _mrMid=mid;
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  document.getElementById('frm-member-rights').style.display='block';
+  var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
+  var mn=document.getElementById('mr-name');if(mn)mn.textContent=member['한글이름']+' ('+member['영문이름']+')';
+  var md=document.getElementById('mr-dob');if(md)md.textContent=(member['생년월일']||'').slice(0,10);
+  var mdate=document.getElementById('mr-date');if(mdate)mdate.value=new Date().toISOString().slice(0,10);
+  _mrSig=null;initSigCanvas('mr-sig-canvas','mr-sig-empty',function(d){_mrSig=d;});
+}
+function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null;}
+function generateMemberRightsPDF(){
+  if(!_mrMid){alert('멤버가 선택되지 않았습니다');return;}
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_mrMid);});
+  var mName=member?(member['한글이름']||''):'';
+  var date=(document.getElementById('mr-date')||{}).value||new Date().toISOString().slice(0,10);
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Member Rights - '+mName+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:13px;text-align:center}.r div{padding:4px 0;border-bottom:.5px solid #eee}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{border:1px solid #ccc;padding:6px;height:50px}th{background:#f5f5f5;font-weight:700}@media print{button{display:none}}</style></head><body>'
+    +'<h1>NUMBER ONE ADULT DAYCARE — Participant\'s Bill of Rights</h1>'
+    +'<p style="text-align:center;font-size:9px">161-22 Northern Blvd 1FL, Flushing, NY 11358</p>'
+    +'<p><strong>Participant:</strong> '+mName+' &nbsp;&nbsp; <strong>Date:</strong> '+date+'</p>'
+    +'<div class="r"><div>✅ Right to non-discrimination / 차별받지 않을 권리</div>'
+    +'<div>✅ Dignity and safety / 존엄성 및 안전</div>'
+    +'<div>✅ Right to choose services / 서비스 선택권</div>'
+    +'<div>✅ Right to program involvement / 프로그램 참여권</div>'
+    +'<div>✅ Access to private space / 사적 공간 접근권</div>'
+    +'<div>✅ Communication and information / 소통 및 정보 접근</div>'
+    +'<div>✅ Right to file grievance / 고충 처리 권리</div>'
+    +'<div>✅ Right to stop program at any time / 프로그램 중단 권리</div></div>'
+    +'<table style="margin-top:14px"><tr><th>Participant Signature</th><th>Date</th><th>Staff Signature</th></tr>'
+    +'<tr><td>'+(_mrSig?'<img src="'+_mrSig+'" style="height:44px">':'&nbsp;')+'</td><td>'+date+'</td><td>&nbsp;</td></tr></table>'
+    +'<button onclick="window.print()">🖨️ 인쇄</button></body></html>';
+  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+}
+
+function initSigCanvas(canvasId,emptyId,onSave){
+  var canvas=document.getElementById(canvasId);if(!canvas||canvas._sigInit)return;canvas._sigInit=true;
+  var ctx=canvas.getContext('2d');ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+  var drawing=false,lx=0,ly=0;
+  function getPos(e){var rect=canvas.getBoundingClientRect();var sx=canvas.width/rect.width,sy=canvas.height/rect.height;if(e.touches)return{x:(e.touches[0].clientX-rect.left)*sx,y:(e.touches[0].clientY-rect.top)*sy};return{x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};}
+  function start(e){e.preventDefault();drawing=true;var p=getPos(e);lx=p.x;ly=p.y;var em=document.getElementById(emptyId);if(em)em.style.display='none';}
+  function draw(e){if(!drawing)return;e.preventDefault();var p=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;}
+  function stop(){if(!drawing)return;drawing=false;if(onSave)onSave(canvas.toDataURL('image/png'));}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);canvas.addEventListener('mouseup',stop);canvas.addEventListener('mouseleave',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',draw,{passive:false});canvas.addEventListener('touchend',stop);
+}
+function clearSigCanvas(canvasId,emptyId){
+  var canvas=document.getElementById(canvasId);if(canvas){canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);canvas._sigInit=false;}
+  var em=document.getElementById(emptyId);if(em)em.style.display='flex';
+}
 
 // ── 멤버별 ID 업로드 ──────────────────────────────────────
 function uploadMemberID(mid, mName, docType){
