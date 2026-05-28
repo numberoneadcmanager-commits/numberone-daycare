@@ -130,8 +130,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <div class="tabbar">
     <div class="tab active" onclick="goTab('audit',this)">✅ Audit</div>
-    <div class="tab" onclick="goTab('pcsp',this)">PCSP</div>
+    <div class="tab" onclick="goTab('forms',this)">📋 Forms</div>
     <div class="tab" onclick="goTab('staff',this)">스태프</div>
+    <div class="tab" onclick="goTab('training',this)">📚 Training</div>
     <div class="tab" onclick="goTab('billing',this)">빌링</div>
     <div class="tab" onclick="goTab('grievance',this)">Grievance</div>
     <div class="tab" onclick="goTab('firedrill',this)">소방훈련</div>
@@ -160,7 +161,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <!-- PCSP -->
-    <div class="panel" id="panel-pcsp">
+    <div class="panel" id="panel-forms">
+
+      <!-- Forms 허브 — 멤버 선택 시 폼 목록 표시 -->
+      <div id="forms-hub" class="card" style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:#5856D6;margin-bottom:8px">📋 멤버별 폼 관리</div>
+        <select class="m-select" id="forms-member-select" onchange="renderFormsHub()" style="margin-bottom:10px">
+          <option value="">— 멤버 선택 —</option>
+        </select>
+        <div id="forms-hub-list" style="display:none">
+          <!-- 공식 폼 -->
+          <div style="font-size:11px;font-weight:700;color:#8E8E93;margin:8px 0 4px">공식 폼</div>
+          <div id="forms-official-list"></div>
+          <!-- 신분증/카드 -->
+          <div style="font-size:11px;font-weight:700;color:#8E8E93;margin:10px 0 4px">신분증 / 카드</div>
+          <div id="forms-id-list"></div>
+        </div>
+        <div id="forms-hub-empty" style="font-size:12px;color:#C7C7CC;text-align:center;padding:8px">멤버를 선택하면 폼 목록이 표시됩니다</div>
+      </div>
+
+      <div style="height:1px;background:#E5E5EA;margin:4px 0 12px"></div>
+      <div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PCSP 전체 목록</div>
+
       <!-- PCSP 목록 -->
       <div id="pcsp-list-view">
         <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
@@ -517,6 +539,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="btn-full btn-primary" style="margin-top:8px" onclick="openStaffModal()">➕ 스태프 추가</button>
     </div>
 
+    <!-- Training Records -->
+    <div class="panel" id="panel-training">
+      <div class="stat-grid">
+        <div class="sbox"><div class="sv c-green" id="tr-sessions">0</div><div class="sl">세션 수</div></div>
+        <div class="sbox"><div class="sv c-red" id="tr-expired">0</div><div class="sl">만료됨</div></div>
+        <div class="sbox"><div class="sv c-orange" id="tr-soon">0</div><div class="sl">만료임박</div></div>
+      </div>
+      <div class="f-row">
+        <div class="fpill active" onclick="setTrView('session',this)">📅 세션별</div>
+        <div class="fpill" onclick="setTrView('staff',this)">👤 스태프별</div>
+      </div>
+      <!-- 세션별 뷰 -->
+      <div id="tr-session-view">
+        <div id="tr-session-list"></div>
+        <button class="btn-full btn-primary" style="margin-top:8px" onclick="openTrModal()">➕ 트레이닝 세션 추가</button>
+      </div>
+      <!-- 스태프별 뷰 -->
+      <div id="tr-staff-view" style="display:none">
+        <select class="m-select" id="tr-staff-select" onchange="renderTrStaffView()" style="margin-bottom:10px">
+          <option value="">— 스태프 선택 —</option>
+        </select>
+        <div id="tr-staff-detail"></div>
+      </div>
+    </div>
+
     <!-- Billing -->
     <div class="panel" id="panel-billing">
       <div class="card">
@@ -700,10 +747,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="modal-input-wrap"><label>발급일</label><input class="m-input" id="doc-issued" type="date"></div>
     <div class="modal-input-wrap"><label>만료일</label><input class="m-input" id="doc-expiry" type="date"></div>
   </div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>Google Drive 링크</label><input class="m-input" id="doc-link" placeholder="https://drive.google.com/..."></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>파일 업로드 (스캔본 PDF/JPG)</label>
+    <input type="file" id="doc-file" accept=".pdf,.jpg,.jpeg,.png" class="m-input" style="padding:6px">
+    <div id="doc-upload-status" style="font-size:11px;color:#8E8E93;margin-top:4px"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>또는 Google Drive 링크 직접 입력</label><input class="m-input" id="doc-link" placeholder="https://drive.google.com/..."></div>
   <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><input class="m-input" id="doc-note" placeholder="참고사항"></div>
   <input type="hidden" id="doc-edit-id">
-  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-doc')">취소</button><button class="mbt mbt-save" onclick="saveDoc()">저장</button></div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-doc')">취소</button><button class="mbt mbt-save" onclick="saveDocWithUpload()">저장</button></div>
 </div>
 
 <!-- Activity Modal -->
@@ -728,6 +779,96 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <!-- PCSP Modal -->
+
+<!-- HIPAA Form Modal -->
+<div class="ov" id="ov-hipaa" onclick="closeOv('ov-hipaa')"></div>
+<div class="modal" id="modal-ov-hipaa" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>📄 HIPAA Authorization (OCA-960)</span><button class="modal-close" onclick="closeOv('ov-hipaa')">✕</button></div>
+  <div style="background:#EDE9FE;border-radius:10px;padding:10px;margin-bottom:12px;font-size:11px;color:#534AB7">
+    <b>Authorization for Release of Health Information Pursuant to HIPAA</b><br>
+    OCA Official Form No.: 960 · NY State Dept. of Health Approved
+  </div>
+  <!-- 자동 prefill 섹션 -->
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">참여자 정보 (자동 입력)</div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>Patient Name</label><input class="m-input" id="hipaa-name" readonly style="background:#F2F2F7"></div>
+    <div class="modal-input-wrap"><label>Date of Birth</label><input class="m-input" id="hipaa-dob" readonly style="background:#F2F2F7"></div>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>Social Security #</label><input class="m-input" id="hipaa-ssn" placeholder="XXX-XX-____"></div>
+    <div class="modal-input-wrap"><label>작성일</label><input class="m-input" id="hipaa-date" type="date"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>Patient Address</label><input class="m-input" id="hipaa-addr" readonly style="background:#F2F2F7"></div>
+
+  <!-- 공개 대상 -->
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">정보 공개 대상 (Item 8)</div>
+  <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:8px;font-size:12px">
+    <div style="margin-bottom:6px">✅ <b>MLTC Plan:</b> <span id="hipaa-mltc-display">—</span></div>
+    <div style="margin-bottom:6px">✅ <b>Primary Care Physician:</b> <span id="hipaa-pcp-display">—</span></div>
+    <div>✅ <b>Emergency Contact / Family:</b> <span id="hipaa-ec-display">—</span></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>추가 공개 대상 (선택)</label>
+    <input class="m-input" id="hipaa-extra" placeholder="예: Specialist Dr. Kim, ABC Pharmacy">
+  </div>
+
+  <!-- 공개 정보 범위 (고정) -->
+  <div style="background:#E1F5EE;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px;color:#0F6E56">
+    <b>공개 정보 범위:</b> Entire medical record / All health information (고정)
+  </div>
+
+  <!-- 특수 항목 이니셜 -->
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">특수 정보 이니셜 (Item 9a) — 해당 시 이니셜 입력</div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>Alcohol/Drug Abuse</label><input class="m-input" id="hipaa-init-alcohol" placeholder="이니셜 또는 공란"></div>
+    <div class="modal-input-wrap"><label>Mental Health</label><input class="m-input" id="hipaa-init-mh" placeholder="이니셜 또는 공란"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>HIV-Related Information</label><input class="m-input" id="hipaa-init-hiv" placeholder="이니셜 또는 공란"></div>
+
+  <!-- 유효기간 (고정) -->
+  <div style="background:#E6F1FB;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px;color:#185FA5">
+    <b>유효기간:</b> Upon Disenrollment from the program (고정)
+  </div>
+
+  <!-- 서명 -->
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">서명 (종이 출력 후 서명 받기)</div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>대리인 이름 (해당 시)</label><input class="m-input" id="hipaa-rep" placeholder="없으면 공란"></div>
+    <div class="modal-input-wrap"><label>대리인 관계</label><input class="m-input" id="hipaa-rep-rel" placeholder="예: Daughter, POA"></div>
+  </div>
+  <input type="hidden" id="hipaa-member-id">
+  <input type="hidden" id="hipaa-member-name">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-hipaa')">취소</button>
+    <button class="mbt mbt-save" onclick="printHIPAA()">🖨️ 출력 (서명 받기)</button>
+  </div>
+</div>
+
+<!-- Training Session Modal -->
+<div class="ov" id="ov-tr" onclick="closeOv('ov-tr')"></div>
+<div class="modal" id="modal-ov-tr" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>📚 트레이닝 세션 추가</span><button class="modal-close" onclick="closeOv('ov-tr')">✕</button></div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>날짜 *</label><input class="m-input" id="tr-date" type="date"></div>
+    <div class="modal-input-wrap"><label>총 시간 (Hours) *</label><input class="m-input" id="tr-hours" type="number" step="0.5" placeholder="예: 3"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:6px"><label>트레이닝 토픽 * (해당 항목 모두 선택)</label></div>
+  <div id="tr-topics-list" style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:10px;max-height:200px;overflow-y:auto;font-size:12px"></div>
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">RN 정보 (Personal Care 토픽 포함 시 필수)</div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>RN 이름</label><input class="m-input" id="tr-rn-name" placeholder="RN Full Name"></div>
+    <div class="modal-input-wrap"><label>RN License ID</label><input class="m-input" id="tr-rn-lic" placeholder="License #"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>수퍼바이저</label><input class="m-input" id="tr-supervisor" placeholder="수퍼바이저 이름"></div>
+  <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">참가 스태프 선택 *</div>
+  <div id="tr-staff-list" style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:10px;max-height:150px;overflow-y:auto;font-size:12px"></div>
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-tr')">취소</button>
+    <button class="mbt mbt-save" onclick="saveTrSession()">💾 저장 + 🖨️ PDF 출력</button>
+  </div>
+</div>
 
 <script>
 // ── Google 로그인 ─────────────────────────────────────────
@@ -784,13 +925,14 @@ function goTab(tab,el){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   if(el)el.classList.add('active');
   if(tab==='audit')renderAudit();
-  if(tab==='pcsp')renderPCSPList();
+  if(tab==='forms'){renderPCSPList();loadFormsMemberDropdown();}
   if(tab==='staff')renderOpStaff();
   if(tab==='grievance')renderGrievanceList();
   if(tab==='firedrill')renderFDList();
   if(tab==='templog')renderTempList();
   if(tab==='docs')renderDocsList();
   if(tab==='activity')renderActivityList();
+  if(tab==='training'){renderTrSessionList();loadTrFromSheets();}
 }
 
 // ── Overlay ───────────────────────────────────────────────
@@ -1318,7 +1460,7 @@ var PCSP_RIGHTS=[
   'Community access and participation in community life'
 ];
 
-function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-pcsp .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderPCSPList();}
+function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-forms .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderPCSPList();}
 
 function renderPCSPList(){
   var q=(document.getElementById('pcsp-search')||{}).value||'';
@@ -1671,6 +1813,613 @@ function renderOpStaff(){
   var el2=document.getElementById('op-staff-list');if(el2)el2.innerHTML=html;
 }
 function openStaffModal(){ window.location.href='index.html'; }
+
+// ══════════════════════════════════════════════════════════
+// FORMS HUB
+// ══════════════════════════════════════════════════════════
+var _formsMemberCache = [];
+
+function loadFormsMemberDropdown(){
+  apiGet({action:'read',sheet:'멤버'}).then(function(res){
+    if(!res.ok||!res.data)return;
+    _formsMemberCache = res.data.filter(function(r){return r['ID']&&r['한글이름']&&r['상태']!=='disenrolled';});
+    var sel = document.getElementById('forms-member-select');
+    if(!sel)return;
+    sel.innerHTML = '<option value="">— 멤버 선택 —</option>';
+    _formsMemberCache.forEach(function(m){
+      sel.innerHTML += '<option value="'+m['ID']+'">'+m['한글이름']+' ('+m['영문이름']+')</option>';
+    });
+  }).catch(function(){});
+}
+
+function renderFormsHub(){
+  var mid = document.getElementById('forms-member-select').value;
+  var hubList = document.getElementById('forms-hub-list');
+  var hubEmpty = document.getElementById('forms-hub-empty');
+  if(!mid){ hubList.style.display='none'; hubEmpty.style.display='block'; return; }
+  hubList.style.display='block'; hubEmpty.style.display='none';
+
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  if(!member)return;
+  var mName = member['한글이름']||'';
+
+  // 공식 폼 목록
+  var officialForms = [
+    {key:'PCSP',    label:'PCSP (Person Centered Service Plan)', icon:'📋', action:'openPCSPForMember'},
+    {key:'Assessment', label:'Assessment',    icon:'📝', action:'openAssessmentForMember'},
+    {key:'Nutrition',  label:'Nutrition Screening', icon:'🥗', action:'openNutritionForMember'},
+    {key:'MemberRights',label:'Member Rights', icon:'⚖️', action:'openMemberRightsForMember'},
+    {key:'HIPAA',   label:'HIPAA Authorization (OCA-960)', icon:'🔐', action:'openHIPAAForMember'},
+  ];
+
+  var html = '';
+  officialForms.forEach(function(f){
+    // PCSP 상태 확인
+    var pcsp = PCSP_LIST.find(function(p){return (p.medicaid===mid||p.id===mid||p.nameKr===mName);});
+    var statusBadge = '';
+    if(f.key==='PCSP' && pcsp){
+      var today = new Date().toISOString().slice(0,10);
+      var due = pcsp.nextdate && pcsp.nextdate <= today;
+      statusBadge = due ? '<span class="badge b-warn">⚠️ 갱신필요</span>' : '<span class="badge b-ok">✅ '+pcsp.wdate+'</span>';
+    }
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:.5px solid #F2F2F7">'
+      +'<div><div style="font-size:12px;font-weight:600">'+f.icon+' '+f.label+'</div>'
+      +(statusBadge?'<div style="margin-top:2px">'+statusBadge+'</div>':'')
+      +'</div>'
+      +'<button class="btn-sm" onclick="'+f.action+'(\''+mid+'\',\''+mName+'\')">'+
+        (f.key==='PCSP'&&pcsp?'✏️ 수정':'📝 작성')+'</button>'
+      +'</div>';
+  });
+  document.getElementById('forms-official-list').innerHTML = html;
+
+  // 신분증/카드 목록
+  var idForms = [
+    {key:'Medicaid_Card', label:'Medicaid Card',  icon:'🪪'},
+    {key:'Medicare_Card', label:'Medicare Card',  icon:'🪪'},
+    {key:'Photo_ID',      label:'Photo ID',        icon:'🪪'},
+  ];
+  var idHtml = '';
+  idForms.forEach(function(f){
+    idHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:.5px solid #F2F2F7">'
+      +'<div style="font-size:12px;font-weight:600">'+f.icon+' '+f.label+'</div>'
+      +'<button class="btn-sm" onclick="uploadMemberID(\''+mid+'\',\''+mName+'\',\''+f.key+'\')">📎 업로드</button>'
+      +'</div>';
+  });
+  document.getElementById('forms-id-list').innerHTML = idHtml;
+}
+
+function openPCSPForMember(mid, mName){
+  // PCSP 탭으로 이동하고 멤버 선택
+  prefillPCSPFromMember(mid);
+  document.getElementById('pcsp-list-view').style.display='none';
+  document.getElementById('pcsp-member-select').style.display='none';
+}
+
+function openAssessmentForMember(mid, mName){ alert('Assessment 기능 준비중입니다.\n멤버: '+mName); }
+function openNutritionForMember(mid, mName){ alert('Nutrition Screening 기능 준비중입니다.\n멤버: '+mName); }
+function openMemberRightsForMember(mid, mName){ alert('Member Rights 기능 준비중입니다.\n멤버: '+mName); }
+
+// ── 멤버별 ID 업로드 ──────────────────────────────────────
+function uploadMemberID(mid, mName, docType){
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf,.jpg,.jpeg,.png';
+  input.onchange = function(e){
+    var file = e.target.files[0];
+    if(!file)return;
+    var status = '📤 업로드 중...';
+    alert(status+'\n'+file.name+'\n멤버: '+mName+'\n종류: '+docType);
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var b64 = ev.target.result.split(',')[1];
+      var ext = file.name.split('.').pop().toLowerCase();
+      apiCall({
+        action:'savePDF', memberId:mid, memberName:mName,
+        fileType:docType, base64Data:b64,
+        author:_currentUser?(_currentUser.name||''):''
+      }).then(function(res){
+        if(res&&res.ok&&res.data&&res.data.success){
+          alert('✅ '+docType+' 업로드 완료!\n'+mName);
+          renderFormsHub();
+        } else {
+          alert('❌ 업로드 실패. Drive 연결을 확인해주세요.');
+        }
+      }).catch(function(){ alert('❌ 네트워크 오류'); });
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+// ══════════════════════════════════════════════════════════
+// HIPAA FORM
+// ══════════════════════════════════════════════════════════
+function openHIPAAForMember(mid, mName){
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  if(!member){ alert('멤버 정보를 찾을 수 없습니다'); return; }
+
+  document.getElementById('hipaa-member-id').value = mid;
+  document.getElementById('hipaa-member-name').value = mName;
+  document.getElementById('hipaa-name').value = (member['영문이름']||'').toUpperCase();
+  document.getElementById('hipaa-dob').value = (member['생년월일']||'').slice(0,10);
+  document.getElementById('hipaa-addr').value = member['주소']||'';
+  document.getElementById('hipaa-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('hipaa-ssn').value = '';
+  document.getElementById('hipaa-extra').value = '';
+  document.getElementById('hipaa-rep').value = '';
+  document.getElementById('hipaa-rep-rel').value = '';
+  document.getElementById('hipaa-init-alcohol').value = '';
+  document.getElementById('hipaa-init-mh').value = '';
+  document.getElementById('hipaa-init-hiv').value = '';
+
+  // MLTC, PCP, Emergency Contact 표시
+  document.getElementById('hipaa-mltc-display').textContent = member['보험사']||member['MLTC']||'—';
+  document.getElementById('hipaa-pcp-display').textContent = member['주치의']||'—';
+  // 응급연락처는 PCSP에서 가져오기 시도
+  var pcsp = PCSP_LIST.find(function(p){ return p.medicaid===mid||p.nameKr===mName; });
+  var ec = (pcsp&&pcsp.contacts&&pcsp.contacts[0]) ? pcsp.contacts[0].name+' ('+pcsp.contacts[0].rel+')' : '(PCSP 연락처 참조)';
+  document.getElementById('hipaa-ec-display').textContent = ec;
+
+  openOv('ov-hipaa');
+}
+
+function printHIPAA(){
+  var mid = document.getElementById('hipaa-member-id').value;
+  var mName = document.getElementById('hipaa-member-name').value;
+  if(!mid){ alert('멤버를 선택해주세요'); return; }
+
+  var name = document.getElementById('hipaa-name').value;
+  var dob  = document.getElementById('hipaa-dob').value;
+  var ssn  = document.getElementById('hipaa-ssn').value||'___-__-____';
+  var addr = document.getElementById('hipaa-addr').value;
+  var date = document.getElementById('hipaa-date').value;
+  var mltc = document.getElementById('hipaa-mltc-display').textContent;
+  var pcp  = document.getElementById('hipaa-pcp-display').textContent;
+  var ec   = document.getElementById('hipaa-ec-display').textContent;
+  var extra = document.getElementById('hipaa-extra').value;
+  var initAlc = document.getElementById('hipaa-init-alcohol').value||'_____';
+  var initMH  = document.getElementById('hipaa-init-mh').value||'_____';
+  var initHIV = document.getElementById('hipaa-init-hiv').value||'_____';
+  var rep    = document.getElementById('hipaa-rep').value;
+  var repRel = document.getElementById('hipaa-rep-rel').value;
+
+  var recipientsList = '1. MLTC Plan: '+mltc
+    +'\n2. Primary Care Physician: '+pcp
+    +'\n3. Emergency Contact / Family: '+ec
+    +(extra?'\n4. '+extra:'');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>HIPAA Authorization - '+name+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px;line-height:1.5}'
+    +'h1{font-size:13px;text-align:center;margin-bottom:4px}'
+    +'.center{text-align:center}.sub{font-size:9px;color:#555}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:10px}'
+    +'td,th{border:1px solid #999;padding:4px 8px;vertical-align:top}'
+    +'th{background:#f0f0f0;font-weight:700;width:35%}'
+    +'.sig-row{height:50px}'
+    +'.notice{border:1px solid #ccc;padding:8px;margin:8px 0;font-size:9px;background:#fafafa}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<h1>AUTHORIZATION FOR RELEASE OF HEALTH INFORMATION PURSUANT TO HIPAA</h1>'
+    +'<p class="center sub">OCA Official Form No.: 960 · Approved by New York State Department of Health</p>'
+    +'<p class="center sub">Number One Adult Daycare · 161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</p>'
+    +'<br>'
+    +'<table>'
+    +'<tr><th>Patient Name</th><td>'+name+'</td><th>Date of Birth</th><td>'+dob+'</td></tr>'
+    +'<tr><th>Social Security Number</th><td>'+ssn+'</td><th>Date</th><td>'+date+'</td></tr>'
+    +'<tr><th>Patient Address</th><td colspan="3">'+addr+'</td></tr>'
+    +'</table>'
+    +'<div class="notice"><b>I, or my authorized representative, request that health information regarding my care and treatment be released as set forth on this form.</b><br>'
+    +'In accordance with New York State Law and the Privacy Rule of HIPAA (1996), I understand that:<br>'
+    +'1. This authorization may include disclosure of information relating to ALCOHOL and DRUG ABUSE, MENTAL HEALTH TREATMENT, and CONFIDENTIAL HIV-RELATED INFORMATION only if I place my initials on the appropriate line in Item 9(a).<br>'
+    +'2. If I do not initial these items, information will not be released.<br>'
+    +'3. I have the right to revoke this authorization at any time by written notice.<br>'
+    +'4. This authorization will expire <b>Upon Disenrollment from the program.</b></div>'
+    +'<table>'
+    +'<tr><th colspan="4" style="background:#e8e8e8">Item 8 — Persons/Organizations Authorized to Receive Information</th></tr>'
+    +'<tr><td colspan="4" style="white-space:pre-line">'+recipientsList+'</td></tr>'
+    +'</table>'
+    +'<table>'
+    +'<tr><th colspan="4" style="background:#e8e8e8">Information to Be Released</th></tr>'
+    +'<tr><td colspan="4"><b>Entire medical record / All health information</b></td></tr>'
+    +'</table>'
+    +'<table>'
+    +'<tr><th colspan="4" style="background:#e8e8e8">Item 9(a) — Special Information (Initial if authorizing release)</th></tr>'
+    +'<tr><th>Alcohol/Drug Abuse Records</th><td>Initials: <b>'+initAlc+'</b></td>'
+    +'<th>Mental Health Records</th><td>Initials: <b>'+initMH+'</b></td></tr>'
+    +'<tr><th>HIV-Related Information</th><td colspan="3">Initials: <b>'+initHIV+'</b></td></tr>'
+    +'</table>'
+    +'<table>'
+    +'<tr><th colspan="2" style="background:#e8e8e8">Signatures</th></tr>'
+    +'<tr><th>Patient Signature</th><td class="sig-row"></td></tr>'
+    +'<tr><th>Date</th><td class="sig-row"></td></tr>'
+    +(rep?'<tr><th>Representative Name</th><td>'+rep+'</td></tr>':'')
+    +(repRel?'<tr><th>Relationship</th><td>'+repRel+'</td></tr>':'')
+    +'<tr><th>Representative Signature</th><td class="sig-row"></td></tr>'
+    +'</table>'
+    +'<br><button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>'
+    +'</body></html>';
+
+  var w = window.open('','_blank');
+  if(!w){ alert('팝업을 허용해주세요'); return; }
+  w.document.write(html); w.document.close();
+  setTimeout(function(){ w.print(); }, 800);
+  closeOv('ov-hipaa');
+}
+
+// ══════════════════════════════════════════════════════════
+// TRAINING RECORDS
+// ══════════════════════════════════════════════════════════
+var TR_SESSIONS = JSON.parse(localStorage.getItem('tr_sessions')||'[]');
+var _trView = 'session';
+
+var TR_TOPICS = [
+  {id:'personal_care',  label:'Personal Care Skills (RN 필수)', rn:true,  annual:false},
+  {id:'body_mechanics', label:'Body Mechanics / Elderly Safety', rn:true,  annual:false},
+  {id:'toileting',      label:'Toileting / Incontinence Care',   rn:true,  annual:false},
+  {id:'feeding',        label:'Feeding / Grooming / Dressing',   rn:true,  annual:false},
+  {id:'transfers',      label:'Transfers / Mobility',            rn:true,  annual:false},
+  {id:'med_assist',     label:'Medication Self-Administration Assist', rn:true, annual:false},
+  {id:'adaptive',       label:'Adaptive/Assistive Equipment',    rn:true,  annual:false},
+  {id:'cpr',            label:'CPR / AED / Choking',             rn:false, annual:false, expMonths:24},
+  {id:'fire',           label:'Fire Prevention / Emergency Safety', rn:false, annual:true},
+  {id:'participant_rights', label:'Participant Rights (HCBS)',   rn:false, annual:true},
+  {id:'pcp',            label:'Person-Centered Planning',        rn:false, annual:true},
+  {id:'hcbs',           label:'HCBS Final Rule',                 rn:false, annual:true},
+  {id:'abuse',          label:'Abuse / Neglect Prevention',      rn:false, annual:true},
+  {id:'hipaa_training', label:'Confidentiality / HIPAA',         rn:false, annual:true},
+  {id:'emergency_prep', label:'Emergency Preparedness',          rn:false, annual:true},
+  {id:'infection',      label:'Infection Control',               rn:false, annual:true},
+  {id:'supervision',    label:'Supervision & Monitoring',        rn:false, annual:false},
+  {id:'socialization',  label:'Socialization / Aging Process',   rn:false, annual:false},
+  {id:'mental_health',  label:'Mental Health & Mental Illness',  rn:false, annual:true},
+  {id:'family',         label:'Family Relationship',             rn:false, annual:false},
+  {id:'safety',         label:'Safety / Accident Prevention',    rn:false, annual:false},
+  {id:'ppd',            label:'PPD Test (TB) — Health Record',   rn:false, annual:false, expMonths:24},
+];
+
+function saveTrStorage(){ localStorage.setItem('tr_sessions', JSON.stringify(TR_SESSIONS)); }
+
+function loadTrFromSheets(){
+  apiGet({action:'read',sheet:'training_log'}).then(function(res){
+    if(res&&res.ok&&res.data&&res.data.length){
+      // 세션별로 그룹핑
+      var sessions = {};
+      res.data.forEach(function(r){
+        var sid = String(r['세션ID']||'');
+        if(!sid)return;
+        if(!sessions[sid]){
+          sessions[sid] = {
+            id:sid, date:String(r['날짜']||''), hours:String(r['시간']||''),
+            topics:JSON.parse(r['토픽']||'[]'), rnName:String(r['RN이름']||''),
+            rnLic:String(r['RN_LicenseID']||''), supervisor:String(r['수퍼바이저']||''),
+            staff:[]
+          };
+        }
+        if(r['스태프ID']) sessions[sid].staff.push({
+          id:String(r['스태프ID']),name:String(r['스태프이름']||'')
+        });
+      });
+      TR_SESSIONS = Object.values(sessions);
+      saveTrStorage(); renderTrSessionList();
+    }
+  }).catch(function(){});
+}
+
+function setTrView(v,el){
+  _trView=v;
+  document.querySelectorAll('#panel-training .fpill').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('tr-session-view').style.display = v==='session'?'block':'none';
+  document.getElementById('tr-staff-view').style.display   = v==='staff'?'block':'none';
+  if(v==='staff') loadTrStaffDropdown();
+}
+
+function renderTrSessionList(){
+  var sorted = TR_SESSIONS.slice().sort(function(a,b){return b.date>a.date?1:-1;});
+  var e = document.getElementById('tr-sessions'); if(e)e.textContent=TR_SESSIONS.length;
+  document.getElementById('tr-expired').textContent = '—';
+  document.getElementById('tr-soon').textContent = '—';
+
+  var html = '';
+  if(!sorted.length) html='<div class="empty-msg">트레이닝 기록이 없어요</div>';
+  sorted.forEach(function(s){
+    var topicLabels = (s.topics||[]).map(function(tid){
+      var t = TR_TOPICS.find(function(x){return x.id===tid;});
+      return t?t.label:tid;
+    }).join(', ');
+    html += '<div class="log-card">'
+      +'<div class="log-top"><div class="log-name">📚 '+s.date+'</div><span class="badge b-blue">'+s.hours+'hrs</span></div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:3px">'+topicLabels.slice(0,80)+(topicLabels.length>80?'...':'')+'</div>'
+      +(s.rnName?'<div style="font-size:11px;color:#8E8E93">RN: '+s.rnName+' ('+s.rnLic+')</div>':'')
+      +'<div style="font-size:11px;color:#8E8E93">참가: '+(s.staff||[]).map(function(st){return st.name;}).join(', ')+'</div>'
+      +'<div class="log-actions" style="margin-top:6px">'
+      +'<button class="btn-sm" onclick="printTrSession(\''+s.id+'\')">🖨️ PDF 출력</button>'
+      +'<button class="btn-danger" onclick="deleteTrSession(\''+s.id+'\')">삭제</button>'
+      +'</div></div>';
+  });
+  var el2 = document.getElementById('tr-session-list'); if(el2)el2.innerHTML=html;
+}
+
+function openTrModal(){
+  document.getElementById('tr-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('tr-hours').value = '';
+  document.getElementById('tr-rn-name').value = '';
+  document.getElementById('tr-rn-lic').value = '';
+  document.getElementById('tr-supervisor').value = '';
+
+  // 토픽 체크박스
+  var topicHtml = '';
+  TR_TOPICS.forEach(function(t){
+    topicHtml += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer">'
+      +'<input type="checkbox" id="trtopic-'+t.id+'" value="'+t.id+'">'
+      +(t.rn?'<span style="color:#FF9500;font-size:10px">[RN]</span>':'')
+      +t.label
+      +'</label>';
+  });
+  document.getElementById('tr-topics-list').innerHTML = topicHtml;
+
+  // 스태프 체크박스
+  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var staffHtml = '';
+  if(!staff.length){ staffHtml='<div style="color:#8E8E93">스태프 데이터 없음 — 케어관리 앱에서 먼저 등록해주세요</div>'; }
+  staff.forEach(function(s){
+    staffHtml += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;cursor:pointer">'
+      +'<input type="checkbox" id="trstaff-'+s.id+'" value="'+s.id+'" data-name="'+(s.nameKr||s.name)+'">'
+      +(s.nameKr||s.name)+' ('+s.role+')'
+      +'</label>';
+  });
+  document.getElementById('tr-staff-list').innerHTML = staffHtml;
+  openOv('ov-tr');
+}
+
+function saveTrSession(){
+  var date = document.getElementById('tr-date').value;
+  var hours = document.getElementById('tr-hours').value;
+  if(!date||!hours){ alert('날짜와 시간은 필수입니다'); return; }
+
+  var topics = [];
+  TR_TOPICS.forEach(function(t){
+    var cb = document.getElementById('trtopic-'+t.id);
+    if(cb&&cb.checked) topics.push(t.id);
+  });
+  if(!topics.length){ alert('토픽을 하나 이상 선택해주세요'); return; }
+
+  // RN 필수 토픽 체크
+  var needsRN = topics.some(function(tid){
+    var t = TR_TOPICS.find(function(x){return x.id===tid;});
+    return t&&t.rn;
+  });
+  var rnName = document.getElementById('tr-rn-name').value.trim();
+  if(needsRN && !rnName){ alert('Personal Care 관련 토픽이 선택되었습니다.\nRN 이름을 입력해주세요.'); return; }
+
+  var selectedStaff = [];
+  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  staff.forEach(function(s){
+    var cb = document.getElementById('trstaff-'+s.id);
+    if(cb&&cb.checked) selectedStaff.push({id:s.id, name:s.nameKr||s.name});
+  });
+  if(!selectedStaff.length){ alert('참가 스태프를 선택해주세요'); return; }
+
+  var sid = 'tr_'+Date.now();
+  var session = {
+    id:sid, date:date, hours:hours, topics:topics,
+    rnName:rnName, rnLic:document.getElementById('tr-rn-lic').value.trim(),
+    supervisor:document.getElementById('tr-supervisor').value.trim(),
+    staff:selectedStaff
+  };
+  TR_SESSIONS.push(session);
+  saveTrStorage();
+
+  // Sheets에 저장 (스태프별 행)
+  selectedStaff.forEach(function(st){
+    apiCall({action:'append',sheet:'training_log',data:{
+      '세션ID':sid, '날짜':date, '시간':hours,
+      '토픽':JSON.stringify(topics),
+      'RN이름':rnName, 'RN_LicenseID':document.getElementById('tr-rn-lic').value.trim(),
+      '수퍼바이저':document.getElementById('tr-supervisor').value.trim(),
+      '스태프ID':st.id, '스태프이름':st.name
+    }}).catch(function(){});
+  });
+
+  closeOv('ov-tr');
+  renderTrSessionList();
+  // 자동으로 PDF 출력
+  setTimeout(function(){ printTrSession(sid); }, 300);
+}
+
+function printTrSession(sid){
+  var s = TR_SESSIONS.find(function(x){return x.id===sid;});
+  if(!s){ alert('세션을 찾을 수 없습니다'); return; }
+
+  var topicLabels = (s.topics||[]).map(function(tid){
+    var t = TR_TOPICS.find(function(x){return x.id===tid;});
+    return t?t.label:tid;
+  });
+
+  var staffRows = (s.staff||[]).map(function(st){
+    return '<tr><td>'+st.name+'</td><td>'+s.date+'</td><td>'+s.hours+'</td>'
+      +'<td style="height:40px"></td>'  // Staff Signature
+      +'<td style="height:40px"></td>'  // Nurse Signature
+      +'<td style="height:40px"></td>'  // Supervisor Signature
+      +'</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Training Log - '+s.date+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}'
+    +'h1{font-size:14px;text-align:center}h2{font-size:11px}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:10px}'
+    +'td,th{border:1px solid #ccc;padding:4px 6px;vertical-align:middle}'
+    +'th{background:#f5f5f5;font-weight:700}'
+    +'.topic-box{border:1px solid #ccc;padding:8px;margin-bottom:10px;background:#fafafa}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<h1>Number One Adult Daycare — Competency Training Log</h1>'
+    +'<p style="text-align:center;font-size:9px">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</p>'
+    +'<br>'
+    +'<table><tr><th>Date</th><td>'+s.date+'</td><th>Total Hours</th><td>'+s.hours+'</td></tr>'
+    +'<tr><th>Directed By (RN)</th><td>'+s.rnName+'</td><th>License ID</th><td>'+s.rnLic+'</td></tr>'
+    +'<tr><th>Supervisor</th><td colspan="3">'+s.supervisor+'</td></tr></table>'
+    +'<div class="topic-box"><b>Training Topics:</b><br>'
+    +topicLabels.map(function(l,i){return (i+1)+'. '+l;}).join('<br>')
+    +'</div>'
+    +'<table><tr>'
+    +'<th style="width:20%">Name</th>'
+    +'<th style="width:12%">Date</th>'
+    +'<th style="width:8%">Hours</th>'
+    +'<th style="width:20%">Staff Signature</th>'
+    +'<th style="width:20%">Nurse Signature</th>'
+    +'<th style="width:20%">Supervisor Signature</th>'
+    +'</tr>'+staffRows+'</table>'
+    +'<br><p style="font-size:9px">* 서명 후 스캔하여 Drive에 업로드하세요</p>'
+    +'<button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>'
+    +'</body></html>';
+
+  var w = window.open('','_blank');
+  if(!w){ alert('팝업을 허용해주세요'); return; }
+  w.document.write(html); w.document.close();
+  setTimeout(function(){ w.print(); }, 800);
+}
+
+function deleteTrSession(sid){
+  if(!confirm('이 트레이닝 세션을 삭제할까요?'))return;
+  TR_SESSIONS = TR_SESSIONS.filter(function(s){return s.id!==sid;});
+  saveTrStorage();
+  renderTrSessionList();
+}
+
+function loadTrStaffDropdown(){
+  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var sel = document.getElementById('tr-staff-select');
+  if(!sel)return;
+  sel.innerHTML = '<option value="">— 스태프 선택 —</option>';
+  staff.forEach(function(s){
+    sel.innerHTML += '<option value="'+s.id+'">'+(s.nameKr||s.name)+'</option>';
+  });
+}
+
+function renderTrStaffView(){
+  var sid = document.getElementById('tr-staff-select').value;
+  var el = document.getElementById('tr-staff-detail');
+  if(!sid||!el){ if(el)el.innerHTML=''; return; }
+
+  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var s = staff.find(function(x){return x.id===sid;});
+  var sName = s?(s.nameKr||s.name):sid;
+
+  // 이 스태프가 참가한 세션들
+  var mySessions = TR_SESSIONS.filter(function(sess){
+    return (sess.staff||[]).some(function(st){return st.id===sid;});
+  }).sort(function(a,b){return b.date>a.date?1:-1;});
+
+  // 완료된 토픽 집계
+  var completedTopics = {};
+  mySessions.forEach(function(sess){
+    (sess.topics||[]).forEach(function(tid){
+      if(!completedTopics[tid]||completedTopics[tid]<sess.date){
+        completedTopics[tid] = sess.date;
+      }
+    });
+  });
+
+  var today = new Date().toISOString().slice(0,10);
+  var html = '<div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:10px">👤 '+sName+' 트레이닝 현황</div>';
+
+  // 토픽별 이수 현황
+  html += '<div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">이수 현황</div>';
+  TR_TOPICS.forEach(function(t){
+    var done = completedTopics[t.id];
+    var status, badge;
+    if(done){
+      if(t.expMonths){
+        var expDate = new Date(done);
+        expDate.setMonth(expDate.getMonth()+t.expMonths);
+        var expStr = expDate.toISOString().slice(0,10);
+        var diff = Math.floor((expDate-new Date())/86400000);
+        if(diff<0){ badge='<span class="badge b-red">❌ 만료</span>'; }
+        else if(diff<=90){ badge='<span class="badge b-warn">⚠️ '+'만료: '+expStr+'</span>'; }
+        else { badge='<span class="badge b-ok">✅ '+done+'</span>'; }
+      } else {
+        badge='<span class="badge b-ok">✅ '+done+'</span>';
+      }
+    } else {
+      badge = t.annual
+        ? '<span class="badge b-red">❌ 미이수</span>'
+        : '<span class="badge" style="background:#F2F2F7;color:#8E8E93">미이수</span>';
+    }
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:.5px solid #F2F2F7">'
+      +'<div style="font-size:11px">'+(t.rn?'<span style="color:#FF9500">[RN] </span>':'')+t.label+'</div>'
+      +badge+'</div>';
+  });
+  html += '</div>';
+
+  // 세션 이력
+  html += '<div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:8px">세션 이력 ('+mySessions.length+'회)</div>';
+  if(!mySessions.length){ html+='<div class="empty-msg">없음</div>'; }
+  mySessions.forEach(function(sess){
+    var topicCount = (sess.topics||[]).length;
+    html += '<div style="padding:6px 0;border-bottom:.5px solid #F2F2F7;font-size:11px">'
+      +'<b>'+sess.date+'</b> · '+sess.hours+'hrs · '+topicCount+'개 토픽'
+      +(sess.rnName?' · RN: '+sess.rnName:'')+'</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ── 문서보관함 파일 업로드 ──────────────────────────────────
+function saveDocWithUpload(){
+  var name = document.getElementById('doc-name').value.trim();
+  if(!name){ alert('문서명은 필수입니다'); return; }
+  var editId = document.getElementById('doc-edit-id').value;
+  var fileInput = document.getElementById('doc-file');
+  var file = fileInput&&fileInput.files&&fileInput.files[0];
+  var existingLink = document.getElementById('doc-link').value.trim();
+
+  function finalize(link){
+    var entry = {
+      id:editId||('doc_'+Date.now()), name:name,
+      cat:document.getElementById('doc-cat').value,
+      issued:document.getElementById('doc-issued').value,
+      expiry:document.getElementById('doc-expiry').value,
+      link:link||'', note:document.getElementById('doc-note').value.trim()
+    };
+    if(editId){ var idx=DOCS_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)DOCS_LIST[idx]=entry;else DOCS_LIST.push(entry); }
+    else DOCS_LIST.push(entry);
+    saveDocsStorage();
+    apiCall({action:'upsert',sheet:'docs',key:'ID',value:entry.id,data:{
+      'ID':entry.id,'이름':entry.name,'카테고리':entry.cat,'발급일':entry.issued,
+      '만료일':entry.expiry,'Drive링크':entry.link,'메모':entry.note
+    }}).catch(function(){});
+    closeOv('ov-doc'); renderDocsList();
+  }
+
+  if(file){
+    var statusEl = document.getElementById('doc-upload-status');
+    if(statusEl) statusEl.textContent = '📤 업로드 중...';
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var b64 = ev.target.result.split(',')[1];
+      apiCall({
+        action:'savePDF', memberId:'CENTER', memberName:'센터문서',
+        fileType:name.replace(/\s+/g,'_'), base64Data:b64,
+        author:_currentUser?(_currentUser.name||''):''
+      }).then(function(res){
+        if(res&&res.ok&&res.data&&res.data.success){
+          if(statusEl) statusEl.textContent = '✅ 업로드 완료';
+          finalize(res.data.url);
+        } else {
+          if(statusEl) statusEl.textContent = '❌ 업로드 실패';
+          finalize(existingLink);
+        }
+      }).catch(function(){
+        if(statusEl) statusEl.textContent = '❌ 네트워크 오류';
+        finalize(existingLink);
+      });
+    };
+    reader.readAsDataURL(file);
+  } else {
+    finalize(existingLink);
+  }
+}
 
 // ── 초기화 ────────────────────────────────────────────────
 function initData(){
