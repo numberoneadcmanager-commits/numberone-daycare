@@ -1365,8 +1365,8 @@ function renderPCSPMemberList(){
   var el=document.getElementById('pcsp-member-list');
   if(!el)return;
 
-  // Sheets에서 멤버 로드
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+  // Sheets에서 멤버 로드 (GET)
+  apiGet({action:'read',sheet:'멤버'}).then(function(res){
     var members=[];
     if(res.ok&&res.data){
       members=res.data.filter(function(r){
@@ -1704,7 +1704,7 @@ function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  apiCall({action:'read',sheet:'멤버'}).then(function(res){
+  apiGet({action:'read',sheet:'멤버'}).then(function(res){
     var member=null;
     if(res.ok&&res.data){
       member=res.data.find(function(r){return String(r['ID'])===String(mid);});
