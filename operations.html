@@ -2668,8 +2668,13 @@ async function saveHIPAAWithSig(){
     }
     if(repRel) safeSetText('Authority', repRel, 310, 122, 8);
 
-    // 서명 이미지
-    var sigB64 = _hipaaeSig.replace(/^data:image\/png;base64,/,'');
+    // 서명 이미지 — 리사이즈하여 용량 줄이기
+    var sigCanvas = document.getElementById('hipaa-sig-canvas');
+    var miniCanvas = document.createElement('canvas');
+    miniCanvas.width = 200; miniCanvas.height = 44;
+    miniCanvas.getContext('2d').drawImage(sigCanvas, 0, 0, 200, 44);
+    var miniSigUrl = miniCanvas.toDataURL('image/png');
+    var sigB64 = miniSigUrl.replace(/^data:image\/png;base64,/,'');
     var sigBytes = Uint8Array.from(atob(sigB64), function(c){return c.charCodeAt(0);});
     var pngImage = await pdfDoc.embedPng(sigBytes);
     page.drawImage(pngImage, { x:45, y:62, width:190, height:38 });
@@ -2683,6 +2688,7 @@ async function saveHIPAAWithSig(){
     // 저장
     if(statusEl) statusEl.textContent = '📤 Drive 업로드 중...';
     var filledBytes = await pdfDoc.save();
+    console.log('PDF 크기:', (filledBytes.length/1024).toFixed(1)+'KB');
     var binary = '';
     var bytes = new Uint8Array(filledBytes);
     var chunk = 8192;
@@ -2692,10 +2698,24 @@ async function saveHIPAAWithSig(){
     var outB64 = btoa(binary);
 
     var author = _currentUser?(_currentUser.name||''):'';
-    var res = await apiCall({
-      action:'savePDF', memberId:mid, memberName:mName,
-      fileType:'HIPAA', base64Data:outB64, author:author
-    });
+    console.log('base64 크기:', (outB64.length/1024).toFixed(1)+'KB');
+
+    // fetch 직접 호출 (타임아웃 대응)
+    var res;
+    try {
+      var resp = await fetch(API_URL, {
+        method:'POST',
+        body: JSON.stringify({
+          action:'savePDF', memberId:mid, memberName:mName,
+          fileType:'HIPAA', base64Data:outB64, author:author
+        })
+      });
+      res = await resp.json();
+    } catch(fetchErr){
+      console.error('Fetch error:', fetchErr);
+      if(statusEl) statusEl.textContent = '❌ 네트워크 오류: '+fetchErr.message;
+      return;
+    }
     if(res&&res.ok&&res.data&&res.data.success){
       if(statusEl) statusEl.textContent = '✅ 저장 완료!';
       setTimeout(function(){
