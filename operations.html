@@ -2599,59 +2599,88 @@ async function saveHIPAAWithSig(){
     var rep     = document.getElementById('hipaa-rep').value;
     var repRel  = document.getElementById('hipaa-rep-rel').value;
 
-    // PDF 로드 (암호 해제 버전)
     var pdfBytes = Uint8Array.from(atob(OCA960_PDF_B64), function(c){return c.charCodeAt(0);});
     var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
     var form = pdfDoc.getForm();
+    var page = pdfDoc.getPages()[0];
+    var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
 
-    // 텍스트 필드 채우기
-    try{ form.getTextField('Name').setText(name); }catch(e){}
-    try{ form.getTextField('Date').setText(dob); }catch(e){}
-    try{ form.getTextField('SS').setText(ssn); }catch(e){}
-    try{ form.getTextField('Address').setText(addr); }catch(e){}
-    try{ form.getTextField('Provider Name').setText('Number One Adult Daycare, 161-22 Northern Blvd 1FL, Flushing, NY 11358 / 718-799-0248'); }catch(e){}
-    
+    // 한글 포함 여부 체크
+    function hasKorean(s){ return /[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\ud7b0-\ud7ff]/.test(s); }
+
+    // 폼 필드 세팅 (영어만) — 실패 시 좌표 오버레이로 fallback
+    function safeSetText(fieldName, value, x, y, sz){
+      if(!value) return;
+      try{
+        if(!hasKorean(value)){
+          form.getTextField(fieldName).setText(value);
+        } else {
+          // 한글 포함 → 좌표 오버레이 (폼 필드 비우기)
+          page.drawText(value.replace(/[^\x20-\x7E]/g,''), {x:x, y:y, size:sz||8, font:font, color:PDFLib.rgb(0,0,0)});
+        }
+      } catch(e){
+        try{ page.drawText(String(value).substring(0,60), {x:x, y:y, size:sz||8, font:font, color:PDFLib.rgb(0,0,0)}); }catch(e2){}
+      }
+    }
+
+    function safeCheck(fieldName){
+      try{ form.getCheckBox(fieldName).check(); }catch(e){}
+    }
+
+    // 환자 정보 (영문)
+    safeSetText('Name', name, 38, 700, 9);
+    safeSetText('Date', dob, 339, 700, 9);
+    safeSetText('SS', ssn, 471, 700, 9);
+    safeSetText('Address', addr, 38, 671, 8);
+
+    // Item 7 — 센터 정보
+    safeSetText('Provider Name', 'Number One Adult Daycare, 161-22 Northern Blvd 1FL, Flushing, NY 11358 / 718-799-0248', 43, 381, 7);
+
+    // Item 8 — 공개 대상 (한글 가능성 → 안전 처리)
     var recipients = 'MLTC: '+mltc+' | PCP: '+pcp+' | EC: '+ec+(extra?' | '+extra:'');
-    try{ form.getTextField('Receipient Name').setText(recipients); }catch(e){}
+    // 한글 제거 후 폼 필드에 입력
+    var recipientsClean = recipients.replace(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g, '');
+    safeSetText('Receipient Name', recipientsClean, 43, 356, 7);
 
-    // Entire Medical Record 체크
-    try{ form.getCheckBox('Entire Med Rec').check(); }catch(e){}
+    // Item 9(a) — Entire Medical Record
+    safeCheck('Entire Med Rec');
 
-    // 이니셜 (Other Text 필드에 기록)
+    // 이니셜
     var inits = [];
     if(initAlc) inits.push('Alcohol/Drug: '+initAlc);
     if(initMH)  inits.push('Mental Health: '+initMH);
     if(initHIV) inits.push('HIV: '+initHIV);
     if(inits.length){
-      try{ form.getCheckBox('Other').check(); }catch(e){}
-      try{ form.getTextField('Other Text').setText(inits.join('; ')); }catch(e){}
+      safeCheck('Other');
+      safeSetText('Other Text', inits.join('; '), 95, 290, 8);
     }
 
-    // At request of individual 체크
-    try{ form.getCheckBox('Request Of').check(); }catch(e){}
+    // Item 10
+    safeCheck('Request Of');
 
-    // 유효기간
-    try{ form.getTextField('Event').setText('Upon Disenrollment from the program'); }catch(e){}
+    // Item 11
+    safeSetText('Event', 'Upon Disenrollment from the program', 312, 150, 8);
 
-    // 대리인
-    if(rep) try{ form.getTextField('Other Name').setText(rep); }catch(e){}
-    if(repRel) try{ form.getTextField('Authority').setText(repRel); }catch(e){}
+    // Item 12/13 대리인 (영문으로 입력하므로 OK)
+    if(rep){
+      var repClean = rep.replace(/[\uac00-\ud7af]/g, '');
+      safeSetText('Other Name', repClean, 33, 122, 8);
+    }
+    if(repRel) safeSetText('Authority', repRel, 310, 122, 8);
 
-    // 서명 이미지 삽입
+    // 서명 이미지
     var sigB64 = _hipaaeSig.replace(/^data:image\/png;base64,/,'');
     var sigBytes = Uint8Array.from(atob(sigB64), function(c){return c.charCodeAt(0);});
     var pngImage = await pdfDoc.embedPng(sigBytes);
-    var page = pdfDoc.getPages()[0];
     page.drawImage(pngImage, { x:45, y:62, width:190, height:38 });
 
     // 서명 날짜
-    var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     page.drawText(date, { x:385, y:75, size:10, font:font, color:PDFLib.rgb(0,0,0) });
 
-    // 폼 평면화 (편집 불가)
+    // 폼 평면화
     form.flatten();
 
-    // PDF 저장
+    // 저장
     if(statusEl) statusEl.textContent = '📤 Drive 업로드 중...';
     var filledBytes = await pdfDoc.save();
     var binary = '';
