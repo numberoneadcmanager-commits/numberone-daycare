@@ -2601,7 +2601,7 @@ async function saveHIPAAWithSig(){
 
     // base64 → Uint8Array
     var pdfBytes = Uint8Array.from(atob(OCA960_PDF_B64), function(c){return c.charCodeAt(0);});
-    var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+    var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes, { ignoreEncryption: true });
     var form = pdfDoc.getForm();
 
     function setText(field, val){
