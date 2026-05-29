@@ -2649,7 +2649,9 @@ async function saveHIPAAWithSig(){
 
     // 서명 이미지 삽입 (페이지 하단 좌표)
     var page = pdfDoc.getPages()[0];
-    var pngImage = await pdfDoc.embedPng(_hipaaeSig);
+    var sigB64 = _hipaaeSig.replace(/^data:image\/png;base64,/,'');
+    var sigBytes = Uint8Array.from(atob(sigB64), function(c){return c.charCodeAt(0);});
+    var pngImage = await pdfDoc.embedPng(sigBytes);
     // 서명란: "Signature of patient" 위, 좌측 (x≈40, y≈80)
     page.drawImage(pngImage, { x: 45, y: 70, width: 200, height: 40 });
     // 서명 날짜
