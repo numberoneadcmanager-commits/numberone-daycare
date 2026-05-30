@@ -6,7 +6,7 @@
 const SheetsAPI = {
 
   // ── 설정 ───────────────────────────────────────────────────
-  URL: 'https://script.google.com/macros/s/AKfycbyOM9Z9FwWvoTqv5yoRNKLhW788N3ks23EtWpXBjac8-dNEdl7x0UJgiennmtjeM8Hx/exec',
+  URL: 'https://script.google.com/macros/s/AKfycbzjdQXvevtrOTPY9rGF5BZCQ4bS_AYZQlMbH9krchr9CA4SsD5MG-hatK8sX395rtrd/exec',
 
   // ── 상태 ───────────────────────────────────────────────────
   _connected: false,
