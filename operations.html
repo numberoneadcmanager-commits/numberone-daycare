@@ -214,36 +214,84 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="frm-member-rights" style="display:none">
         <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
         <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
-          <div style="font-size:14px;font-weight:700;margin-bottom:12px">📄 Participant's Bill of Rights</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px">📄 Participant's Bill of Rights</div>
+          <div style="font-size:11px;color:#8E8E93;margin-bottom:12px">넘버원 어덜트 데이케어 — 사용자 권리 장전</div>
           <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px">
             <div style="font-size:13px;font-weight:700" id="mr-name"></div>
             <div style="font-size:11px;color:#8E8E93;margin-top:2px">DOB: <span id="mr-dob"></span></div>
           </div>
-          <div class="fg"><div class="fl">서명 날짜</div><input class="fi" type="date" id="mr-date"></div>
-          <div style="background:#FFF3EE;border:1.5px solid #FECDB8;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.9">
-            <div style="font-weight:700;color:#D85A30;margin-bottom:6px">Participant Rights Summary</div>
-            <div>✅ Right to non-discrimination · 차별받지 않을 권리</div>
-            <div>✅ Dignity and safety · 존엄성 및 안전</div>
-            <div>✅ Right to choose services · 서비스 선택권</div>
-            <div>✅ Right to program involvement · 프로그램 참여권</div>
-            <div>✅ Access to private space · 사적 공간 접근권</div>
-            <div>✅ Communication and information · 소통 및 정보 접근</div>
-            <div>✅ Right to file grievance · 고충 처리 권리</div>
-            <div>✅ Right to stop program at any time · 프로그램 중단 권리</div>
+          <div class="fg"><div class="fl">Date / 날짜</div><input class="fi" type="date" id="mr-date"></div>
+
+          <!-- Section I -->
+          <div style="background:#FFF3EE;border-left:3px solid #D85A30;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;color:#D85A30;margin-bottom:6px">I. Fundamental Rights: Dignity, Safety, and Freedom</div>
+            <div style="font-size:11px;line-height:1.7;color:#1C1C1E">
+              <b>• Non-Discrimination and Respect:</b> You have the right not to be discriminated against by race, skin color, or national origin. You have the right to respect and treatment as an adult, and you have the right to personal treatment and help.<br>
+              <b>• Dignity and Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint, including chemical, physical, or mechanical restraints. You have the right to be free from abuse, neglect, intimidation, coercion, and seclusion.<br>
+              <b>• Environment:</b> You have the right to a safe and pleasant environment with careful attention.
+            </div>
           </div>
-          <div style="margin-bottom:14px">
+
+          <!-- Section II -->
+          <div style="background:#E6F1FB;border-left:3px solid #185FA5;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:6px">II. Rights to Control and Self-Determination</div>
+            <div style="font-size:11px;line-height:1.7;color:#1C1C1E">
+              <b>• Service Choice:</b> You have the right to choose your own day care center services and activities. You have the right to direct or lead your service plan.<br>
+              <b>• Program Involvement:</b> You have the right to participate in the organization and operation of the program.<br>
+              <b>• Personal Development:</b> You have the right to personal interest and develop your hobby.<br>
+              <b>• Personal Control:</b> You have control over personal finances and daily schedule. You have the right to participate with support if needed.<br>
+              <b>• Staff and Withdrawal:</b> You have the right to request preferred staff for personal care. You have the right to stop the adult day care program at any time.
+            </div>
+          </div>
+
+          <!-- Section III -->
+          <div style="background:#E1F5EE;border-left:3px solid #0F6E56;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:6px">III. Rights to Communication, Privacy, and Information</div>
+            <div style="font-size:11px;line-height:1.7;color:#1C1C1E">
+              <b>• Private Space:</b> You have access to a private space for dining, speaking on the phone, and meeting with visitors.<br>
+              <b>• Communication:</b> You have the right to exchange and communicate with other participants or the community.<br>
+              <b>• Information Access:</b> You have the right to receive information about your rights and to confirm consent forms related to personal information disclosure.<br>
+              <b>• Grievance:</b> You have the right to request correction of injustice regarding discriminatory treatment.<br>
+              <b>• Notification:</b> You have the right to be informed of any decisions that affect your care.
+            </div>
+          </div>
+
+          <!-- Section IV -->
+          <div style="background:#EEEDFE;border-left:3px solid #534AB7;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:#534AB7;margin-bottom:6px">IV. Rights to Opportunities and Choices</div>
+            <div style="font-size:11px;line-height:1.7;color:#1C1C1E">
+              <b>• Opportunities:</b> You have the right to seek employment or volunteer opportunities.<br>
+              <b>• Choices:</b> You have choices of services and visitors; choices of meals and flexibility in mealtimes; choices of alternatives to services, meals, and activities; choices of community integration activities; and choices of attending appointments and social opportunities.
+            </div>
+          </div>
+
+          <!-- Acknowledgment -->
+          <div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:12px;font-size:11px;line-height:1.6;color:#3C3C43">
+            <b>Acknowledgment:</b> I have received, read, and/or had the Participant's Bill of Rights explained to me in a language I understand. I acknowledge that I understand my rights and expectations as a participant at Number One Adult Daycare.
+          </div>
+
+          <!-- 참여자 서명 -->
+          <div style="margin-bottom:12px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-              <div style="font-size:11px;font-weight:700;color:#3C3C43">참여자 서명</div>
+              <div style="font-size:11px;font-weight:700;color:#3C3C43">Participant Signature / 참여자 서명</div>
               <button onclick="clearMRSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
             </div>
             <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
-              <canvas id="mr-sig-canvas" width="600" height="130" style="width:100%;height:130px;display:block;cursor:crosshair"></canvas>
+              <canvas id="mr-sig-canvas" width="600" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas>
               <div id="mr-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>서명하세요</div></div>
             </div>
           </div>
-          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">📄 PDF 생성 및 인쇄</button>
+
+          <!-- 대리인 서명 -->
+          <div class="frow" style="margin-bottom:10px">
+            <div class="modal-input-wrap"><div class="fl">Representative Name (대리인)</div><input class="fi" id="mr-rep" placeholder="해당 시 입력"></div>
+            <div class="modal-input-wrap"><div class="fl">Relationship (관계)</div><input class="fi" id="mr-rep-rel" placeholder="예: Daughter, POA"></div>
+          </div>
+
+          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">💾 저장 및 PDF 출력</button>
         </div>
       </div>
+
 
       <!-- Nutrition Screening 폼 -->
       <div id="frm-nutrition" style="display:none">
@@ -386,6 +434,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <button class="pnav pnav-next" id="as-next" onclick="nextAssessStep()">다음</button>
           </div>
         </div>
+      </div>
+
+      <!-- PCSP 목록 -->
+      <div id="pcsp-list-view" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PCSP 전체 목록</div>
+        <div class="f-row">
+          <div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div>
+          <div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div>
+          <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
+        </div>
+        <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
+        <div id="pcsp-list"></div>
+        <button class="btn-full btn-primary" style="margin-top:8px" onclick="showPCSPMemberSelect()">➕ 새 PCSP 작성</button>
       </div>
 
       <!-- PCSP 폼 뷰 (멤버 선택 후) -->
@@ -1727,6 +1788,7 @@ function showPCSPList(){
   document.getElementById('pcsp-list-view').style.display='block';
   document.getElementById('pcsp-member-select').style.display='none';
   document.getElementById('pcsp-form-view').style.display='none';
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   renderPCSPList();
 }
 
@@ -2270,18 +2332,26 @@ function renderFormsList(member){
   ];
   var html='';
   officialForms.forEach(function(f){
-    var action=f.key==='PCSP'?'openPCSPForMember(\''+mid+'\',\''+mName+'\')':
-               f.key==='Assessment'?'openAssessmentForMember(\''+mid+'\',\''+mName+'\')':
-               f.key==='Nutrition'?'openNutritionForMember(\''+mid+'\',\''+mName+'\')':
-               f.key==='MemberRights'?'openMemberRightsForMember(\''+mid+'\',\''+mName+'\')':
-               'openHIPAAForMember(\''+mid+'\',\''+mName+'\')';
-    html+='<div onclick="'+action+'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.05)">'
+    html+='<div data-fkey="'+f.key+'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer">'
       +'<div style="display:flex;align-items:center;gap:10px">'
       +'<div style="width:38px;height:38px;border-radius:10px;background:'+f.color+';color:'+f.tc+';display:flex;align-items:center;justify-content:center;font-size:18px">'+f.icon+'</div>'
       +'<div style="font-size:13px;font-weight:600">'+f.label+'</div>'
       +'</div><span style="color:#C7C7CC;font-size:20px">›</span></div>';
   });
-  var el=document.getElementById('forms-official-list');if(el)el.innerHTML=html;
+  var el=document.getElementById('forms-official-list');
+  if(el){
+    el.innerHTML=html;
+    el.querySelectorAll('[data-fkey]').forEach(function(div){
+      div.addEventListener('click',function(){
+        var key=this.getAttribute('data-fkey');
+        if(key==='PCSP')          openPCSPForMember(mid,mName);
+        else if(key==='Assessment')    openAssessmentForMember(mid,mName);
+        else if(key==='Nutrition')     openNutritionForMember(mid,mName);
+        else if(key==='MemberRights')  openMemberRightsForMember(mid,mName);
+        else if(key==='HIPAA')         openHIPAAForMember(mid,mName);
+      });
+    });
+  }
   var idForms=[
     {key:'Medicaid_Card',label:'Medicaid Card',icon:'🪪'},
     {key:'Medicare_Card',label:'Medicare Card',icon:'🪪'},
@@ -2325,12 +2395,27 @@ function closeFrmBack(){
   });
   var pv=document.getElementById('pcsp-member-select');if(pv)pv.style.display='none';
   var pf=document.getElementById('pcsp-form-view');if(pf)pf.style.display='none';
+  var lv=document.getElementById('pcsp-list-view');if(lv)lv.style.display='none';
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';
   // 선택된 멤버가 있으면 폼 목록 다시 표시
   if(_selectedFormsMember){
     var sd=document.getElementById('forms-selected');if(sd)sd.style.display='block';
     var em=document.getElementById('forms-empty-msg');if(em)em.style.display='none';
   }
+}
+
+function openPCSPForMember(mid, mName){
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  var lv=document.getElementById('pcsp-list-view');if(lv)lv.style.display='block';
+  renderPCSPList();
+  if(mid) prefillPCSPFromMember(mid);
+}
+
+function showPCSPMemberSelect(){
+  document.getElementById('pcsp-list-view').style.display='none';
+  document.getElementById('pcsp-member-select').style.display='block';
+  document.getElementById('pcsp-form-view').style.display='none';
+  renderPCSPMemberList();
 }
 
 function openAssessmentForMember(mid,mName){
@@ -2457,24 +2542,68 @@ function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null
 function generateMemberRightsPDF(){
   if(!_mrMid){alert('멤버가 선택되지 않았습니다');return;}
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_mrMid);});
-  var mName=member?(member['한글이름']||''):'';
+  var mName=member?(member['영문이름']||''):'';
   var date=(document.getElementById('mr-date')||{}).value||new Date().toISOString().slice(0,10);
-  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Member Rights - '+mName+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:13px;text-align:center}.r div{padding:4px 0;border-bottom:.5px solid #eee}table{width:100%;border-collapse:collapse;margin-top:10px}td,th{border:1px solid #ccc;padding:6px;height:50px}th{background:#f5f5f5;font-weight:700}@media print{button{display:none}}</style></head><body>'
-    +'<h1>NUMBER ONE ADULT DAYCARE — Participant\'s Bill of Rights</h1>'
-    +'<p style="text-align:center;font-size:9px">161-22 Northern Blvd 1FL, Flushing, NY 11358</p>'
-    +'<p><strong>Participant:</strong> '+mName+' &nbsp;&nbsp; <strong>Date:</strong> '+date+'</p>'
-    +'<div class="r"><div>✅ Right to non-discrimination / 차별받지 않을 권리</div>'
-    +'<div>✅ Dignity and safety / 존엄성 및 안전</div>'
-    +'<div>✅ Right to choose services / 서비스 선택권</div>'
-    +'<div>✅ Right to program involvement / 프로그램 참여권</div>'
-    +'<div>✅ Access to private space / 사적 공간 접근권</div>'
-    +'<div>✅ Communication and information / 소통 및 정보 접근</div>'
-    +'<div>✅ Right to file grievance / 고충 처리 권리</div>'
-    +'<div>✅ Right to stop program at any time / 프로그램 중단 권리</div></div>'
-    +'<table style="margin-top:14px"><tr><th>Participant Signature</th><th>Date</th><th>Staff Signature</th></tr>'
-    +'<tr><td>'+(_mrSig?'<img src="'+_mrSig+'" style="height:44px">':'&nbsp;')+'</td><td>'+date+'</td><td>&nbsp;</td></tr></table>'
-    +'<button onclick="window.print()">🖨️ 인쇄</button></body></html>';
-  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+  var rep=(document.getElementById('mr-rep')||{}).value||'';
+  var repRel=(document.getElementById('mr-rep-rel')||{}).value||'';
+
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Participant Rights - '+mName+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:9.5px;margin:20px;line-height:1.5}'
+    +'h1{font-size:12px;text-align:center;margin-bottom:2px}'
+    +'.sub{font-size:8.5px;color:#555;text-align:center;margin-bottom:10px}'
+    +'.sec{margin-bottom:8px;padding-left:8px;border-left:3px solid #D85A30}'
+    +'.sec-title{font-weight:700;font-size:10px;margin-bottom:3px}'
+    +'.sec-body{font-size:9px;line-height:1.6}'
+    +'table{width:100%;border-collapse:collapse;margin-top:8px}'
+    +'td,th{border:1px solid #999;padding:5px 8px;vertical-align:top}'
+    +'th{background:#f0f0f0;font-weight:700;width:35%}'
+    +'.sig-row{height:55px}@media print{button{display:none}}</style></head><body>'
+    +'<h1>NUMBER ONE ADULT DAYCARE — PARTICIPANT\'S BILL OF RIGHTS</h1>'
+    +'<p class="sub">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</p>'
+    +'<table style="margin-bottom:10px"><tr><th>Participant Name</th><td>'+mName+'</td><th>Date</th><td>'+date+'</td></tr>'
+    +'<tr><th>Date of Birth</th><td>'+(member?String(member['생년월일']||'').slice(0,10):'')+'</td><th>Medicaid #</th><td>'+(member?member['Medicaid']||'':'')+'</td></tr></table>'
+
+    +'<div class="sec"><div class="sec-title">I. Fundamental Rights: Dignity, Safety, and Freedom</div><div class="sec-body">'
+    +'<b>Non-Discrimination and Respect:</b> You have the right not to be discriminated against by race, skin color, or national origin. You have the right to respect and treatment as an adult and to personal treatment and help.<br>'
+    +'<b>Dignity and Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint including chemical, physical, or mechanical restraints, and free from abuse, neglect, intimidation, coercion, and seclusion.<br>'
+    +'<b>Environment:</b> You have the right to a safe and pleasant environment with careful attention.</div></div>'
+
+    +'<div class="sec" style="border-left-color:#185FA5"><div class="sec-title">II. Rights to Control and Self-Determination</div><div class="sec-body">'
+    +'<b>Service Choice:</b> You have the right to choose your own day care center services and activities and to direct your service plan.<br>'
+    +'<b>Program Involvement:</b> You have the right to participate in the organization and operation of the program.<br>'
+    +'<b>Personal Development:</b> You have the right to pursue personal interests and develop hobbies.<br>'
+    +'<b>Personal Control:</b> You have control over personal finances and daily schedule, including the right to participate with modifications if needed.<br>'
+    +'<b>Staff and Withdrawal:</b> You have the right to request preferred staff for personal care needs and to stop the adult day care program at any time.</div></div>'
+
+    +'<div class="sec" style="border-left-color:#0F6E56"><div class="sec-title">III. Rights to Communication, Privacy, and Information</div><div class="sec-body">'
+    +'<b>Private Space:</b> You have access to a private space for dining, speaking on the phone, and meeting with visitors.<br>'
+    +'<b>Communication:</b> You have the right to exchange and communicate with other participants and the community.<br>'
+    +'<b>Information Access:</b> You have the right to receive information about your rights and to confirm consent forms related to personal information.<br>'
+    +'<b>Grievance:</b> You have the right to request correction of injustice regarding discriminatory treatment.<br>'
+    +'<b>Notification:</b> You have the right to be informed of decisions that affect your care.</div></div>'
+
+    +'<div class="sec" style="border-left-color:#534AB7"><div class="sec-title">IV. Rights to Opportunities and Choices</div><div class="sec-body">'
+    +'<b>Opportunities:</b> You have the right to seek employment or volunteer opportunities.<br>'
+    +'<b>Choices:</b> You have choices of services and visitors; choices of meals and mealtimes; choices of alternatives to services and activities; choices of community integration; and choices of attending appointments and social opportunities.</div></div>'
+
+    +'<div style="font-size:9px;background:#f9f9f9;border:1px solid #ddd;padding:8px;border-radius:4px;margin:8px 0">'
+    +'<b>Acknowledgment of Participant Rights:</b> I, the undersigned, have received, read, and/or had the Participant\'s Bill of Rights explained to me in a language I understand. '
+    +'I acknowledge that I understand my rights and expectations as a participant at Number One Adult Daycare.</div>'
+
+    +'<table><tr><th>Participant Signature</th><td class="sig-row">'
+    +(_mrSig?'<img src="'+_mrSig+'" style="max-height:50px;max-width:100%">':'')
+    +'</td><th>Date</th><td>'+date+'</td></tr>'
+    +(rep
+      ?'<tr><th>Representative / Guardian</th><td>'+rep+'</td><th>Relationship</th><td>'+repRel+'</td></tr>'
+       +'<tr><th>Representative Signature</th><td class="sig-row"></td><th>Date</th><td></td></tr>'
+      :'')
+    +'<tr><th>Staff Witness Signature</th><td class="sig-row"></td><th>Date</th><td></td></tr>'
+    +'</table>'
+    +'<p style="font-size:8px;margin-top:8px;color:#555">This document has been prepared in accordance with the Number One Adult Daycare Policies and Procedures manual.</p>'
+    +'<button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button></body></html>';
+
+  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
+  w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
 }
 
 function initSigCanvas(canvasId,emptyId,onSave){
