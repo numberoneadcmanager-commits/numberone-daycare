@@ -757,11 +757,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div style="font-size:11px;color:#3C3C43;line-height:1.6;margin-bottom:12px;padding:10px;background:#F2F2F7;border-radius:8px">
               I confirm that I led the person centered planning process, was offered various opportunities and choices, and was free to choose activities and services according to my goals and preferences. The information documented in this PCSP is accurate.
             </div>
+            <div class="fg" style="margin-bottom:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div class="fl">참여자 / 법적 대리인 서명 ✍️</div>
+                <button onclick="clearPCSPSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
+              </div>
+              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
+                <canvas id="pcsp-sig-canvas" width="600" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas>
+                <div id="pcsp-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>서명하세요</div></div>
+              </div>
+            </div>
             <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>참여자 / 법적 대리인 서명</label><input class="m-input" id="p-sig" placeholder="서명 또는 이름 입력"></div>
               <div class="modal-input-wrap"><label>서명 날짜</label><input class="m-input" id="p-sigdate" type="date"></div>
             </div>
-            <div class="modal-input-wrap" style="margin-bottom:0"><label>작성자 서명</label><input class="m-input" id="p-writersig" placeholder="작성자 서명 또는 이름"></div>
           </div>
           <div class="card" style="background:#EDE9FE">
             <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">📄 작성 요약</div>
@@ -770,7 +778,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <input type="hidden" id="pcsp-edit-id">
           <div style="display:flex;gap:8px;margin-top:12px">
             <button class="mbt mbt-cancel" onclick="pcspPrev()">← 이전</button>
-            <button class="mbt mbt-save" onclick="savePCSPFull()">💾 저장 완료</button>
+            <button id="pcsp-save-btn" class="mbt mbt-save" onclick="savePCSPFull()">💾 PCSP 저장 (Drive)</button>
           </div>
         </div>
 
@@ -1171,7 +1179,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ── Google 로그인 ─────────────────────────────────────────
 const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com','chouung11@gmail.com','numberone.adc.lee@gmail.com'];
 const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
-const API_URL = 'https://script.google.com/macros/s/AKfycbzjdQXvevtrOTPY9rGF5BZCQ4bS_AYZQlMbH9krchr9CA4SsD5MG-hatK8sX395rtrd/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwgenH1V4ifABEUJG92she9jwyvIkfT9AruhUBNIioLYrpPnu6TIh8rIqWUzx9COauP/exec';
 var _currentUser = null;
 
 function initGoogle(){
@@ -1968,7 +1976,12 @@ function pcspGoStep(s){
   var label=document.getElementById('pcsp-step-label');if(label)label.textContent=(s+1)+' / 7';
   var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((s+1)/7*100)+'%';
   var nav=document.getElementById('pcsp-nav');
-  if(s===6){if(nav)nav.style.display='none';buildPCSPSummary();}
+  if(s===6){if(nav)nav.style.display='none';buildPCSPSummary();
+    // 서명 캔버스 초기화
+    setTimeout(function(){
+      initSigCanvas('pcsp-sig-canvas','pcsp-sig-empty',function(d){_pcspSig=d;});
+    },100);
+  }
   else{
     if(nav)nav.style.display='flex';
     var prevBtn=document.getElementById('pcsp-prev-btn');
@@ -1991,7 +2004,14 @@ function buildPCSPSummary(){
     +'<div><b>목표:</b> '+_pcspGoals.length+'개 | 위험: '+(_pcspRisks.length||'없음')+'</div>';
 }
 
-function savePCSPFull(){
+function clearPCSPSig(){
+  clearSigCanvas('pcsp-sig-canvas','pcsp-sig-empty');
+  _pcspSig = null;
+}
+
+var _pcspSig = null;
+
+async function savePCSPFull(){
   var last=gp('last'),first=gp('first'),wdate=gp('wdate');
   if(!last&&!first){alert('참여자 이름을 입력해주세요');pcspGoStep(0);return;}
   if(!wdate){alert('작성일을 입력해주세요');pcspGoStep(0);return;}
@@ -2009,28 +2029,127 @@ function savePCSPFull(){
       noHarm:isYes&&document.getElementById('pright-harm-'+i)?document.getElementById('pright-harm-'+i).value:''
     };
   });
+
+  // 서명 캔버스에서 서명 이미지 가져오기
+  var sigCanvas = document.getElementById('pcsp-sig-canvas');
+  var sigData = _pcspSig || (sigCanvas ? sigCanvas.toDataURL('image/png') : null);
+
   var editId=document.getElementById('pcsp-edit-id').value;
-  var entry={id:editId||('pcsp_'+Date.now()),writer:gp('writer'),wdate:wdate,nextdate:gp('nextdate'),type:gp('type'),nameLast:last,nameFirst:first,nameKr:gp('kr'),dob:gp('dob'),gender:gp('gender'),genderid:gp('genderid'),addr:gp('addr'),phone:gp('phone'),email:gp('email'),lang:gp('lang'),livewith:gp('livewith'),caresupp:gp('caresupp'),livewithname:gp('livewithname'),ins:gp('ins'),medicaid:gp('medicaid'),ins2:gp('ins2'),ins2id:gp('ins2id'),days:Array.from(_pcspDays),time:gp('time'),transport:gp('transport'),cm1name:gp('cm1name'),cm1phone:gp('cm1phone'),cm1email:gp('cm1email'),cm2name:gp('cm2name'),cm2phone:gp('cm2phone'),cm2email:gp('cm2email'),pcpname:gp('pcpname'),pcpphone:gp('pcpphone'),pcpemail:gp('pcpemail'),contacts:_pcspContacts,diag:gp('diag'),medassist:gp('medassist'),medlevel:gp('medlevel'),meds:gp('meds'),allergy:gp('allergy'),diet:gp('diet'),nutrition:gp('nutrition'),nutr_acc:gp('nutr-acc'),nutr_how:gp('nutr-how'),comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),alone:gp('alone'),pain:gp('pain'),cap_desc:gp('cap-desc'),adl:adl,carepref:gp('carepref'),carepref_acc:gp('carepref-acc'),carepref_desc:gp('carepref-desc'),carepref_notified:gp('carepref-notified'),risks:_pcspRisks.length?_pcspRisks:[{risk:'No known risks',trigger:'',response:'',measure:'',safeguard:''}],prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,work:gp('work'),work_desc:gp('work-desc'),rights:rights,sig:gp('sig'),sigdate:gp('sigdate'),writersig:gp('writersig'),status:'active',updatedAt:new Date().toISOString()};
-  if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}else PCSP_LIST.push(entry);
-  savePCSPStorage(); // localStorage 캐시
+  var entry={
+    id:editId||('pcsp_'+Date.now()),
+    writer:gp('writer'),wdate:wdate,nextdate:gp('nextdate'),type:gp('type'),
+    nameLast:last,nameFirst:first,nameKr:gp('kr'),
+    dob:gp('dob'),gender:gp('gender'),genderid:gp('genderid'),
+    addr:gp('addr'),phone:gp('phone'),email:gp('email'),lang:gp('lang'),
+    livewith:gp('livewith'),caresupp:gp('caresupp'),livewithname:gp('livewithname'),
+    ins:gp('ins'),medicaid:gp('medicaid'),mltc:gp('mltc')||gp('medicaid'),
+    ins2:gp('ins2'),ins2id:gp('ins2id'),
+    days:Array.from(_pcspDays),time:gp('time'),transport:gp('transport'),
+    cm1name:gp('cm1name'),cm1phone:gp('cm1phone'),cm1email:gp('cm1email'),
+    cm2name:gp('cm2name'),cm2phone:gp('cm2phone'),cm2email:gp('cm2email'),
+    pcpname:gp('pcpname'),pcpphone:gp('pcpphone'),pcpemail:gp('pcpemail'),
+    contacts:_pcspContacts,
+    diag:gp('diag'),medassist:gp('medassist'),medlevel:gp('medlevel'),meds:gp('meds'),
+    allergy:gp('allergy'),diet:gp('diet'),nutrition:gp('nutrition'),
+    nutr_acc:gp('nutr-acc'),nutr_how:gp('nutr-how'),
+    comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),
+    alone:gp('alone'),pain:gp('pain'),cap_desc:gp('cap-desc'),
+    adl:adl,
+    carepref:gp('carepref'),carepref_acc:gp('carepref-acc'),
+    carepref_desc:gp('carepref-desc'),carepref_notified:gp('carepref-notified'),
+    risks:_pcspRisks.length?_pcspRisks:[{risk:'No known risks',trigger:'',response:'',measure:'',safeguard:''}],
+    prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),
+    goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,
+    work:gp('work'),work_desc:gp('work-desc'),
+    rights:rights,
+    sig:sigData||'',sigdate:gp('p-sigdate'),
+    status:'active',updatedAt:new Date().toISOString()
+  };
 
-  // 1) Drive JSON 저장 (전체 데이터)
-  var memberId=entry.medicaid||entry.id;
-  var memberName=entry.nameKr||entry.nameLast;
-  saveJSONtoDrive(memberId,memberName,'PCSP',entry).then(function(res){
-    if(!res||!res.ok){console.warn('PCSP Drive JSON 저장 실패',res);}
-    else{console.log('PCSP Drive JSON 저장 완료:',res.data&&res.data.url);}
-  }).catch(function(e){console.warn('PCSP Drive JSON 오류',e);});
+  if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}
+  else PCSP_LIST.push(entry);
+  savePCSPStorage();
 
-  // 2) Sheets 요약 저장 (검색/목록용)
-  apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{
-    'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,
-    '작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':(entry.diag||'').slice(0,100),
-    '목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'',
-    '목표3':(entry.goals[2]||{}).goal||'','상태':entry.status
-  }}).catch(function(){});
+  var memberId = entry.medicaid||entry.id;
+  var memberName = entry.nameKr||entry.nameLast;
 
-  alert('✅ PCSP 저장 완료!');showPCSPList();
+  // 저장 버튼 비활성화
+  var saveBtn = document.getElementById('pcsp-save-btn');
+  if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='⏳ 저장 중...'; }
+
+  try {
+    // 1) Apps Script에 Word 채우기 + PDF 변환 요청
+    var res = await apiCall({
+      action: 'fillPCSP',
+      memberId: memberId,
+      memberName: memberName,
+      pcsp: entry
+    });
+
+    if(!res||!res.ok||!res.data||!res.data.success){
+      throw new Error(res&&res.data&&res.data.error ? res.data.error : '서버 오류');
+    }
+
+    var pdfBase64 = res.data.pdfBase64;
+
+    // 2) 서명이 있으면 pdf-lib으로 삽입
+    if(sigData && sigData.length > 100 && typeof PDFLib !== 'undefined'){
+      try {
+        var pdfBytes = Uint8Array.from(atob(pdfBase64), function(c){return c.charCodeAt(0);});
+        var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+        var pages = pdfDoc.getPages();
+        var lastPage = pages[pages.length - 1];
+
+        // 서명 이미지 삽입 (마지막 페이지 하단)
+        var sigB64 = sigData.replace(/^data:image\/png;base64,/,'');
+        var sigCanvas2 = document.createElement('canvas');
+        sigCanvas2.width=250; sigCanvas2.height=55;
+        sigCanvas2.getContext('2d').drawImage(sigCanvas,0,0,250,55);
+        var miniSig = sigCanvas2.toDataURL('image/png').replace(/^data:image\/png;base64,/,'');
+        var sigBytes = Uint8Array.from(atob(miniSig), function(c){return c.charCodeAt(0);});
+        var pngImg = await pdfDoc.embedPng(sigBytes);
+        var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        var h = lastPage.getHeight();
+        lastPage.drawImage(pngImg,{x:50, y:h-720, width:200, height:45});
+        lastPage.drawText(entry.sigdate||entry.wdate,{x:430,y:h-700,size:10,font:font,color:PDFLib.rgb(0,0,0)});
+
+        var filledBytes = await pdfDoc.save();
+        var binary='';
+        var bytes=new Uint8Array(filledBytes);
+        for(var i=0;i<bytes.length;i+=8192) binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
+        pdfBase64 = btoa(binary);
+      } catch(sigErr){
+        console.warn('서명 삽입 실패 (계속 진행):', sigErr);
+      }
+    }
+
+    // 3) 서명 포함 최종 PDF Drive 저장
+    await apiCall({
+      action:'savePDF',
+      memberId:memberId,
+      memberName:memberName,
+      fileType:'PCSP_Final',
+      base64Data:pdfBase64,
+      author:_currentUser?(_currentUser.name||''):''
+    });
+
+    // 4) Sheets 요약 저장
+    apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{
+      'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,
+      '작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':(entry.diag||'').slice(0,100),
+      '목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'',
+      '목표3':(entry.goals[2]||{}).goal||'','상태':entry.status
+    }}).catch(function(){});
+
+    alert('✅ PCSP 저장 완료!\n'+memberName+'\n📄 Word + PDF → Drive 저장됨');
+    showPCSPList();
+
+  } catch(e){
+    alert('❌ PCSP 저장 실패: '+e.message);
+    console.error('PCSP save error:', e);
+  } finally {
+    if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 PCSP 저장 (Drive)'; }
+  }
 }
 
 function editPCSP(id){
@@ -2156,7 +2275,7 @@ function printPCSP(id){
     +'</table>';
 
   // Sig image
-  var sigImg=p.sig?'<img src="'+p.sig+'" style="max-height:50px;max-width:100%">':'';
+  var sigImg=p.sig&&p.sig.length>10?'<img src="'+p.sig+'" style="max-height:50px;max-width:100%">':'';
 
   var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>PCSP - '+p.nameLast+', '+p.nameFirst+'</title>'
     +'<style>'
@@ -2190,10 +2309,10 @@ function printPCSP(id){
     +'<tr><th>Preferred Language</th><td>'+p.lang+'</td><th>Gender</th><td>'+p.gender+'</td></tr>'
     +'<tr><th>Gender Identity</th><td>'+p.genderid+'</td><th></th><td></td></tr>'
     +'<tr><td colspan="4"><b>Does the participant live with someone?</b> '+(p.livewith==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'
-    +(p.livewith==='Yes'?'<b>If yes, does that person support the participant\'s care?</b> '+(p.livewithcare==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>':'')
+    +(p.livewith==='Yes'?'<b>If yes, does that person support the participant\'s care?</b> '+(p.caresupp==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>':'')
     +(p.livewithname?'<b>Name(s) and relationship:</b> '+p.livewithname:'')+'</td></tr>'
     +'<tr><td class="sub-hdr" colspan="4">7.2 Primary Insurance / MLTC Plan</td></tr>'
-    +'<tr><th>MLTC Plan/Insurance Co.</th><td>'+p.ins+'</td><th>Medicaid/Insurance ID</th><td>'+p.mltcid+' / '+p.medicaid+'</td></tr>'
+    +'<tr><th>MLTC Plan/Insurance Co.</th><td>'+p.ins+'</td><th>Medicaid/Insurance ID</th><td>'+p.mltc+' / '+p.medicaid+'</td></tr>'
     +'<tr><td class="sub-hdr" colspan="4">7.4 Primary Care Manager</td></tr>'
     +'<tr><th>Full Name</th><td>'+p.cm1name+'</td><th>Phone</th><td>'+p.cm1phone+'</td></tr>'
     +'<tr><th>Email</th><td colspan="3">'+p.cm1email+'</td></tr>'
@@ -2221,19 +2340,19 @@ function printPCSP(id){
     +'<tr><th>Allergies (include severity & emergency response)</th><td colspan="3">'+p.allergy+'</td></tr>'
     +'<tr><th>Dietary Restrictions/Requirements (include reason)</th><td colspan="3">'+p.diet+'</td></tr>'
     +'<tr><th>Nutrition (Preferences/Special Diet)</th><td colspan="3">'+p.nutrition+'</td></tr>'
-    +'<tr><td colspan="4"><b>If the participant has a nutrition preference or special diet, can the SADC accommodate this?</b> '+(p.nutAccom==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.nutAccomDesc?p.nutAccomDesc:'')+'</td></tr>'
+    +'<tr><td colspan="4"><b>If the participant has a nutrition preference or special diet, can the SADC accommodate this?</b> '+(p.nutr_acc==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.nutr_how?p.nutr_how:'')+'</td></tr>'
     +'<tr><td class="sub-hdr" colspan="4">9.4 Capacity for Independence</td></tr>'
     +'<tr><td colspan="4">'
-    +'<b>Is the participant able to communicate their needs?</b> '+(p.comm==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.comm==='No'&&p.comm_desc?'<br><i>If no: '+p.comm_desc+'</i>':'')+'<br>'
-    +'<b>Does the participant appear able to make their own decisions?</b> '+(p.decision==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.decision==='No'&&p.decision_desc?'<br><i>If no: '+p.decision_desc+'</i>':'')+'<br>'
-    +'<b>Is the participant capable of being left alone and unsupervised?</b> '+(p.alone==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.alone==='No'&&p.alone_desc?'<br><i>If no: '+p.alone_desc+'</i>':'')+'<br>'
-    +'<b>Does the participant have any pain and/or sensory needs?</b> '+(p.pain==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.pain==='Yes'&&p.pain_desc?'<br><i>If yes: '+p.pain_desc+'</i>':'')
+    +'<b>Is the participant able to communicate their needs?</b> '+(p.comm==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.comm==='No'&&p.cap_desc?'<br><i>If no: '+p.cap_desc+'</i>':'')+'<br>'
+    +'<b>Does the participant appear able to make their own decisions?</b> '+(p.decision==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.decision==='No'&&p.decision_why?'<br><i>If no: '+p.decision_why+'</i>':'')+'<br>'
+    +'<b>Is the participant capable of being left alone and unsupervised?</b> '+(p.alone==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.alone==='No'&&p.cap_desc?'<br><i>If no: '+p.cap_desc+'</i>':'')+'<br>'
+    +'<b>Does the participant have any pain and/or sensory needs?</b> '+(p.pain==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.pain==='Yes'&&p.cap_desc?'<br><i>If yes: '+p.cap_desc+'</i>':'')
     +'</td></tr>'
     +'<tr><td class="sub-hdr" colspan="4">9.5 Functional Assessment / Staff Intervention</td></tr>'
     +'<tr><th>ADL</th><th>Level of Care</th><th colspan="2">Assistive Technology/Device</th></tr>'
     +adlRows
     +'<tr><td class="sub-hdr" colspan="4">9.6 Personal Care Assistance Preference</td></tr>'
-    +'<tr><td colspan="4"><b>Does the participant have a preference of who provides their personal care assistance?</b> '+(p.carePrefer==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.carePrefer==='Yes'&&p.carePreferDesc?'<b>If yes:</b> '+p.carePreferDesc+'<br>':'')+(p.carePrefer==='Yes'?'<b>Can the SADC accommodate this preference?</b> '+(p.careAccom==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No'):'')+'</td></tr>'
+    +'<tr><td colspan="4"><b>Does the participant have a preference of who provides their personal care assistance?</b> '+(p.carepref==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.carepref==='Yes'&&p.carepref_desc?'<b>If yes:</b> '+p.carepref_desc+'<br>':'')+(p.carepref==='Yes'?'<b>Can the SADC accommodate this preference?</b> '+(p.carepref_acc==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No'):'')+'</td></tr>'
     +'</table>'
 
     // Risk Management
