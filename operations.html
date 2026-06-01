@@ -1179,7 +1179,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ── Google 로그인 ─────────────────────────────────────────
 const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com','chouung11@gmail.com','numberone.adc.lee@gmail.com'];
 const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
-const API_URL = 'https://script.google.com/macros/s/AKfycbxzGbGf1f0DmpFjBhIGr0HgMxG6ebD2xy4vsgBaGUZ1CxejTSb63b_OjbIBiK4L71BJ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxG5alchlB0xmQsZ46jsUZk5bH3ugHaxA8Qtve32CmuJHY8-TIt-ysTHQkJ7v6scUyz/exec';
 var _currentUser = null;
 
 function initGoogle(){
@@ -2078,11 +2078,22 @@ async function savePCSPFull(){
   if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='⏳ 저장 중...'; }
 
   try {
-    // 1) Apps Script에 Word 채우기 + PDF 변환 요청
+    // 서명 이미지 리사이즈 (용량 최소화)
+    var sigBase64 = null;
+    if(sigData && sigData.length > 100){
+      var sigCanvas2 = document.createElement('canvas');
+      sigCanvas2.width = 250; sigCanvas2.height = 55;
+      var sigCanvas = document.getElementById('pcsp-sig-canvas');
+      sigCanvas2.getContext('2d').drawImage(sigCanvas, 0, 0, 250, 55);
+      sigBase64 = sigCanvas2.toDataURL('image/png').replace(/^data:image\/png;base64,/,'');
+    }
+
+    // 1) Apps Script에 Word 채우기 + 서명 삽입 + PDF 변환 요청
     var res = await apiCall({
       action: 'fillPCSP',
       memberId: memberId,
       memberName: memberName,
+      sigBase64: sigBase64,
       pcsp: entry
     });
 
@@ -2092,38 +2103,7 @@ async function savePCSPFull(){
 
     var pdfBase64 = res.data.pdfBase64;
 
-    // 2) 서명이 있으면 pdf-lib으로 삽입
-    if(sigData && sigData.length > 100 && typeof PDFLib !== 'undefined'){
-      try {
-        var pdfBytes = Uint8Array.from(atob(pdfBase64), function(c){return c.charCodeAt(0);});
-        var pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
-        var pages = pdfDoc.getPages();
-        var lastPage = pages[pages.length - 1];
-
-        // 서명 이미지 삽입 (마지막 페이지 하단)
-        var sigB64 = sigData.replace(/^data:image\/png;base64,/,'');
-        var sigCanvas2 = document.createElement('canvas');
-        sigCanvas2.width=250; sigCanvas2.height=55;
-        sigCanvas2.getContext('2d').drawImage(sigCanvas,0,0,250,55);
-        var miniSig = sigCanvas2.toDataURL('image/png').replace(/^data:image\/png;base64,/,'');
-        var sigBytes = Uint8Array.from(atob(miniSig), function(c){return c.charCodeAt(0);});
-        var pngImg = await pdfDoc.embedPng(sigBytes);
-        var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-        var h = lastPage.getHeight();
-        lastPage.drawImage(pngImg,{x:50, y:h-720, width:200, height:45});
-        lastPage.drawText(entry.sigdate||entry.wdate,{x:430,y:h-700,size:10,font:font,color:PDFLib.rgb(0,0,0)});
-
-        var filledBytes = await pdfDoc.save();
-        var binary='';
-        var bytes=new Uint8Array(filledBytes);
-        for(var i=0;i<bytes.length;i+=8192) binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
-        pdfBase64 = btoa(binary);
-      } catch(sigErr){
-        console.warn('서명 삽입 실패 (계속 진행):', sigErr);
-      }
-    }
-
-    // 3) 서명 포함 최종 PDF Drive 저장
+    // 3) 최종 PDF Drive 저장
     await apiCall({
       action:'savePDF',
       memberId:memberId,
