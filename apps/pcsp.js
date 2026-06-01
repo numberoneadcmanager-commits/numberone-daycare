@@ -4,6 +4,36 @@
 // ══════════════════════════════════════════════════════════
 
 var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+function loadPCSPFromSheets(){
+  apiGet({action:'read',sheet:'PCSP'}).then(function(res){
+    if(!res.ok||!res.data||!res.data.length)return;
+    // Sheets에 있는 ID 목록
+    var sheetIds = res.data.map(function(r){return String(r['ID']||'');}).filter(Boolean);
+    // localStorage에 없는 항목은 Drive JSON에서 로드
+    sheetIds.forEach(function(id){
+      if(!PCSP_LIST.find(function(p){return p.id===id;})){
+        var row = res.data.find(function(r){return String(r['ID'])===id;});
+        if(row){
+          // 기본 정보만 추가 (Drive JSON 로드는 별도)
+          PCSP_LIST.push({
+            id: id,
+            nameLast: String(row['nameLast']||''),
+            nameFirst: String(row['nameFirst']||''),
+            nameKr: String(row['한글이름']||''),
+            wdate: String(row['작성일']||''),
+            nextdate: String(row['갱신예정일']||''),
+            writer: String(row['작성자']||''),
+            diag: String(row['진단']||''),
+            status: String(row['상태']||'active'),
+          });
+        }
+      }
+    });
+    savePCSPStorage();
+    renderPCSPList();
+  }).catch(function(){});
+}
+
 function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PCSP_LIST));}
 var _pcspStep=0,_pcspDays=new Set(),_pcspContacts=[],_pcspRisks=[],_pcspGoals=[],_pcspCommunity=[],_pcspFilter='all';
 var PCSP_ADL_ITEMS=['Mobility','Transfers','Toileting','Continence','Eating'];
