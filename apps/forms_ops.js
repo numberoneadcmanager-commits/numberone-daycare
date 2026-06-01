@@ -603,3 +603,12 @@ async function saveHIPAAWithSig(){
     console.error('HIPAA PDF Error:', err);
   }
 }
+
+// ── 이벤트 바인딩 ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  var fsearch = document.getElementById('forms-search');
+  if(fsearch) fsearch.addEventListener('input', filterFormsMembers);
+
+  var fclear = document.getElementById('forms-clear-btn');
+  if(fclear) fclear.addEventListener('click', clearFormsSearch);
+});
