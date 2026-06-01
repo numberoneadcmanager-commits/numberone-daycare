@@ -161,6 +161,8 @@ function showPCSPMemberSelect(){
   document.getElementById('pcsp-list-view').style.display='none';
   document.getElementById('pcsp-member-select').style.display='block';
   document.getElementById('pcsp-form-view').style.display='none';
+  var q = document.getElementById('pcsp-member-q');
+  if(q) q.value='';
   renderPCSPMemberList();
 }
 
@@ -611,4 +613,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   var fclear = document.getElementById('forms-clear-btn');
   if(fclear) fclear.addEventListener('click', clearFormsSearch);
+
+  var pmq = document.getElementById('pcsp-member-q');
+  if(pmq) pmq.addEventListener('input', renderPCSPMemberList);
 });
