@@ -740,7 +740,9 @@ function initMedAutocomplete(){
     if(!matches.length){ dropdown.style.display='none'; return; }
 
     dropdown.innerHTML = matches.map(function(m){
-      return '<div onclick="selectMed(\''+m.name.replace(/'/g,"\\'")+'\'\''+m.reason.replace(/'/g,"\\'")+'\''+')" '
+      var safeName = m.name.replace(/'/g,"\\'");
+      var safeReason = m.reason.replace(/'/g,"\\'");
+      return '<div onclick="selectMed(\''+safeName+'\',\''+safeReason+'\')" '
         +'style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F2F2F7;font-size:12px" '
         +'onmouseover="this.style.background=\'#F2F2F7\'" onmouseout="this.style.background=\'#fff\'">'
         +'<span style="font-weight:600">'+m.name+'</span>'
