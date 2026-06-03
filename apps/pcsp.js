@@ -263,7 +263,6 @@ function pcspGoStep(s){
   var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((s+1)/7*100)+'%';
   var nav=document.getElementById('pcsp-nav');
   if(s===6){if(nav)nav.style.display='none';buildPCSPSummary();
-    // 서명 캔버스 초기화
     setTimeout(function(){
       initSigCanvas('pcsp-sig-canvas','pcsp-sig-empty',function(d){_pcspSig=d;});
     },100);
@@ -273,6 +272,8 @@ function pcspGoStep(s){
     var prevBtn=document.getElementById('pcsp-prev-btn');
     if(prevBtn)prevBtn.style.visibility=s===0?'hidden':'visible';
   }
+  // Step 2 (건강정보) 진입 시 약 자동완성 초기화
+  if(s===2){ setTimeout(initMedAutocomplete, 100); }
   document.querySelector('.content').scrollTop=0;
 }
 function pcspNext(){if(_pcspStep<6)pcspGoStep(_pcspStep+1);}
@@ -670,4 +671,284 @@ function printPCSP(id){
 
   var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
   w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+}
+// ══════════════════════════════════════════════════════════════
+// 약 자동완성
+// ══════════════════════════════════════════════════════════════
+
+var MED_LIBRARY = [
+  {name:'Metformin 500mg', reason:'Type 2 Diabetes'},
+  {name:'Metformin 1000mg', reason:'Type 2 Diabetes'},
+  {name:'Glipizide 5mg', reason:'Type 2 Diabetes'},
+  {name:'Insulin (sliding scale)', reason:'Type 2 Diabetes'},
+  {name:'Lisinopril 10mg', reason:'Hypertension'},
+  {name:'Lisinopril 20mg', reason:'Hypertension'},
+  {name:'Amlodipine 5mg', reason:'Hypertension'},
+  {name:'Losartan 50mg', reason:'Hypertension'},
+  {name:'Atorvastatin 20mg', reason:'High Cholesterol'},
+  {name:'Atorvastatin 40mg', reason:'High Cholesterol'},
+  {name:'Simvastatin 20mg', reason:'High Cholesterol'},
+  {name:'Aspirin 81mg', reason:'Cardiovascular Prevention'},
+  {name:'Clopidogrel 75mg', reason:'Cardiovascular Prevention'},
+  {name:'Warfarin', reason:'Atrial Fibrillation / Blood Clot Prevention'},
+  {name:'Furosemide 20mg', reason:'Congestive Heart Failure / Edema'},
+  {name:'Carvedilol 6.25mg', reason:'Congestive Heart Failure'},
+  {name:'Levothyroxine 50mcg', reason:'Hypothyroidism'},
+  {name:'Omeprazole 20mg', reason:'GERD / Acid Reflux'},
+  {name:'Alendronate 70mg', reason:'Osteoporosis'},
+  {name:'Calcium + Vitamin D', reason:'Bone Health'},
+  {name:'Vitamin D3 1000IU', reason:'Vitamin D Deficiency'},
+  {name:'Donepezil 5mg', reason:'Dementia / Alzheimer\'s'},
+  {name:'Memantine 10mg', reason:'Dementia / Alzheimer\'s'},
+  {name:'Sertraline 50mg', reason:'Depression / Anxiety'},
+  {name:'Gabapentin 300mg', reason:'Neuropathic Pain'},
+  {name:'Acetaminophen 500mg', reason:'Pain Management'},
+  {name:'Albuterol inhaler', reason:'Asthma / COPD'},
+];
+
+// localStorage에서 커스텀 약 로드
+function getMedLibrary(){
+  var custom = [];
+  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
+  return MED_LIBRARY.concat(custom);
+}
+
+function saveMedToLibrary(name, reason){
+  var custom = [];
+  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
+  var exists = custom.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); });
+  if(!exists && !MED_LIBRARY.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); })){
+    custom.push({name:name, reason:reason||''});
+    localStorage.setItem('med_custom', JSON.stringify(custom));
+  }
+}
+
+function initMedAutocomplete(){
+  var input = document.getElementById('p-med-input');
+  if(!input || input._medInit) return;
+  input._medInit = true;
+
+  input.addEventListener('input', function(){
+    var q = this.value.trim().toLowerCase();
+    var dropdown = document.getElementById('med-autocomplete');
+    if(!q || q.length < 1){ dropdown.style.display='none'; return; }
+
+    var matches = getMedLibrary().filter(function(m){
+      return m.name.toLowerCase().startsWith(q) || m.name.toLowerCase().includes(q);
+    }).slice(0, 8);
+
+    if(!matches.length){ dropdown.style.display='none'; return; }
+
+    dropdown.innerHTML = matches.map(function(m){
+      return '<div onclick="selectMed(\''+m.name.replace(/'/g,"\\'")+'\'\''+m.reason.replace(/'/g,"\\'")+'\''+')" '
+        +'style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F2F2F7;font-size:12px" '
+        +'onmouseover="this.style.background=\'#F2F2F7\'" onmouseout="this.style.background=\'#fff\'">'
+        +'<span style="font-weight:600">'+m.name+'</span>'
+        +'<span style="color:#8E8E93;margin-left:8px">'+m.reason+'</span>'
+        +'</div>';
+    }).join('');
+    dropdown.style.display='block';
+  });
+
+  input.addEventListener('keydown', function(e){
+    if(e.key==='Escape'){ document.getElementById('med-autocomplete').style.display='none'; }
+    if(e.key==='Enter'){ e.preventDefault(); addMedLine(); }
+  });
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('#p-med-input') && !e.target.closest('#med-autocomplete')){
+      var d = document.getElementById('med-autocomplete');
+      if(d) d.style.display='none';
+    }
+  });
+}
+
+function selectMed(name, reason){
+  var ni = document.getElementById('p-med-input');
+  var ri = document.getElementById('p-med-reason');
+  if(ni) ni.value = name;
+  if(ri) ri.value = reason || '';
+  var d = document.getElementById('med-autocomplete');
+  if(d) d.style.display='none';
+  if(ri) ri.focus();
+}
+
+function addMedLine(){
+  var ni = document.getElementById('p-med-input');
+  var ri = document.getElementById('p-med-reason');
+  var ta = document.getElementById('p-meds');
+  if(!ni || !ta) return;
+  var name = (ni.value||'').trim();
+  var reason = (ri?ri.value||'':'').trim();
+  if(!name) return;
+  var line = name + (reason ? ' – ' + reason : '');
+  ta.value = ta.value ? ta.value + '\n' + line : line;
+  ni.value = '';
+  if(ri) ri.value = '';
+  saveMedToLibrary(name, reason);
+  var d = document.getElementById('med-autocomplete');
+  if(d) d.style.display='none';
+  ni.focus();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PCSP AI 자동완성
+// ══════════════════════════════════════════════════════════════
+
+async function aiWritePCSP(field){
+  var diag = (document.getElementById('p-diag')||{}).value || '';
+  var meds = (document.getElementById('p-meds')||{}).value || '';
+  var prefs = (document.getElementById('p-prefs')||{}).value || '';
+  var nameKr = (document.getElementById('p-kr')||{}).value || '';
+  var dob = (document.getElementById('p-dob')||{}).value || '';
+  var gender = (document.getElementById('p-gender')||{}).value || '';
+
+  // 나이 계산
+  var age = '';
+  if(dob){ var y=new Date().getFullYear()-parseInt(dob.slice(0,4)); age=y+'세 ('+y+' years old)'; }
+
+  var fieldLabels = {
+    prefs: '선호도 (Preferences)',
+    strengths: '강점 (Strengths)',
+    needs: '필요 (Needs)',
+    goals: '목표 (Goals)'
+  };
+
+  // 키워드 입력 팝업
+  var hint = prompt(
+    '✨ AI로 ' + fieldLabels[field] + ' 작성\n\n'
+    + '키워드를 입력해주세요 (선택사항):\n'
+    + '예: 음악감상, 산책, 종교활동, 사회화 필요, 가족 지지',
+    ''
+  );
+  if(hint === null) return; // 취소
+
+  var btn = document.querySelector('[onclick="aiWritePCSP(\''+field+'\')"]');
+  if(btn){ btn.textContent='⏳ 생성 중...'; btn.disabled=true; }
+
+  var prompts = {
+    prefs: `You are a NYS DOH SADC PCSP writer. Write the "Preferences" section for a Korean-American senior participant.
+
+Participant info:
+- Age/Gender: ${age} ${gender}
+- Diagnoses: ${diag || 'not specified'}
+- Keywords/hints: ${hint || 'typical Korean senior preferences'}
+
+Requirements:
+- Write in English only
+- 3-5 sentences
+- Include both likes AND dislikes
+- Mention specific activities (music, food, social activities, religious activities if applicable)
+- Reference Korean cultural preferences naturally
+- Follow NYS DOH SADC PCSP 2026 template format
+- Start with "Participant enjoys..." or "Participant prefers..."
+- Do NOT include headers or labels, just the paragraph text`,
+
+    strengths: `You are a NYS DOH SADC PCSP writer. Write the "Strengths" section for a Korean-American senior participant.
+
+Participant info:
+- Age/Gender: ${age} ${gender}
+- Diagnoses: ${diag || 'not specified'}
+- Keywords/hints: ${hint || 'typical Korean senior strengths'}
+
+Requirements:
+- Write in English only
+- 3-4 sentences
+- Include behavioral, social, AND physical strengths
+- "None" is NOT acceptable
+- Be specific and person-centered
+- Follow NYS DOH SADC PCSP 2026 template format
+- Do NOT include headers or labels, just the paragraph text`,
+
+    needs: `You are a NYS DOH SADC PCSP writer. Write the "Needs" section for a Korean-American senior participant.
+
+Participant info:
+- Age/Gender: ${age} ${gender}
+- Diagnoses: ${diag || 'not specified'}
+- Preferences: ${prefs || 'not specified'}
+- Keywords/hints: ${hint || 'typical Korean senior needs'}
+
+Requirements:
+- Write in English only
+- 3-4 sentences
+- Include reason for SADC attendance
+- May include: socialization, cognitive stimulation, caregiver respite, health monitoring
+- "None" is NOT acceptable
+- Follow NYS DOH SADC PCSP 2026 template format
+- Do NOT include headers or labels, just the paragraph text`,
+
+    goals: `You are a NYS DOH SADC PCSP writer. Write 2-3 SMART Goals for a Korean-American senior participant.
+
+Participant info:
+- Age/Gender: ${age} ${gender}
+- Diagnoses: ${diag || 'not specified'}
+- Keywords/hints: ${hint || 'typical Korean senior goals'}
+- Current date: ${new Date().toISOString().slice(0,10)}
+
+Requirements:
+- Write in English only
+- 2-3 SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound)
+- Each goal on a new line in format: "Goal: [goal] | Outcome: [criteria] | Actions: [steps]"
+- Include dates (6-12 months from today)
+- Goals should relate to diagnoses and preferences
+- Follow NYS DOH SADC PCSP 2026 template format`
+  };
+
+  try {
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompts[field] }]
+      })
+    });
+
+    var data = await response.json();
+    var text = data.content && data.content[0] ? data.content[0].text : '';
+
+    if(!text){ throw new Error('응답 없음'); }
+
+    if(field === 'goals'){
+      // Goals는 파싱해서 각 goal 추가
+      var lines = text.split('\n').filter(function(l){ return l.trim().startsWith('Goal:'); });
+      if(lines.length){
+        lines.forEach(function(line){
+          var parts = line.split('|');
+          var goal = (parts[0]||'').replace('Goal:','').trim();
+          var outcome = (parts[1]||'').replace('Outcome:','').trim();
+          var actions = (parts[2]||'').replace('Actions:','').trim();
+          if(goal){
+            _pcspGoals.push({
+              goal: goal,
+              outcome: outcome || 'To be measured by staff observation and participation tracking.',
+              actions: actions || 'SADC staff will remind and encourage participant weekly.',
+              activities: ''
+            });
+          }
+        });
+        renderPCSPGoals();
+        alert('✅ AI가 '+lines.length+'개 목표를 생성했어요!');
+      } else {
+        // 파싱 실패시 첫 번째 goal에 텍스트 전체 넣기
+        _pcspGoals.push({ goal: text.slice(0,200), outcome:'', actions:'', activities:'' });
+        renderPCSPGoals();
+      }
+    } else {
+      var ta = document.getElementById('p-'+field);
+      if(ta){
+        var existing = ta.value.trim();
+        ta.value = existing ? existing + '\n\n' + text : text;
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      }
+    }
+
+  } catch(err){
+    alert('❌ AI 생성 실패: ' + err.message + '\n\nAPI 연결을 확인해주세요.');
+    console.error('AI 오류:', err);
+  } finally {
+    if(btn){ btn.textContent='✨ AI 작성'; btn.disabled=false; }
+  }
 }
