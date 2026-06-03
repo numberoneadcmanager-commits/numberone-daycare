@@ -802,6 +802,10 @@ async function aiWritePCSP(field){
   var meds = (document.getElementById('p-meds')||{}).value || '';
   var prefs = (document.getElementById('p-prefs')||{}).value || '';
   var nameKr = (document.getElementById('p-kr')||{}).value || '';
+  var nameLast = (document.getElementById('p-last')||{}).value || '';
+  var nameFirst = (document.getElementById('p-first')||{}).value || '';
+  var nameEn = (nameLast && nameFirst) ? nameFirst + ' ' + nameLast : (nameLast || nameFirst || 'the participant');
+  var nameDisplay = nameEn; // 영문 이름으로 문서 작성
   var dob = (document.getElementById('p-dob')||{}).value || '';
   var gender = (document.getElementById('p-gender')||{}).value || '';
 
@@ -832,6 +836,7 @@ async function aiWritePCSP(field){
     prefs: `You are a NYS DOH SADC PCSP writer. Write the "Preferences" section for a Korean-American senior participant.
 
 Participant info:
+- Name: ${nameDisplay}
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
 - Keywords/hints: ${hint || 'typical Korean senior preferences'}
@@ -843,12 +848,15 @@ Requirements:
 - Mention specific activities (music, food, social activities, religious activities if applicable)
 - Reference Korean cultural preferences naturally
 - Follow NYS DOH SADC PCSP 2026 template format
-- Start with "Participant enjoys..." or "Participant prefers..."
+- Use the participant's actual name: ${nameDisplay}
+- Start with their name: e.g. "${nameDisplay} enjoys..." or "${nameDisplay} prefers..."
+- Do NOT use "[Participant Name]" placeholder
 - Do NOT include headers or labels, just the paragraph text`,
 
     strengths: `You are a NYS DOH SADC PCSP writer. Write the "Strengths" section for a Korean-American senior participant.
 
 Participant info:
+- Name: ${nameDisplay}
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
 - Keywords/hints: ${hint || 'typical Korean senior strengths'}
@@ -856,6 +864,7 @@ Participant info:
 Requirements:
 - Write in English only
 - 3-4 sentences
+- Use the participant's actual name "${nameDisplay}" (not "Participant" or "[Participant Name]")
 - Include behavioral, social, AND physical strengths
 - "None" is NOT acceptable
 - Be specific and person-centered
@@ -865,6 +874,7 @@ Requirements:
     needs: `You are a NYS DOH SADC PCSP writer. Write the "Needs" section for a Korean-American senior participant.
 
 Participant info:
+- Name: ${nameDisplay}
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
 - Preferences: ${prefs || 'not specified'}
@@ -882,6 +892,7 @@ Requirements:
     goals: `You are a NYS DOH SADC PCSP writer. Write 2-3 SMART Goals for a Korean-American senior participant.
 
 Participant info:
+- Name: ${nameDisplay}
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
 - Keywords/hints: ${hint || 'typical Korean senior goals'}
