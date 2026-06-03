@@ -610,7 +610,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
               </div>
             </div>
             <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">• Verbal Cueing: 시간 알려주기&nbsp;&nbsp;• Assistance with Setup: 용기 열기 등</div>
-            <textarea class="m-textarea" id="p-meds" style="width:100%;min-height:100px" placeholder="약물명 – 진단명 형식으로 입력&#10;예: Metformin 500mg – Type 2 Diabetes&#10;Lisinopril 10mg – Hypertension&#10;Calcium supplement – Bone Health"></textarea>
+            <div style="position:relative">
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <input class="fi" id="p-med-input" placeholder="약물명 입력 후 Enter (자동완성)" style="flex:1;font-size:12px">
+                <input class="fi" id="p-med-reason" placeholder="진단명/이유" style="flex:1;font-size:12px">
+                <button onclick="addMedLine()" class="btn-sm" style="white-space:nowrap">➕ 추가</button>
+              </div>
+              <div id="med-autocomplete" style="display:none;position:absolute;top:36px;left:0;right:0;background:#fff;border:1px solid #E5E5EA;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;max-height:200px;overflow-y:auto"></div>
+              <textarea class="m-textarea" id="p-meds" style="width:100%;min-height:100px" placeholder="약물명 – 진단명 형식으로 입력&#10;예: Metformin 500mg – Type 2 Diabetes&#10;Lisinopril 10mg – Hypertension&#10;Calcium supplement – Bone Health"></textarea>
+            </div>
           </div>
           <div class="card">
             <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🚨 알레르기 (Allergies)</div>
@@ -696,17 +704,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <button class="btn-sm" style="margin-top:8px" onclick="addPcspRisk()">➕ 위험 요소 추가</button>
           </div>
           <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">❤️ 선호도 (Preferences)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:#5856D6">❤️ 선호도 (Preferences)</div>
+              <button onclick="aiWritePCSP('prefs')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
+            </div>
             <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">활동, 음식, 사회화, 종교, 취미 등 · SADC 활동에 국한하지 않고 전반적 선호도 기록</div>
             <textarea class="m-textarea" id="p-prefs" style="width:100%;min-height:80px" placeholder="좋아하는 것: Enjoys Korean music, bingo, walking, watching Korean dramas&#10;싫어하는 것: Dislikes loud environments, large groups"></textarea>
           </div>
           <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💪 강점 (Strengths)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:#5856D6">💪 강점 (Strengths)</div>
+              <button onclick="aiWritePCSP('strengths')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
+            </div>
             <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · 신체적/사회적/행동적 강점 모두 포함 · 탐색 질문: "What are things you like to do and are good at?"</div>
             <textarea class="m-textarea" id="p-strengths" style="width:100%;min-height:70px" placeholder="예: Good communicator, advocates for her needs&#10;Friendly and enjoys socializing with other participants&#10;Independent with mobility using a cane"></textarea>
           </div>
           <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📌 필요 (Needs)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:#5856D6">📌 필요 (Needs)</div>
+              <button onclick="aiWritePCSP('needs')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
+            </div>
             <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · SADC 참석 이유 및 높은 수준의 필요 사항 · 탐색 질문: "What do you hope to get out of SADC?"</div>
             <textarea class="m-textarea" id="p-needs" style="width:100%;min-height:70px" placeholder="예: Socialization and peer interaction&#10;Caregiver respite during daytime hours&#10;Cognitive stimulation and structured activities"></textarea>
           </div>
@@ -715,7 +732,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <!-- Step 5: 목표 + 활동 -->
         <div class="pcsp-step" id="pstep-5" style="display:none">
           <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🎯 목표 (Goals & Activities — SMART)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:#5856D6">🎯 목표 (Goals & Activities — SMART)</div>
+              <button onclick="aiWritePCSP('goals')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
+            </div>
             <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">Specific · Measurable · Achievable · Relevant · Time-bound · 날짜/기간 포함 필수</div>
             <div id="pcsp-goals-list"></div>
             <button class="btn-sm" style="margin-top:8px" onclick="addPcspGoal()">➕ 목표 추가</button>
