@@ -897,18 +897,11 @@ Requirements:
   };
 
   try {
-    var response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompts[field] }]
-      })
-    });
-
-    var data = await response.json();
-    var text = data.content && data.content[0] ? data.content[0].text : '';
+    var res = await apiCall({ action: 'aiPCSP', prompt: prompts[field] });
+    if(!res || !res.ok || !res.data || !res.data.success){
+      throw new Error(res&&res.data&&res.data.error ? res.data.error : 'AI 응답 오류');
+    }
+    var text = res.data.text || '';
 
     if(!text){ throw new Error('응답 없음'); }
 
