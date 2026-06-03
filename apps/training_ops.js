@@ -393,18 +393,23 @@ function initData(){
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
   var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
-  if(tab === 'pcsp'){
+  if(tab === 'pcsp' || tab === 'forms'){
     localStorage.removeItem('pcsp_prefill_mid');
-    // PCSP 탭으로 이동
-    var pcspTab = document.querySelector('.tab[onclick*="pcsp"]');
-    goTab('pcsp', pcspTab);
-    // 멤버 정보 prefill
+    // Forms 탭으로 이동
+    var formsTabEl = document.querySelector('.tab[onclick*="forms"]');
+    goTab('forms', formsTabEl);
     if(mid){
+      // 멤버 캐시 로드 후 PCSP 열기
       setTimeout(function(){
-        prefillPCSPFromMember(mid);
+        if(typeof loadFormsMemberDropdown === 'function') loadFormsMemberDropdown();
+        setTimeout(function(){
+          if(typeof prefillPCSPFromMember === 'function'){
+            prefillPCSPFromMember(mid);
+          } else if(typeof openPCSPForMember === 'function'){
+            openPCSPForMember(mid, '');
+          }
+        }, 800);
       }, 300);
-    } else {
-      setTimeout(function(){ openPCSPForm(); }, 300);
     }
   }
 }
