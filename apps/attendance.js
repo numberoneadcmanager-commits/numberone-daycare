@@ -1,13 +1,28 @@
 // ══════════════════════════════════════════════════════════════
-// 넘버원 어덜트 데이케어 — 출결 관리
+// 넘버원 어덜트 데이케어 — 출결 관리 v2.0
+// Sheets가 단일 진실 공급원 (Single Source of Truth)
 // apps/attendance.js
 // ══════════════════════════════════════════════════════════════
+
+// ── 로딩 상태 ─────────────────────────────────────────────────
+var _attLoading = false;
+var _attCache   = {}; // { 'YYYY-MM-DD': { mid: {...} } } — 메모리 캐시만
 
 // ── 출결 대상 목록 ────────────────────────────────────────────
 function getList(iso) {
   const q   = (document.getElementById('asearch') || {}).value || '';
   const dow = dowKey(iso);
   return MEMBERS.filter(m => m.days.includes(dow) && (!q || m.kr.includes(q)));
+}
+
+// ── 캐시 접근 ─────────────────────────────────────────────────
+function getRec(iso)            { return _attCache[iso] || {}; }
+function setRec(iso, mid, data) {
+  if (!_attCache[iso]) _attCache[iso] = {};
+  _attCache[iso][mid] = data;
+  // allR도 동기화 (대시보드 등 다른 곳에서 allR 사용)
+  if (!allR[iso]) allR[iso] = {};
+  allR[iso][mid] = data;
 }
 
 // ── 날짜 네비게이션 ───────────────────────────────────────────
@@ -23,10 +38,57 @@ function moveDate(d) {
   const nd = new Date(curDate);
   nd.setDate(nd.getDate() + d);
   if (toISO(nd) > todayISO) return;
-  curDate = nd; updateDN(); renderAtt();
+  curDate = nd;
+  updateDN();
+  loadAttFromSheets(toISO(curDate));
 }
 
-function goToday() { curDate = new Date(); updateDN(); renderAtt(); }
+function goToday() {
+  curDate = new Date();
+  updateDN();
+  loadAttFromSheets(toISO(curDate));
+}
+
+// ── Sheets에서 출결 로드 ──────────────────────────────────────
+async function loadAttFromSheets(iso) {
+  if (_attLoading) return;
+  _attLoading = true;
+
+  // 로딩 표시
+  const listEl = document.getElementById('att-list');
+  if (listEl) listEl.innerHTML = '<div class="empty-msg">⏳ 출결 데이터 불러오는 중...</div>';
+
+  try {
+    const res = await SheetsAPI.readByDate('출결', iso);
+    if (res && res.ok && res.data) {
+      // 캐시 초기화 후 Sheets 데이터로 채우기
+      _attCache[iso] = {};
+      allR[iso]      = {};
+      res.data.forEach(function(r) {
+        const mid = String(r['멤버ID'] || '');
+        if (!mid) return;
+        const rec = {
+          status:  String(r['상태']    || ''),
+          signIn:  String(r['Sign-in'] || ''),
+          signOut: String(r['Sign-out']|| ''),
+          memo:    String(r['메모']    || ''),
+          start:   String(r['시작일']  || ''),
+          end:     String(r['종료일']  || ''),
+          writer:  String(r['작성자']  || ''),
+        };
+        _attCache[iso][mid] = rec;
+        allR[iso][mid]      = rec;
+      });
+    }
+  } catch(e) {
+    console.warn('출결 로드 실패:', e);
+  } finally {
+    _attLoading = false;
+  }
+
+  renderAtt();
+  updateDashNow();
+}
 
 // ── 출결 렌더링 ───────────────────────────────────────────────
 function renderAtt() {
@@ -57,57 +119,93 @@ function renderAtt() {
         <div>${badgeHTML(s)}${ds ? `<div style="font-size:10px;color:#8E8E93;margin-top:2px">${ds}</div>` : ''}</div>
       </div>
       <div class="att-btns">
-        <button class="abt ${s === 'in'       ? 's-in'       : ''}" onclick="qSet('${iso}','${m.id}','in')">✅출석</button>
-        <button class="abt ${s === 'late'     ? 's-late'     : ''}" onclick="qSet('${iso}','${m.id}','late')">⏰지각</button>
-        <button class="abt ${s === 'absent'   ? 's-absent'   : ''}" onclick="qSet('${iso}','${m.id}','absent')">❌결석</button>
-        <button class="abt ${s === 'travel'   ? 's-travel'   : ''}" onclick="openAttModal('${iso}','${m.id}','travel')">✈️여행</button>
-        <button class="abt ${s === 'hospital' ? 's-hospital' : ''}" onclick="openAttModal('${iso}','${m.id}','hospital')">🏥입원</button>
+        <button class="abt ${s==='in'       ?'s-in'      :''}" onclick="qSet('${iso}','${m.id}','in')">✅출석</button>
+        <button class="abt ${s==='late'     ?'s-late'    :''}" onclick="qSet('${iso}','${m.id}','late')">⏰지각</button>
+        <button class="abt ${s==='absent'   ?'s-absent'  :''}" onclick="qSet('${iso}','${m.id}','absent')">❌결석</button>
+        <button class="abt ${s==='travel'   ?'s-travel'  :''}" onclick="openAttModal('${iso}','${m.id}','travel')">✈️여행</button>
+        <button class="abt ${s==='hospital' ?'s-hospital':''}" onclick="openAttModal('${iso}','${m.id}','hospital')">🏥입원</button>
         <button class="abt" onclick="openAttModal('${iso}','${m.id}',null)" style="color:#8E8E93">•••</button>
       </div>
       <textarea class="memo-f" rows="1" placeholder="메모..." oninput="qMemo('${iso}','${m.id}',this.value)">${(r.memo || '').replace(/</g, '&lt;')}</textarea>
     </div>`;
   }).join('');
 
-  document.getElementById('att-list').innerHTML = html || '<div class="empty-msg">오늘 대상 이용자 없음</div>';
-  document.getElementById('att-in').textContent    = inC;
-  document.getElementById('att-travel').textContent = trC;
-  document.getElementById('att-pend').textContent   = pC;
-  document.getElementById('att-title').textContent  = (past ? '📝 과거 수정 — ' : '') + fmtD(iso) + ' (' + list.length + '명)';
-  document.getElementById('day-count').textContent  = '출석 ' + inC + '명';
-  updateDashNow();
+  const attList = document.getElementById('att-list');
+  if (attList) attList.innerHTML = html || '<div class="empty-msg">오늘 대상 이용자 없음</div>';
+  const attIn  = document.getElementById('att-in');    if(attIn)    attIn.textContent    = inC;
+  const attTr  = document.getElementById('att-travel'); if(attTr)   attTr.textContent    = trC;
+  const attPnd = document.getElementById('att-pend');  if(attPnd)   attPnd.textContent   = pC;
+  const attTtl = document.getElementById('att-title'); if(attTtl)   attTtl.textContent   = (past?'📝 과거 수정 — ':'')+fmtD(iso)+' ('+list.length+'명)';
+  const dayCnt = document.getElementById('day-count'); if(dayCnt)   dayCnt.textContent   = '출석 '+inC+'명';
 }
 
 // ── 빠른 출결 체크 ────────────────────────────────────────────
-function qSet(iso, mid, st) {
-  const r    = getRec(iso), prev = (r[mid] || {}).status, past = iso < todayISO;
+async function qSet(iso, mid, st) {
+  const r    = getRec(iso);
+  const prev = (r[mid] || {}).status;
+  const past = iso < todayISO;
 
-  // ── 중복 출석 방지 ──────────────────────────────────────────
-  // 오늘 날짜에서 이미 출석(in/late) 상태인 경우 재클릭 무시
-  if (!past && (prev === 'in' || prev === 'late') && (st === 'in' || st === 'late')) {
-    return;
-  }
+  // 오늘 이미 출석(in/late) 상태면 재클릭 무시
+  if (!past && (prev === 'in' || prev === 'late') && st === prev) return;
 
+  let upd;
   if (prev === st) {
-    if (allR[iso]) delete allR[iso][mid];
-    renderAtt(); saveToStorage();
-    // 삭제된 경우 빈 레코드로 저장
-    syncToSheets(iso, mid, { status: '', signIn: '', signOut: '', memo: '' });
+    // 같은 상태 클릭 → 취소
+    upd = { status: '', signIn: '', signOut: '', memo: (r[mid]||{}).memo||'' };
+    if (_attCache[iso]) delete _attCache[iso][mid];
+    if (allR[iso])      delete allR[iso][mid];
   } else {
-    const ex  = r[mid] || {}, upd = { ...ex, status: st, updatedAt: now2() };
+    const ex = r[mid] || {};
+    upd = { ...ex, status: st, updatedAt: now2() };
     if (past && ex.status && ex.status !== st) upd.editedAt = now2();
     if ((st === 'in' || st === 'late') && !ex.signIn && !past) upd.signIn = now2();
     setRec(iso, mid, upd);
-    renderAtt(); saveToStorage();
-    // 변경된 멤버 1명만 저장
-    syncToSheets(iso, mid, upd);
   }
+
+  renderAtt();
+
+  // Sheets에 직접 저장
+  await saveAttToSheets(iso, mid, upd);
 }
 
 function qMemo(iso, mid, val) {
-  const ex = (getRec(iso)[mid]) || {}, past = iso < todayISO;
+  const ex  = (getRec(iso)[mid]) || {};
+  const past = iso < todayISO;
   const upd = { ...ex, memo: val, updatedAt: now2() };
   if (past && ex.memo !== undefined) upd.editedAt = now2();
   setRec(iso, mid, upd);
+  // 메모는 debounce (타이핑 중에 매번 저장 방지)
+  clearTimeout(qMemo._t);
+  qMemo._t = setTimeout(() => saveAttToSheets(iso, mid, upd), 1500);
+}
+
+// ── Sheets에 단일 출결 저장 ───────────────────────────────────
+async function saveAttToSheets(iso, mid, r) {
+  const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
+  const author = _currentUser ? (_currentUser.name || '') : '';
+  try {
+    await SheetsAPI.post({
+      action:  'upsert',
+      sheet:   '출결',
+      key:     '날짜',
+      value:   iso + '_' + mid,
+      data: {
+        '날짜':     iso,
+        '멤버ID':   mid,
+        '한글이름': nameKr,
+        '상태':     r.status   || '',
+        'Sign-in':  r.signIn   || '',
+        'Sign-out': r.signOut  || '',
+        '메모':     r.memo     || '',
+        '시작일':   r.start    || '',
+        '종료일':   r.end      || '',
+        '수정시각': new Date().toLocaleString('ko-KR'),
+        '작성자':   author,
+      },
+    });
+  } catch(e) {
+    console.warn('출결 저장 실패:', mid, e);
+  }
 }
 
 // ── 출결 상세 모달 ────────────────────────────────────────────
@@ -154,7 +252,7 @@ function addChip(t) {
   ta.value = ta.value + (ta.value && !ta.value.endsWith('\n') ? '\n' : '') + t;
 }
 
-function saveAttModal() {
+async function saveAttModal() {
   if (!popId || !popDate) return;
   const past = popDate < todayISO, ex = (getRec(popDate)[popId]) || {};
   const data = {
@@ -168,14 +266,18 @@ function saveAttModal() {
   };
   if (past && ex.status) data.editedAt = now2();
   setRec(popDate, popId, data);
-  saveToStorage(); closeOv('ov-att'); renderAtt();
-  syncToSheets(popDate, popId, data);
+  closeOv('ov-att');
+  renderAtt();
+  await saveAttToSheets(popDate, popId, data);
 }
 
-function clearAttModal() {
+async function clearAttModal() {
   if (!popId || !popDate) return;
-  if (allR[popDate]) delete allR[popDate][popId];
-  closeOv('ov-att'); renderAtt();
+  if (_attCache[popDate]) delete _attCache[popDate][popId];
+  if (allR[popDate])      delete allR[popDate][popId];
+  closeOv('ov-att');
+  renderAtt();
+  await saveAttToSheets(popDate, popId, { status:'', signIn:'', signOut:'', memo:'' });
 }
 
 // ── 부재 탭 ───────────────────────────────────────────────────
@@ -201,23 +303,7 @@ function renderAbsence() {
   });
 }
 
-// ── Sheets 동기화 — 변경된 멤버 1명만 저장 ──────────────────
-async function syncToSheets(iso, mid, r) {
-  // mid와 r이 전달된 경우 해당 멤버만 저장 (빠르고 race condition 없음)
-  if (mid && r) {
-    try {
-      await SheetsAPI.syncSingleAttendance(iso, mid, r, MEMBERS);
-    } catch (e) { console.warn('출결 저장 실패:', mid, e); }
-    return;
-  }
-  // mid 없으면 전체 sync (fallback)
-  try {
-    const recs = getRec(iso);
-    await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
-  } catch (e) {}
-}
-
-// ── 로컬 저장/로드 ────────────────────────────────────────────
+// ── 저장소 (출결은 localStorage 미사용) ───────────────────────
 function saveToStorage() {
   try {
     const ms = {};
@@ -226,7 +312,7 @@ function saveToStorage() {
         ms[m.id] = { status: m.status, disenrollDate: m.disenrollDate || '', disenrollNote: m.disenrollNote || '' };
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      allR, incidents, activities, cases,
+      incidents, activities, cases,
       memberStatus: ms, memberPhotos: mp,
       savedAt: new Date().toISOString(),
     }));
@@ -238,7 +324,7 @@ function loadFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
-    if (data.allR)       allR       = data.allR;
+    // 출결(allR)은 localStorage에서 로드하지 않음 — Sheets에서 직접 로드
     if (data.incidents)  incidents  = data.incidents;
     if (data.activities) activities = data.activities;
     if (data.cases)      cases      = data.cases;
@@ -257,15 +343,16 @@ function loadFromStorage() {
 function clearStorage() {
   if (!confirm('저장된 모든 데이터를 삭제하시겠습니까?')) return;
   localStorage.removeItem(STORAGE_KEY);
-  allR = {}; incidents = []; activities = []; cases = [];
+  allR = {}; _attCache = {};
+  incidents = []; activities = []; cases = [];
   MEMBERS.forEach(m => { m.status = 'active'; m.disenrollDate = ''; });
-  renderDash(); renderAtt(); filterM(); alert('삭제 완료');
+  renderDash(); loadAttFromSheets(toISO(curDate)); filterM(); alert('삭제 완료');
 }
 
 function exportData() {
   const ms = {};
   MEMBERS.forEach(m => { if (m.status === 'disenrolled') ms[m.id] = { status: m.status, disenrollDate: m.disenrollDate || '' }; });
-  const data = { allR, incidents, activities, cases, memberStatus: ms, exportedAt: new Date().toISOString() };
+  const data = { incidents, activities, cases, memberStatus: ms, exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -283,7 +370,6 @@ function importData() {
       try {
         const data = JSON.parse(ev.target.result);
         if (!confirm('현재 데이터가 덮어씌워집니다. 계속하시겠습니까?')) return;
-        if (data.allR)       allR       = data.allR;
         if (data.incidents)  incidents  = data.incidents;
         if (data.activities) activities = data.activities;
         if (data.cases)      cases      = data.cases;
@@ -295,7 +381,7 @@ function importData() {
           const m = MEMBERS.find(x => x.id === id);
           if (m) { m.status = s.status; m.disenrollDate = s.disenrollDate || ''; }
         });
-        saveToStorage(); renderDash(); renderAtt(); filterM();
+        saveToStorage(); renderDash(); filterM();
         renderIncidents(); renderActivities(); renderCases();
         alert('불러오기 완료!');
       } catch (err) { alert('파일 형식 오류'); }
