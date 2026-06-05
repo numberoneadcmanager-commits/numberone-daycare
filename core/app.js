@@ -103,7 +103,12 @@ function goTab(tab, el) {
   const panel = document.getElementById('panel-' + tab);
   if (panel) panel.classList.add('active');
   closeModal();
-  if (tab === 'attendance'    && typeof renderAtt          === 'function') renderAtt();
+
+  // 출결 탭: 항상 Sheets에서 최신 데이터 로드
+  if (tab === 'attendance') {
+    loadAttFromSheets(toISO(curDate));
+    return;
+  }
   if (tab === 'dashboard'     && typeof renderDash         === 'function') renderDash();
   if (tab === 'members'       && typeof filterM            === 'function') filterM();
   if (tab === 'absence'       && typeof renderAbsence      === 'function') renderAbsence();
@@ -159,9 +164,9 @@ async function loadAllData() {
     incidents  = all.incidents;
     activities = all.activities;
     cases      = all.cases;
-    if (all.authList.length)    AUTH_LIST    = all.authList;
-    if (all.visitorList.length) VISITOR_LIST = all.visitorList;
-    if (all.councilList.length) COUNCIL_LIST = all.councilList;
+    if (all.authList && all.authList.length)    AUTH_LIST    = all.authList;
+    if (all.visitorList && all.visitorList.length) VISITOR_LIST = all.visitorList;
+    if (all.councilList && all.councilList.length) COUNCIL_LIST = all.councilList;
     renderIncidents(); renderActivities(); renderCases();
     updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
   } catch (e) { console.log('loadAllData error:', e); }
@@ -171,7 +176,11 @@ async function loadFromSheets() {
   try {
     showLoadingOverlay('Google Sheets에서 데이터 로드 중...');
     const members = await SheetsAPI.loadMembers();
-    if (members && members.length > 0) { MEMBERS.length = 0; members.forEach(m => MEMBERS.push(m)); mFilt = [...MEMBERS]; }
+    if (members && members.length > 0) {
+      MEMBERS.length = 0;
+      members.forEach(m => MEMBERS.push(m));
+      mFilt = [...MEMBERS];
+    }
     const staff = await SheetsAPI.loadStaff();
     if (staff && staff.length > 0) { STAFF = staff; }
     else { STAFF = DEFAULT_STAFF.slice(); uploadDefaultStaff(); }
@@ -181,11 +190,10 @@ async function loadFromSheets() {
 }
 
 async function uploadDefaultStaff() {
-  if (!apiUrl) return;
   for (let i = 0; i < DEFAULT_STAFF.length; i++) {
     const s = DEFAULT_STAFF[i];
     try {
-      await apiCall({}, { action: 'upsert', sheet: '스태프', key: 'ID', value: s.id, data: {
+      await SheetsAPI.post({ action: 'upsert', sheet: '스태프', key: 'ID', value: s.id, data: {
         'ID': s.id, '한글이름': s.nameKr, '영문이름': s.name, '직책': s.role,
         '전화': s.phone, '이메일': s.email, '자격증': JSON.stringify(s.certs),
         'avBg': s.avBg, 'avColor': s.avColor,
@@ -248,7 +256,6 @@ function openPCSPForm(mid) {
   window.location.href = 'operations.html?tab=pcsp&mid=' + (mid || '');
 }
 
-// PCSP 스텝 관련
 function goStep(s) {
   document.querySelectorAll('.pstep').forEach(p => p.classList.remove('active'));
   document.getElementById('ps-' + s).classList.add('active');
@@ -295,10 +302,10 @@ function generatePCSP() {
 // ── 멤버 차트 PDF ─────────────────────────────────────────────
 function generateMemberChart(mid) {
   const m = MEMBERS.find(x => x.id === mid); if (!m) return;
-  const dobF   = m.dob ? new Date(m.dob.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US') : '—';
-  const days   = (m.days || []).map(d => ({Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'}[d] || d)).join(', ');
-  const insStr = {Anthem_MLTC:'Anthem MLTC',Anthem_MAP:'Anthem MAP',CLP:'Centerlight PACE',SWH:'Senior Whole Health'}[m.ins] || m.ins;
-  const w = window.open('', '_blank');
+  const dobF = m.dob ? new Date(m.dob.slice(0,10)+'T00:00:00').toLocaleDateString('en-US') : '—';
+  const days = (m.days||[]).map(d=>({Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'}[d]||d)).join(', ');
+  const insStr = {Anthem_MLTC:'Anthem MLTC',Anthem_MAP:'Anthem MAP',CLP:'Centerlight PACE',SWH:'Senior Whole Health'}[m.ins]||m.ins;
+  const w = window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Chart - ${m.en}</title>
 <style>@page{size:letter;margin:0.6in}body{font-family:Arial,sans-serif;font-size:10px}
 .hd{text-align:center;border-bottom:2px solid #D85A30;padding-bottom:8px;margin-bottom:14px}
@@ -314,24 +321,19 @@ td:first-child{font-weight:700;color:#555;width:100px}
 <div class="hd"><h1>NUMBER ONE ADULT DAYCARE / 넘버원 어덜트 데이케어</h1>
 <div style="font-size:9px;color:#666">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</div></div>
 <div class="grid">
-<div>
-<div class="photo">${m.photo ? `<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">` : '<div style="text-align:center;color:#C7C7CC"><div style="font-size:30px">👤</div><div>사진 없음</div></div>'}</div>
-<div style="text-align:center;margin-top:6px;font-size:9px;color:#8E8E93">차트번호: <b style="color:#D85A30;font-size:11px">${m.chartNo || m.id}</b></div>
-</div>
-<div>
-<div class="name">${m.kr}</div>
-<div class="sub">${m.en}</div>
+<div><div class="photo">${m.photo?`<img src="${m.photo}" style="width:100%;height:100%;object-fit:cover">`:'<div style="text-align:center;color:#C7C7CC"><div style="font-size:30px">👤</div><div>사진 없음</div></div>'}</div>
+<div style="text-align:center;margin-top:6px;font-size:9px;color:#8E8E93">차트번호: <b style="color:#D85A30;font-size:11px">${m.chartNo||m.id}</b></div></div>
+<div><div class="name">${m.kr}</div><div class="sub">${m.en}</div>
 <table>
 <tr><td>생년월일</td><td>${dobF}</td></tr>
 <tr><td>Medicaid</td><td>${m.medicaid}</td></tr>
-<tr><td>MLTC ID</td><td>${m.mltc || '—'}</td></tr>
+<tr><td>MLTC ID</td><td>${m.mltc||'—'}</td></tr>
 <tr><td>보험사</td><td>${insStr}</td></tr>
 <tr><td>출석 요일</td><td>${days}</td></tr>
-<tr><td>전화</td><td>${m.phone || '—'}</td></tr>
-<tr><td>주소</td><td>${m.addr || '—'}</td></tr>
-<tr><td>주치의</td><td>${m.pcp || '—'}</td></tr>
-</table>
-</div></div>
+<tr><td>전화</td><td>${m.phone||'—'}</td></tr>
+<tr><td>주소</td><td>${m.addr||'—'}</td></tr>
+<tr><td>주치의</td><td>${m.pcp||'—'}</td></tr>
+</table></div></div>
 <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:30px">
 <div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div><div style="font-size:9px;color:#555">작성자 서명</div></div>
 <div><div style="height:40px;border-bottom:1px solid #000;margin-bottom:4px"></div><div style="font-size:9px;color:#555">Date</div></div>
@@ -341,9 +343,8 @@ td:first-child{font-weight:700;color:#555;width:100px}
   w.document.close();
 }
 
-// ── 초기화 (모든 스크립트 로드 완료 후) ──────────────────────
+// ── 초기화 ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-  // Google Auth
   if (typeof google !== 'undefined' && google.accounts) {
     initGoogleAuth();
   } else {
@@ -355,89 +356,62 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 200);
   }
 
-  // 헤더 날짜
   const now0 = new Date();
-  document.getElementById('hdr-date').textContent = now0.getFullYear() + '년 ' + (now0.getMonth() + 1) + '월 ' + now0.getDate() + '일';
+  document.getElementById('hdr-date').textContent = now0.getFullYear() + '년 ' + (now0.getMonth()+1) + '월 ' + now0.getDate() + '일';
   document.getElementById('hdr-dow').textContent  = DNAMES[now0.getDay()] + '요일';
-  DKEYS.forEach(d => { const p = document.getElementById('pip-' + d); if (p && d === DKEYS[now0.getDay()]) p.classList.add('on'); });
+  DKEYS.forEach(d => { const p = document.getElementById('pip-'+d); if (p && d === DKEYS[now0.getDay()]) p.classList.add('on'); });
 
-  // ADL 필드
   document.getElementById('adl-fields').innerHTML = ADL_ITEMS.map((item, i) =>
     `<div class="adl-pair">
-      <div class="fg" style="margin:0"><div class="fl">${item}</div><select class="fs" id="adl-${i}">${ADL_OPTS.map(o => `<option>${o}</option>`).join('')}</select></div>
+      <div class="fg" style="margin:0"><div class="fl">${item}</div><select class="fs" id="adl-${i}">${ADL_OPTS.map(o=>`<option>${o}</option>`).join('')}</select></div>
       <div class="fg" style="margin:0"><div class="fl">보조 기기</div><input class="fi" id="dev-${i}" placeholder="없음"></div>
     </div>`).join('');
 
-  // 멤버 select 초기화
-  ['inc', 'act', 'case'].forEach(px => {
-    const sel = document.getElementById(px + '-msel');
-    if (sel) sel.innerHTML = MEMBERS.map(m => `<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
+  ['inc','act','case'].forEach(px => {
+    const sel = document.getElementById(px+'-msel');
+    if (sel) sel.innerHTML = MEMBERS.map(m=>`<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
   });
 
-  // 날짜 범위 기본값
-  ['inc', 'act', 'case'].forEach(px => {
-    const f = document.getElementById(px + '-from'), t = document.getElementById(px + '-to');
+  ['inc','act','case'].forEach(px => {
+    const f = document.getElementById(px+'-from'), t = document.getElementById(px+'-to');
     if (f) f.value = weekAgoISO; if (t) t.value = todayISO;
   });
 
-  // ── 이벤트 바인딩 (인라인 oninput/onchange 대체) ─────────
   const bind = (id, evt, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); };
 
-  // 출결
-  bind('asearch', 'input', () => renderAtt());
+  bind('asearch',         'input',  () => renderAtt());
+  bind('msearch',         'input',  () => filterM());
+  bind('status-filter',   'change', () => filterM());
+  bind('psearch',         'input',  () => renderPCSPList());
+  bind('f-first',         'input',  () => updatePreview());
+  bind('f-last',          'input',  () => updatePreview());
+  bind('f-kr',            'input',  () => updatePreview());
+  bind('inc-from',        'change', () => renderIncidents());
+  bind('inc-to',          'change', () => renderIncidents());
+  bind('act-from',        'change', () => renderActivities());
+  bind('act-to',          'change', () => renderActivities());
+  bind('case-from',       'change', () => renderCases());
+  bind('case-to',         'change', () => renderCases());
+  bind('rpt-from',        'change', () => renderReport());
+  bind('rpt-to',          'change', () => renderReport());
+  bind('frm-search',      'input',  () => typeof filterFrmMembers === 'function' && filterFrmMembers());
+  bind('ns-height',       'input',  () => typeof calcNSBMI === 'function' && calcNSBMI());
+  bind('ns-weight',       'input',  () => typeof calcNSBMI === 'function' && calcNSBMI());
+  bind('vis-search',      'input',  () => renderVisitorList());
+  bind('council-search',  'input',  () => renderCouncilList());
+  bind('auth-search',     'input',  () => renderAuthList());
+  bind('auth-member-search','input',() => filterAuthMemberList());
+  bind('auth-start',      'input',  function(){ autoFormatDate(this); });
+  bind('auth-end',        'input',  function(){ autoFormatDate(this); });
+  bind('inc-msearch',     'input',  () => filterMSel('inc'));
+  bind('act-msearch',     'input',  () => filterMSel('act'));
+  bind('case-msearch',    'input',  () => filterMSel('case'));
+  bind('sm-active',       'change', () => toggleStatusRadio());
+  bind('sm-disenrolled',  'change', () => toggleStatusRadio());
 
-  // 멤버
-  bind('msearch', 'input', () => filterM());
-  bind('status-filter', 'change', () => filterM());
-
-  // PCSP
-  bind('psearch', 'input', () => renderPCSPList());
-
-  // PCSP 폼
-  bind('f-first', 'input', () => updatePreview());
-  bind('f-last',  'input', () => updatePreview());
-  bind('f-kr',    'input', () => updatePreview());
-
-  // 로그 날짜 필터
-  bind('inc-from', 'change', () => renderIncidents());
-  bind('inc-to',   'change', () => renderIncidents());
-  bind('act-from', 'change', () => renderActivities());
-  bind('act-to',   'change', () => renderActivities());
-  bind('case-from','change', () => renderCases());
-  bind('case-to',  'change', () => renderCases());
-
-  // 보고서
-  bind('rpt-from', 'change', () => renderReport());
-  bind('rpt-to',   'change', () => renderReport());
-
-  // Assessment
-  bind('frm-search', 'input', () => filterFrmMembers && filterFrmMembers());
-  bind('ns-height',  'input', () => calcNSBMI && calcNSBMI());
-  bind('ns-weight',  'input', () => calcNSBMI && calcNSBMI());
-
-  // 방문자/회의록
-  bind('vis-search',     'input', () => renderVisitorList());
-  bind('council-search', 'input', () => renderCouncilList());
-
-  // Auth
-  bind('auth-search',        'input', () => renderAuthList());
-  bind('auth-member-search', 'input', () => filterAuthMemberList());
-  bind('auth-start', 'input', function() { autoFormatDate(this); });
-  bind('auth-end',   'input', function() { autoFormatDate(this); });
-
-  // 로그 모달 멤버 검색
-  bind('inc-msearch',  'input', () => filterMSel('inc'));
-  bind('act-msearch',  'input', () => filterMSel('act'));
-  bind('case-msearch', 'input', () => filterMSel('case'));
-
-  // 상태 변경 라디오
-  bind('sm-active',      'change', () => toggleStatusRadio());
-  bind('sm-disenrolled', 'change', () => toggleStatusRadio());
-
-  // API URL 표시
   document.getElementById('api-url-input').value = apiUrl;
 
-  // 로컬 저장소 로드
+  // localStorage에서 출결 외 데이터 로드
   loadFromStorage();
   setTimeout(() => { const el = document.getElementById('storage-info'); if (el) el.textContent = showStorageInfo(); }, 100);
 
@@ -447,18 +421,26 @@ document.addEventListener('DOMContentLoaded', function () {
   renderAuthList(); renderVisitorList(); renderCouncilList();
   setTimeout(() => initBilling && initBilling(), 100);
 
-  // Sheets 자동 연결
-  SheetsAPI.ping().then(ok => {
-    SheetsAPI.setStatusPill(ok);
-    if (ok) loadFromSheets().then(ok2 => { if (ok2) { renderDash(); renderAtt(); filterM(); renderStaff(); } });
-  });
-
   document.getElementById('rpt-from').value = weekAgoISO;
   document.getElementById('rpt-to').value   = todayISO;
+
+  // Sheets 연결 후 데이터 로드 + 출결 로드
+  SheetsAPI.ping().then(ok => {
+    SheetsAPI.setStatusPill(ok);
+    if (ok) {
+      loadFromSheets().then(ok2 => {
+        if (ok2) {
+          renderDash(); filterM(); renderStaff();
+          // 출결은 Sheets에서 직접 로드
+          loadAttFromSheets(toISO(curDate));
+        }
+      });
+    }
+  });
 });
 
 // ══════════════════════════════════════════════════════════════
-// Assessment / Forms 탭 함수
+// Assessment / Forms 탭
 // ══════════════════════════════════════════════════════════════
 
 function initFormsTab() {
@@ -470,26 +452,20 @@ function initFormsTab() {
 }
 
 function filterFrmMembers() {
-  const q   = ((document.getElementById('frm-search') || {}).value || '').toLowerCase();
+  const q   = ((document.getElementById('frm-search')||{}).value||'').toLowerCase();
   const el  = document.getElementById('frm-member-list');
   if (!el) return;
   const list = MEMBERS.filter(m =>
     m.status !== 'disenrolled' &&
-    (!q || (m.kr || '').includes(q) || (m.en || '').toLowerCase().includes(q) || (m.medicaid || '').toLowerCase().includes(q))
+    (!q||(m.kr||'').includes(q)||(m.en||'').toLowerCase().includes(q)||(m.medicaid||'').toLowerCase().includes(q))
   );
-  if (!list.length) {
-    el.innerHTML = '<div class="empty-msg">멤버를 찾을 수 없어요</div>';
-    return;
-  }
+  if (!list.length) { el.innerHTML = '<div class="empty-msg">멤버를 찾을 수 없어요</div>'; return; }
   el.innerHTML = list.map(m => `
     <div class="log-card" style="cursor:pointer">
       <div class="log-top">
         <div class="log-name" style="display:flex;align-items:center;gap:8px">
           <div style="width:32px;height:32px;border-radius:50%;background:${m.avBg};color:${m.avColor};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${(m.kr||'').slice(0,1)}</div>
-          <div>
-            <div style="font-size:13px;font-weight:700">${m.kr}</div>
-            <div style="font-size:11px;color:#8E8E93">${m.en}</div>
-          </div>
+          <div><div style="font-size:13px;font-weight:700">${m.kr}</div><div style="font-size:11px;color:#8E8E93">${m.en}</div></div>
         </div>
       </div>
       <div style="font-size:11px;color:#8E8E93;margin:4px 0 8px">Medicaid: ${m.medicaid} · ${m.ins}</div>
@@ -502,35 +478,29 @@ function filterFrmMembers() {
 }
 
 function openAssessment(mid) {
-  const m = MEMBERS.find(x => x.id === mid);
-  if (!m) return;
-  _asmt.mid  = mid;
-  _asmt.step = 0;
+  const m = MEMBERS.find(x => x.id === mid); if (!m) return;
+  _asmt.mid = mid; _asmt.step = 0;
   document.getElementById('frm-list').style.display = 'none';
   document.getElementById('frm-assessment').style.display = 'block';
-  // 멤버 정보 자동 입력
-  const hdr = document.getElementById('as-member-header');
-  if (hdr) hdr.textContent = m.kr + ' (' + m.en + ')';
+  const hdr = document.getElementById('as-member-header'); if (hdr) hdr.textContent = m.kr+' ('+m.en+')';
   const nkr = document.getElementById('as-name-kr'); if (nkr) nkr.textContent = m.kr;
   const nen = document.getElementById('as-name-en'); if (nen) nen.textContent = m.en;
-  const dob = document.getElementById('as-dob');     if (dob) dob.value = m.dob || '';
-  const med = document.getElementById('as-medicaid');if (med) med.value = m.medicaid || '';
-  const phn = document.getElementById('as-phone');   if (phn) phn.value = m.phone || '';
-  const adr = document.getElementById('as-addr');    if (adr) adr.value = m.addr || '';
+  const dob = document.getElementById('as-dob');     if (dob) dob.value = m.dob||'';
+  const med = document.getElementById('as-medicaid');if (med) med.value = m.medicaid||'';
+  const phn = document.getElementById('as-phone');   if (phn) phn.value = m.phone||'';
+  const adr = document.getElementById('as-addr');    if (adr) adr.value = m.addr||'';
   const adate = document.getElementById('as-date');  if (adate) adate.value = new Date().toISOString().slice(0,10);
   goAssessStep(0);
-  // 서명 캔버스 초기화
   if (typeof initSigCanvas === 'function') initSigCanvas('as-sig-canvas', function(d){ _asSig = d; });
 }
 
 function openNutritionScreening(mid) {
-  const m = MEMBERS.find(x => x.id === mid);
-  if (!m) return;
+  const m = MEMBERS.find(x => x.id === mid); if (!m) return;
   _nsMid = mid;
   document.getElementById('frm-list').style.display = 'none';
   document.getElementById('frm-nutrition').style.display = 'block';
-  const nn = document.getElementById('ns-name'); if (nn) nn.textContent = m.kr + ' (' + m.en + ')';
-  const nd = document.getElementById('ns-dob');  if (nd) nd.textContent = m.dob || '';
+  const nn = document.getElementById('ns-name'); if (nn) nn.textContent = m.kr+' ('+m.en+')';
+  const nd = document.getElementById('ns-dob');  if (nd) nd.textContent = m.dob||'';
   const ndate = document.getElementById('ns-date'); if (ndate) ndate.value = new Date().toISOString().slice(0,10);
   if (typeof initSigCanvas === 'function') {
     initSigCanvas('ns-member-canvas', function(d){ _nsMemberSig = d; });
@@ -539,70 +509,57 @@ function openNutritionScreening(mid) {
 }
 
 function openMemberRights(mid) {
-  const m = MEMBERS.find(x => x.id === mid);
-  if (!m) return;
+  const m = MEMBERS.find(x => x.id === mid); if (!m) return;
   _mrMid = mid;
   document.getElementById('frm-list').style.display = 'none';
   document.getElementById('frm-member-rights').style.display = 'block';
-  const mn = document.getElementById('mr-name'); if (mn) mn.textContent = m.kr + ' (' + m.en + ')';
-  const md = document.getElementById('mr-dob');  if (md) md.textContent = m.dob || '';
+  const mn = document.getElementById('mr-name'); if (mn) mn.textContent = m.kr+' ('+m.en+')';
+  const md = document.getElementById('mr-dob');  if (md) md.textContent = m.dob||'';
   const mdate = document.getElementById('mr-date'); if (mdate) mdate.value = new Date().toISOString().slice(0,10);
   if (typeof initSigCanvas === 'function') initSigCanvas('mr-sig-canvas', function(d){ _mrSig = d; });
 }
 
-// ── Assessment 스텝 이동 ──────────────────────────────────────
 function goAssessStep(n) {
   const steps = document.querySelectorAll('#frm-assessment .as-step');
   const tabs  = document.querySelectorAll('#frm-assessment .as-tab');
-  steps.forEach((s, i) => s.style.display = i === n ? 'block' : 'none');
-  tabs.forEach((t, i) => t.classList.toggle('active', i === n));
+  steps.forEach((s,i) => s.style.display = i===n?'block':'none');
+  tabs.forEach((t,i) => t.classList.toggle('active', i===n));
   _asmt.step = n;
   const total = steps.length;
-  const pf  = document.getElementById('as-pf');   if (pf)   pf.style.width = ((n+1)/total*100) + '%';
-  const ctr = document.getElementById('as-pctr'); if (ctr)  ctr.textContent = (n+1) + ' / ' + total;
-  const prv = document.getElementById('as-prev'); if (prv)  prv.style.visibility = n === 0 ? 'hidden' : 'visible';
-  const nxt = document.getElementById('as-next'); if (nxt)  nxt.textContent = n === total-1 ? '완료' : '다음';
-  const pcspBtn = document.getElementById('as-pcsp-btn');
-  if (pcspBtn) pcspBtn.style.display = n === total-1 ? 'block' : 'none';
+  const pf  = document.getElementById('as-pf');   if(pf)  pf.style.width = ((n+1)/total*100)+'%';
+  const ctr = document.getElementById('as-pctr'); if(ctr) ctr.textContent = (n+1)+' / '+total;
+  const prv = document.getElementById('as-prev'); if(prv) prv.style.visibility = n===0?'hidden':'visible';
+  const nxt = document.getElementById('as-next'); if(nxt) nxt.textContent = n===total-1?'완료':'다음';
+  const pcspBtn = document.getElementById('as-pcsp-btn'); if(pcspBtn) pcspBtn.style.display = n===total-1?'block':'none';
 }
 
 function nextAssessStep() {
   const steps = document.querySelectorAll('#frm-assessment .as-step');
-  if (_asmt.step < steps.length - 1) goAssessStep(_asmt.step + 1);
+  if (_asmt.step < steps.length-1) goAssessStep(_asmt.step+1);
   else { alert('✅ Assessment 완료!'); initFormsTab(); }
 }
 
-function prevAssessStep() {
-  if (_asmt.step > 0) goAssessStep(_asmt.step - 1);
-}
+function prevAssessStep() { if (_asmt.step > 0) goAssessStep(_asmt.step-1); }
 
-// ── BMI 계산 ──────────────────────────────────────────────────
 function calcNSBMI() {
   const h = parseFloat(document.getElementById('ns-height').value);
   const w = parseFloat(document.getElementById('ns-weight').value);
-  const el = document.getElementById('ns-bmi');
-  if (!el) return;
-  if (h > 0 && w > 0) {
-    const bmi = (w / (h * h) * 703).toFixed(1);
-    el.value = bmi;
-  } else {
-    el.value = '';
-  }
+  const el = document.getElementById('ns-bmi'); if (!el) return;
+  el.value = (h>0&&w>0) ? (w/(h*h)*703).toFixed(1) : '';
 }
 
-// ── 서명 지우기 ───────────────────────────────────────────────
 function clearNSSig(who) {
-  const id  = who === 'member' ? 'ns-member-canvas' : 'ns-staff-canvas';
-  const eid = who === 'member' ? 'ns-member-empty'  : 'ns-staff-empty';
+  const id  = who==='member'?'ns-member-canvas':'ns-staff-canvas';
+  const eid = who==='member'?'ns-member-empty':'ns-staff-empty';
   const canvas = document.getElementById(id);
-  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
-  const empty = document.getElementById(eid); if (empty) empty.style.display = 'flex';
-  if (who === 'member') _nsMemberSig = null; else _nsStaffSig = null;
+  if (canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  const empty = document.getElementById(eid); if (empty) empty.style.display='flex';
+  if (who==='member') _nsMemberSig=null; else _nsStaffSig=null;
 }
 
 function clearMRSig() {
   const canvas = document.getElementById('mr-sig-canvas');
-  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
-  const empty = document.getElementById('mr-sig-empty'); if (empty) empty.style.display = 'flex';
+  if (canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  const empty = document.getElementById('mr-sig-empty'); if (empty) empty.style.display='flex';
   _mrSig = null;
 }
