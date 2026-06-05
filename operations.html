@@ -211,6 +211,71 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
 
       <!-- Member Rights 폼 -->
+      <!-- Incident Log 폼 -->
+      <div id="frm-incident" style="display:none">
+        <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px">🚨 Incident Log</div>
+          <div style="background:#FFF0F0;border-radius:10px;padding:10px;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:700;color:#C0392B" id="inc-member-name"></div>
+            <div style="font-size:11px;color:#8E8E93;margin-top:2px" id="inc-member-info"></div>
+          </div>
+          <div class="frow" style="margin-bottom:8px">
+            <div class="modal-input-wrap"><label>날짜 / Date</label><input class="fi" type="date" id="inc-date"></div>
+            <div class="modal-input-wrap"><label>시간 / Time</label><input class="fi" type="time" id="inc-time"></div>
+          </div>
+          <div class="frow" style="margin-bottom:8px">
+            <div class="modal-input-wrap">
+              <label>심각도 / Severity</label>
+              <select class="fi" id="inc-severity">
+                <option value="Minor">Minor — 경미</option>
+                <option value="Moderate">Moderate — 중간</option>
+                <option value="Serious">Serious — 심각</option>
+              </select>
+            </div>
+            <div class="modal-input-wrap">
+              <label>유형 / Type</label>
+              <select class="fi" id="inc-type">
+                <option value="Fall">Fall — 낙상</option>
+                <option value="Medical">Medical — 의료</option>
+                <option value="Behavioral">Behavioral — 행동</option>
+                <option value="Environmental">Environmental — 환경</option>
+                <option value="Elopement">Elopement — 이탈</option>
+                <option value="Abuse/Neglect">Abuse/Neglect — 학대/방치</option>
+                <option value="Other">Other — 기타</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-input-wrap" style="margin-bottom:8px">
+            <label>장소 / Location</label>
+            <input class="fi" id="inc-location" placeholder="예: Main room, Bathroom, Entrance...">
+          </div>
+          <div class="modal-input-wrap" style="margin-bottom:8px">
+            <label>설명 / Description</label>
+            <textarea class="fi" id="inc-desc" rows="4" style="resize:vertical" placeholder="What happened? Include time, location, and sequence of events..."></textarea>
+          </div>
+          <div class="modal-input-wrap" style="margin-bottom:8px">
+            <label>조치 / Actions Taken</label>
+            <textarea class="fi" id="inc-action" rows="3" style="resize:vertical" placeholder="Immediate actions taken, staff response, medical attention provided..."></textarea>
+          </div>
+          <div class="frow" style="margin-bottom:8px">
+            <div class="modal-input-wrap">
+              <label>목격자 / Witness</label>
+              <input class="fi" id="inc-witness" placeholder="Staff name(s)">
+            </div>
+            <div class="modal-input-wrap">
+              <label>DOH 보고 필요?</label>
+              <select class="fi" id="inc-doh">
+                <option value="No">No</option>
+                <option value="Yes">Yes — 보고 필요</option>
+              </select>
+            </div>
+          </div>
+          <div id="inc-save-status" style="font-size:12px;color:#8E8E93;margin-bottom:8px;text-align:center"></div>
+          <button class="btn-full btn-primary" onclick="saveIncidentLog()" style="padding:14px;font-size:14px">💾 저장</button>
+        </div>
+      </div>
+
       <div id="frm-member-rights" style="display:none">
         <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
         <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
@@ -851,24 +916,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <!-- Billing -->
     <div class="panel" id="panel-billing">
       <div class="card">
-        <div style="font-size:14px;font-weight:700;margin-bottom:12px">Medicaid 빌링 리포트</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📋 Claim.MD 청구 파일 생성</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">시작일</div><input class="m-input" type="date" id="bill-from"></div>
-          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">종료일</div><input class="m-input" type="date" id="bill-to"></div>
+          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">시작일 (From)</div><input class="m-input" type="date" id="bill-from"></div>
+          <div><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">종료일 (To)</div><input class="m-input" type="date" id="bill-to"></div>
         </div>
-        <div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">보험사</div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">보험사</div>
           <select class="m-select" id="bill-ins">
-            <option value="Anthem_MLTC">Anthem MLTC — HEALTHPLUS 45302</option>
-            <option value="Anthem_MAP">Anthem MAP</option>
-            <option value="CLP">Centerlight PACE</option>
-            <option value="SWH">Senior Whole Health</option>
+            <option value="Anthem_MLTC">Anthem MLTC (HealthPlus 45302)</option>
+            <option value="CLP">Centerlight PACE (13360)</option>
+            <option value="SWH">Senior Whole Health (631490)</option>
           </select>
         </div>
-        <button class="btn-full btn-primary" onclick="alert('빌링 기능은 Google Sheets 출결 데이터와 연동됩니다.')">리포트 생성</button>
+        <div id="bill-preview" style="display:none;margin-bottom:12px;background:#F2F2F7;border-radius:10px;padding:10px;font-size:12px"></div>
+        <div id="bill-status" style="font-size:12px;color:#8E8E93;text-align:center;margin-bottom:8px"></div>
+        <button class="btn-full btn-primary" onclick="generateBillingCSV()" style="padding:14px;font-size:14px">📥 CSV 생성 및 다운로드</button>
       </div>
-      <div style="background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:13px;padding:14px">
-        <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💡 빌링 안내</div>
-        <div style="font-size:12px;color:#534AB7;line-height:1.6">NPI: 1154194504 · EIN: 93-4271990<br>Revenue Code: 3104 · HEALTHPLUS 45302<br>S5105: $60/일 · A0100: $12.5×2</div>
+      <div style="background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:13px;padding:14px;margin-top:10px">
+        <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:6px">💡 청구 정보</div>
+        <div style="font-size:11px;color:#534AB7;line-height:1.8">
+          NPI: 1154194504 · EIN: 93-4271990 · Taxonomy: 261QA0600X<br>
+          <b>Anthem:</b> S5105 $60/일 + A0100 $12.50×2<br>
+          <b>Centerlight:</b> S5105 $100/일 + T2003 $15.00×2<br>
+          <b>SWH:</b> S5102 $90/일
+        </div>
       </div>
     </div>
 
@@ -1382,6 +1454,226 @@ function loadGRfromSheets(){
     }
   }).catch(function(){});
 }
+
+// ══════════════════════════════════════════════════════════════
+// BILLING — Claim.MD CSV 생성
+// ══════════════════════════════════════════════════════════════
+var PAYER_CONFIG = {
+  'Anthem_MLTC': {
+    payerId:'45302', payerName:'HEALTHPLUS', billType:'761',
+    placeOfService:'',
+    services:[
+      {code:'S5105', rate:60.00, unitsPerDay:1, desc:'SADC DAY SERVICE'},
+      {code:'A0100', rate:12.50, unitsPerDay:2, desc:'NONEMERGENCY TRANSPORT'}
+    ]
+  },
+  'CLP': {
+    payerId:'13360', payerName:'CENTERLIGHT PACE', billType:'',
+    placeOfService:'53',
+    services:[
+      {code:'S5105', rate:100.00, unitsPerDay:1, desc:'SADC DAY SERVICE'},
+      {code:'T2003', rate:15.00,  unitsPerDay:2, desc:'NONEMERGENCY TRANSPORT'}
+    ]
+  },
+  'SWH': {
+    payerId:'631490', payerName:'SENIOR WHOLE HEALTH', billType:'',
+    placeOfService:'53',
+    services:[
+      {code:'S5102', rate:90.00, unitsPerDay:1, desc:'SADC DAY SERVICE'}
+    ]
+  }
+};
+
+var BILL_INFO = {
+  name:'NUMBER ONE ADULT DAYCARE',
+  addr:'161-22 NORTHERN BLVD FL 1',
+  city:'FLUSHING', state:'NY', zip:'11358',
+  phone:'7187990248',
+  npi:'1154194504',
+  taxid:'934271990',
+  taxidType:'E',
+  taxonomy:'261QA0600X',
+  diag:'M150'
+};
+
+async function generateBillingCSV(){
+  var from = (document.getElementById('bill-from')||{}).value;
+  var to   = (document.getElementById('bill-to')||{}).value;
+  var ins  = (document.getElementById('bill-ins')||{}).value;
+  if(!from||!to){ alert('날짜 범위를 선택해주세요'); return; }
+  if(!ins){ alert('보험사를 선택해주세요'); return; }
+
+  var statusEl = document.getElementById('bill-status');
+  var previewEl = document.getElementById('bill-preview');
+  if(statusEl) statusEl.textContent = '⏳ 출결 데이터 불러오는 중...';
+
+  var payer = PAYER_CONFIG[ins];
+  if(!payer){ alert('보험사 설정 없음'); return; }
+
+  try {
+    // 1. 출결 데이터 로드
+    var attRes = await apiGet({action:'readByRange', sheet:'출결', from:from, to:to});
+    if(!attRes.ok){ throw new Error('출결 데이터 로드 실패'); }
+    var attRows = attRes.data || [];
+
+    // 2. 멤버 데이터 로드
+    var memRes = await apiGet({action:'read', sheet:'멤버'});
+    if(!memRes.ok){ throw new Error('멤버 데이터 로드 실패'); }
+    var members = memRes.data || [];
+
+    // 3. 해당 보험사 + Present 멤버만 필터
+    var memberMap = {};
+    members.forEach(function(m){
+      if(String(m['보험사']||'').toLowerCase().replace(/_/g,'') ===
+         ins.toLowerCase().replace(/_/g,'')){
+        memberMap[String(m['ID'])] = m;
+      }
+    });
+
+    // 4. 출결별 멤버 집계
+    var attendMap = {}; // mid → [dates]
+    attRows.forEach(function(r){
+      var mid = String(r['멤버ID']||'');
+      var status = String(r['상태']||'').toLowerCase();
+      var date = String(r['날짜']||'').slice(0,10);
+      if(!mid || !date) return;
+      if(status !== 'present' && status !== 'p' && status !== 'in') return;
+      if(!memberMap[mid]) return; // 다른 보험사 멤버
+      if(!attendMap[mid]) attendMap[mid] = [];
+      attendMap[mid].push(date);
+    });
+
+    var mids = Object.keys(attendMap);
+    if(!mids.length){
+      if(statusEl) statusEl.textContent = '⚠️ 해당 기간 출석 데이터 없음';
+      return;
+    }
+
+    // 5. CSV 생성
+    var rows = [];
+    var headers = [
+      'accept_assign','bill_addr_1','bill_city','bill_name','bill_npi',
+      'bill_phone','bill_state','bill_taxid','bill_taxid_type','bill_taxonomy','bill_zip',
+      'diag_1','ins_name_f','ins_name_l','ins_number','ins_dob','ins_sex',
+      'ins_addr_1','ins_city','ins_state','ins_zip',
+      'pat_name_f','pat_name_l','pat_dob','pat_addr_1','pat_city','pat_state','pat_zip',
+      'pat_rel','pat_sex',
+      'payer_name','payerid','payer_order',
+      'total_charge',
+      // Charge 1
+      'from_date_1','thru_date_1','proc_code_1','units_1','charge_1','place_of_service_1',
+      // Charge 2
+      'from_date_2','thru_date_2','proc_code_2','units_2','charge_2','place_of_service_2'
+    ];
+
+    mids.forEach(function(mid){
+      var m = memberMap[mid];
+      var dates = attendMap[mid].sort();
+      var days = dates.length;
+      var fromDate = dates[0].replace(/-/g,'/');
+      var toDate   = dates[dates.length-1].replace(/-/g,'/');
+
+      var enName = String(m['영문이름']||'').trim().toUpperCase();
+      var nameParts = enName.split(/\s*,\s*|\s+/);
+      var nameL = nameParts[0]||'';
+      var nameF = nameParts.slice(1).join(' ')||'';
+      var mltcId = String(m['MLTC']||'');
+      var dob = String(m['생년월일']||'').slice(0,10).replace(/-/g,'/');
+      var addr = String(m['주소']||'');
+      var sex = String(m['성별']||m['gender']||'F').toUpperCase().slice(0,1);
+
+      var svc1 = payer.services[0];
+      var svc2 = payer.services[1] || null;
+
+      var units1 = days * svc1.unitsPerDay;
+      var charge1 = (units1 * svc1.rate).toFixed(2);
+      var units2 = svc2 ? days * svc2.unitsPerDay : '';
+      var charge2 = svc2 ? (units2 * svc2.rate).toFixed(2) : '';
+      var totalCharge = svc2 ?
+        (parseFloat(charge1)+parseFloat(charge2)).toFixed(2) :
+        charge1;
+
+      var pos = payer.placeOfService || (ins==='Anthem_MLTC'?'':'53');
+
+      var row = {
+        accept_assign:'Y',
+        bill_addr_1: BILL_INFO.addr,
+        bill_city:   BILL_INFO.city,
+        bill_name:   BILL_INFO.name,
+        bill_npi:    BILL_INFO.npi,
+        bill_phone:  BILL_INFO.phone,
+        bill_state:  BILL_INFO.state,
+        bill_taxid:  BILL_INFO.taxid,
+        bill_taxid_type: BILL_INFO.taxidType,
+        bill_taxonomy:   BILL_INFO.taxonomy,
+        bill_zip:    BILL_INFO.zip,
+        diag_1:      BILL_INFO.diag,
+        ins_name_f: nameF,
+        ins_name_l: nameL,
+        ins_number: mltcId,
+        ins_dob:    dob,
+        ins_sex:    sex,
+        ins_addr_1: addr,
+        ins_city:   '', ins_state:'NY', ins_zip:'',
+        pat_name_f: nameF,
+        pat_name_l: nameL,
+        pat_dob:    dob,
+        pat_addr_1: addr,
+        pat_city:   '', pat_state:'NY', pat_zip:'',
+        pat_rel:    '18', pat_sex: sex,
+        payer_name:  payer.payerName,
+        payerid:     payer.payerId,
+        payer_order: 'Primary',
+        total_charge: totalCharge,
+        from_date_1: fromDate, thru_date_1: toDate,
+        proc_code_1: svc1.code, units_1: units1,
+        charge_1: charge1, place_of_service_1: pos,
+        from_date_2: svc2?fromDate:'', thru_date_2: svc2?toDate:'',
+        proc_code_2: svc2?svc2.code:'', units_2: svc2?units2:'',
+        charge_2: svc2?charge2:'', place_of_service_2: svc2?pos:''
+      };
+      rows.push(row);
+    });
+
+    // 6. CSV 문자열 생성
+    var csv = headers.join(',') + '\n';
+    rows.forEach(function(r){
+      csv += headers.map(function(h){
+        var v = String(r[h]||'');
+        return v.includes(',') ? '"'+v+'"' : v;
+      }).join(',') + '\n';
+    });
+
+    // 7. 미리보기
+    var totalAmt = rows.reduce(function(s,r){ return s+parseFloat(r.total_charge); },0);
+    if(previewEl){
+      previewEl.style.display='block';
+      previewEl.innerHTML = '<b>✅ 생성 완료</b><br>'
+        + '기간: '+from+' ~ '+to+'<br>'
+        + '보험사: '+payer.payerName+'<br>'
+        + '청구 멤버: '+rows.length+'명<br>'
+        + '총 청구액: $'+totalAmt.toFixed(2);
+    }
+
+    // 8. 다운로드
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href   = url;
+    a.download = 'ClaimMD_'+ins+'_'+from+'_'+to+'.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if(statusEl) statusEl.textContent = '✅ 다운로드 완료!';
+
+  } catch(err){
+    if(statusEl) statusEl.textContent = '❌ 오류: '+err.message;
+    console.error('Billing error:', err);
+  }
+}
+
 var _grFilter='all';
 function setGrFilter(f,el){_grFilter=f;document.querySelectorAll('#panel-grievance .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderGrievanceList();}
 
