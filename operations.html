@@ -1529,12 +1529,15 @@ async function generateBillingCSV(){
         memberMap[String(m['ID'])] = m;
       }
     });
+    console.log('보험사 매칭 멤버 수:', Object.keys(memberMap).length, '/ 전체:', members.length);
+    console.log('출결 행 수:', attRows.length);
+    console.log('출결 샘플:', attRows.slice(0,3).map(function(r){ return {mid:r['멤버ID'],status:r['상태'],date:r['날짜']}; }));
 
     // 4. 출결별 멤버 집계
     var attendMap = {}; // mid → [dates]
     attRows.forEach(function(r){
       var mid = String(r['멤버ID']||'');
-      var status = String(r['상태']||'').toLowerCase();
+      var status = String(r['상태']||'').toLowerCase().trim();
       var date = String(r['날짜']||'').slice(0,10);
       if(!mid || !date) return;
       if(status !== 'present' && status !== 'p' && status !== 'in') return;
@@ -1542,6 +1545,7 @@ async function generateBillingCSV(){
       if(!attendMap[mid]) attendMap[mid] = [];
       attendMap[mid].push(date);
     });
+    console.log('출석 멤버:', Object.keys(attendMap));
 
     var mids = Object.keys(attendMap);
     if(!mids.length){
