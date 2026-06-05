@@ -89,13 +89,18 @@ function qSet(iso, mid, st) {
 
   if (prev === st) {
     if (allR[iso]) delete allR[iso][mid];
+    renderAtt(); saveToStorage();
+    // 삭제된 경우 빈 레코드로 저장
+    syncToSheets(iso, mid, { status: '', signIn: '', signOut: '', memo: '' });
   } else {
     const ex  = r[mid] || {}, upd = { ...ex, status: st, updatedAt: now2() };
     if (past && ex.status && ex.status !== st) upd.editedAt = now2();
     if ((st === 'in' || st === 'late') && !ex.signIn && !past) upd.signIn = now2();
     setRec(iso, mid, upd);
+    renderAtt(); saveToStorage();
+    // 변경된 멤버 1명만 저장
+    syncToSheets(iso, mid, upd);
   }
-  renderAtt(); saveToStorage(); syncToSheets(iso);
 }
 
 function qMemo(iso, mid, val) {
@@ -163,7 +168,8 @@ function saveAttModal() {
   };
   if (past && ex.status) data.editedAt = now2();
   setRec(popDate, popId, data);
-  saveToStorage(); closeOv('ov-att'); renderAtt(); syncToSheets(popDate);
+  saveToStorage(); closeOv('ov-att'); renderAtt();
+  syncToSheets(popDate, popId, data);
 }
 
 function clearAttModal() {
@@ -195,16 +201,20 @@ function renderAbsence() {
   });
 }
 
-// ── Sheets 동기화 (디바운스 적용) ────────────────────────────
-var _syncTimer = null;
-async function syncToSheets(iso) {
-  clearTimeout(_syncTimer);
-  _syncTimer = setTimeout(async function() {
+// ── Sheets 동기화 — 변경된 멤버 1명만 저장 ──────────────────
+async function syncToSheets(iso, mid, r) {
+  // mid와 r이 전달된 경우 해당 멤버만 저장 (빠르고 race condition 없음)
+  if (mid && r) {
     try {
-      const recs = getRec(iso);
-      await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
-    } catch (e) {}
-  }, 800);
+      await SheetsAPI.syncSingleAttendance(iso, mid, r, MEMBERS);
+    } catch (e) { console.warn('출결 저장 실패:', mid, e); }
+    return;
+  }
+  // mid 없으면 전체 sync (fallback)
+  try {
+    const recs = getRec(iso);
+    await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
+  } catch (e) {}
 }
 
 // ── 로컬 저장/로드 ────────────────────────────────────────────
