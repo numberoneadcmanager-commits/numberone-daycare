@@ -80,6 +80,13 @@ function renderAtt() {
 // ── 빠른 출결 체크 ────────────────────────────────────────────
 function qSet(iso, mid, st) {
   const r    = getRec(iso), prev = (r[mid] || {}).status, past = iso < todayISO;
+
+  // ── 중복 출석 방지 ──────────────────────────────────────────
+  // 오늘 날짜에서 이미 출석(in/late) 상태인 경우 재클릭 무시
+  if (!past && (prev === 'in' || prev === 'late') && (st === 'in' || st === 'late')) {
+    return;
+  }
+
   if (prev === st) {
     if (allR[iso]) delete allR[iso][mid];
   } else {
@@ -188,12 +195,16 @@ function renderAbsence() {
   });
 }
 
-// ── Sheets 동기화 ─────────────────────────────────────────────
+// ── Sheets 동기화 (디바운스 적용) ────────────────────────────
+var _syncTimer = null;
 async function syncToSheets(iso) {
-  try {
-    const recs = getRec(iso);
-    await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
-  } catch (e) {}
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(async function() {
+    try {
+      const recs = getRec(iso);
+      await SheetsAPI.syncAttendance(iso, recs, MEMBERS);
+    } catch (e) {}
+  }, 800);
 }
 
 // ── 로컬 저장/로드 ────────────────────────────────────────────
