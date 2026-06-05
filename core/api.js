@@ -1,12 +1,12 @@
 // ══════════════════════════════════════════════════════════════
-// 넘버원 어덜트 데이케어 — SheetsAPI 모듈 v2.0
+// 넘버원 어덜트 데이케어 — SheetsAPI 모듈 v3.0
 // core/api.js
 // ══════════════════════════════════════════════════════════════
 
 const SheetsAPI = {
 
   // ── 설정 ───────────────────────────────────────────────────
-  URL: 'https://script.google.com/macros/s/AKfycbxG5alchlB0xmQsZ46jsUZk5bH3ugHaxA8Qtve32CmuJHY8-TIt-ysTHQkJ7v6scUyz/exec',
+  URL: 'https://script.google.com/macros/s/AKfycby88tpdxiWLOekrE2FViJr5ew6KeSeiXEoefR6houH9BHUsp2EkooGx5aNA1NvC2fyP/exec',
 
   // ── 상태 ───────────────────────────────────────────────────
   _connected: false,
@@ -31,7 +31,7 @@ const SheetsAPI = {
   // ── 연결 테스트 ────────────────────────────────────────────
   async ping() {
     try {
-      const res      = await this.get({ action: 'ping' });
+      const res       = await this.get({ action: 'ping' });
       this._connected = res.ok;
       return res.ok;
     } catch (e) {
@@ -73,18 +73,9 @@ const SheetsAPI = {
   async delete(sheet, id)                { return this.post({ action: 'delete', sheet, id }); },
 
   // ══════════════════════════════════════════════════════════
-  // Drive JSON 저장/로드  ← 신규 v2.0
+  // Drive JSON 저장/로드
   // ══════════════════════════════════════════════════════════
 
-  /**
-   * saveJSON — Drive에 JSON 파일 저장
-   * @param {string} memberId
-   * @param {string} memberName  한글이름
-   * @param {string} fileType    'PCSP' | 'Assessment' | 'Nutrition' | 'MemberRights'
-   * @param {object} jsonData    저장할 데이터 객체
-   * @param {string} [author]    작성자 이름
-   * @returns {{ ok, data: { success, fileName, url, fileId } }}
-   */
   async saveJSON(memberId, memberName, fileType, jsonData, author) {
     return this.post({
       action: 'saveJSON',
@@ -96,13 +87,6 @@ const SheetsAPI = {
     });
   },
 
-  /**
-   * loadJSON — Drive에서 JSON 파일 로드
-   * @param {string} memberId
-   * @param {string} memberName  한글이름 (없으면 빈 문자열)
-   * @param {string} fileType    'PCSP' | 'Assessment' | 'Nutrition' | 'MemberRights'
-   * @returns {{ ok, data: { found, data: object } }}
-   */
   async loadJSON(memberId, memberName, fileType) {
     return this.get({
       action: 'loadJSON',
@@ -224,28 +208,40 @@ const SheetsAPI = {
   async deleteStaff(id) { return this.delete('스태프', id); },
 
   // ══════════════════════════════════════════════════════════
-  // 출결
+  // 출결 — 단일 멤버만 저장 (race condition 방지)
   // ══════════════════════════════════════════════════════════
 
+  // 출결 버튼 클릭 시 해당 멤버 1건만 저장
+  async syncSingleAttendance(iso, mid, r, members) {
+    const nameKr = (members && members.find(m => m.id === mid) || {}).kr || '';
+    return this.post({
+      action:  'upsert',
+      sheet:   '출결',
+      key:     '날짜',
+      value:   iso + '_' + mid,
+      data: {
+        '날짜':     iso,
+        '멤버ID':   mid,
+        '한글이름': nameKr,
+        '상태':     r.status   || '',
+        'Sign-in':  r.signIn   || '',
+        'Sign-out': r.signOut  || '',
+        '메모':     r.memo     || '',
+        '시작일':   r.start    || '',
+        '종료일':   r.end      || '',
+        '수정시각': new Date().toLocaleString('ko-KR'),
+        '작성자':   r.writer   || '',
+      },
+    });
+  },
+
+  // 전체 동기화 (페이지 로드 시 백그라운드)
   async syncAttendance(iso, recs, members) {
     const entries = Object.entries(recs);
     for (const [mid, r] of entries) {
       if (!r.status) continue;
       try {
-        const nameKr = (members && members.find(function(m){ return m.id === mid; }) || {}).kr || '';
-        await this.upsert('출결', '날짜', iso + '_' + mid, {
-          '날짜':     iso,
-          '멤버ID':   mid,
-          '한글이름': nameKr,
-          '상태':     r.status   || '',
-          'Sign-in':  r.signIn   || '',
-          'Sign-out': r.signOut  || '',
-          '메모':     r.memo     || '',
-          '시작일':   r.start    || '',
-          '종료일':   r.end      || '',
-          '수정시각': new Date().toLocaleString('ko-KR'),
-          '작성자':   r.writer   || '',
-        });
+        await this.syncSingleAttendance(iso, mid, r, members);
       } catch (e) { console.warn('출결 동기화 실패:', mid, e); }
     }
   },
@@ -390,11 +386,28 @@ const SheetsAPI = {
   },
 };
 
-// ── 기존 코드 호환 래퍼 (operations.html 내부 apiCall 호환) ──
+// ── 기존 코드 호환 래퍼 ────────────────────────────────────────
 async function apiCall(data) {
   try {
     const r = await fetch(SheetsAPI.URL, { method: 'POST', body: JSON.stringify(data) });
     return r.json();
   } catch(e) { return { ok: false, error: e.message }; }
 }
-var API_URL = SheetsAPI.URL; // 기존 const 호환용
+
+async function apiGet(data) {
+  try {
+    const qs  = new URLSearchParams(data).toString();
+    const res = await fetch(SheetsAPI.URL + '?' + qs);
+    return res.json();
+  } catch(e) { return { ok: false, error: e.message }; }
+}
+
+async function saveJSONtoDrive(mid, mName, fileType, jsonData) {
+  return SheetsAPI.saveJSON(mid, mName, fileType, jsonData);
+}
+
+async function loadJSONfromDrive(mid, mName, fileType) {
+  return SheetsAPI.loadJSON(mid, mName, fileType);
+}
+
+var API_URL = SheetsAPI.URL;
