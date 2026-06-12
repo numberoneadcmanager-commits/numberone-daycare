@@ -1533,19 +1533,24 @@ async function generateBillingCSV(){
     console.log('출결 행 수:', attRows.length);
     console.log('출결 샘플:', attRows.slice(0,3).map(function(r){ return {mid:r['멤버ID'],status:r['상태'],date:r['날짜']}; }));
 
-    // 4. 출결별 멤버 집계
+    // 4. 출결별 멤버 집계 (중복 제거 + 지각도 포함)
     var attendMap = {}; // mid → [dates]
+    var seen = {};
     attRows.forEach(function(r){
       var mid = String(r['멤버ID']||'');
       var status = String(r['상태']||'').toLowerCase().trim();
       var date = String(r['날짜']||'').slice(0,10);
+      var key = date + '_' + mid;
       if(!mid || !date) return;
-      if(status !== 'present' && status !== 'p' && status !== 'in') return;
+      // 출석(in) + 지각(late) 모두 청구 대상
+      if(status !== 'in' && status !== 'late') return;
       if(!memberMap[mid]) return; // 다른 보험사 멤버
+      if(seen[key]) return; // 같은 날짜+멤버 중복 행 제거
+      seen[key] = true;
       if(!attendMap[mid]) attendMap[mid] = [];
       attendMap[mid].push(date);
     });
-    console.log('출석 멤버:', Object.keys(attendMap));
+    console.log('출석 멤버 (중복제거 후):', Object.keys(attendMap));
 
     var mids = Object.keys(attendMap);
     if(!mids.length){
