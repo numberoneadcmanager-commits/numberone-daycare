@@ -4,7 +4,12 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 날짜 헬퍼 ────────────────────────────────────────────────
-function toISO(d) { return d.toISOString().slice(0, 10); }
+// 로컬(뉴욕) 시간 기준 — toISOString()은 UTC라서 저녁 8시 이후 날짜가 밀림
+function toISO(d) {
+  return d.getFullYear() + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+    + String(d.getDate()).padStart(2, '0');
+}
 
 function fmtD(iso) {
   const d = new Date(iso + 'T00:00:00');

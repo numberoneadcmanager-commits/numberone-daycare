@@ -359,17 +359,29 @@ const SheetsAPI = {
   // ══════════════════════════════════════════════════════════
 
   async loadAll() {
-    const [iR, aR, cR, authR] = await Promise.all([
+    const [iR, aR, cR, authR, vR, coR] = await Promise.all([
       this.read('incident'),
       this.read('activity'),
       this.read('caselog'),
       this.loadAuth(),
+      this.read('visitor'),
+      this.read('council'),
     ]);
     return {
       incidents:  iR.ok ? (iR.data  || []) : [],
       activities: aR.ok ? (aR.data  || []) : [],
       cases:      cR.ok ? (cR.data  || []) : [],
       authList:   Array.isArray(authR) ? authR : [],
+      visitorList: vR.ok ? (vR.data || []).map(function(r){
+        return { id:String(r['ID']||''), date:String(r['날짜']||'').slice(0,10), time:String(r['시간']||''),
+                 name:String(r['이름']||''), org:String(r['소속']||''),
+                 purpose:String(r['목적']||''), note:String(r['메모']||'') };
+      }) : [],
+      councilList: coR.ok ? (coR.data || []).map(function(r){
+        return { id:String(r['ID']||''), date:String(r['날짜']||'').slice(0,10), time:String(r['시간']||''),
+                 type:String(r['유형']||''), attendees:String(r['참석자']||''),
+                 agenda:String(r['안건']||''), minutes:String(r['내용']||''), next:String(r['다음회의']||'') };
+      }) : [],
     };
   },
 

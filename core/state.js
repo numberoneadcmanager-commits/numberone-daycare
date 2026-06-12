@@ -48,14 +48,14 @@ const BILLING_CONFIG = {
   payers: {
     Anthem_MLTC: {name:'HEALTHPLUS', payerId:'45302'},
     Anthem_MAP:  {name:'HEALTHPLUS', payerId:'45302'},
-    CLP: {name:'', payerId:''},
-    SWH: {name:'', payerId:''},
+    CLP: {name:'CENTERLIGHT PACE', payerId:'13360'},
+    SWH: {name:'SENIOR WHOLE HEALTH', payerId:'631490'},
   },
   codes: {
     Anthem_MLTC: [{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
     Anthem_MAP:  [{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
-    CLP: [{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
-    SWH: [{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:60,units:1},{code:'A0100',desc:'NONEMERGENCY TRANSPORTATION TAXI',charge:12.5,units:2}],
+    CLP: [{code:'S5105',desc:'DAY CARE SERVICES CENTER-BASED SERVICES NOT INCLUDED IN PROGRAM FEE PER DIEM',charge:100,units:1},{code:'T2003',desc:'NONEMERGENCY TRANSPORTATION ENCOUNTER/TRIP',charge:15,units:2}],
+    SWH: [{code:'S5102',desc:'DAY CARE SERVICES ADULT PER DIEM',charge:90,units:1}],
   },
 };
 
@@ -85,8 +85,15 @@ var selDays = new Set();
 var curStep = 0;
 
 // 오늘 날짜 (ISO)
-const todayISO   = new Date().toISOString().slice(0, 10);
-const weekAgoISO = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); })();
+// 로컬 시간 기준 — toISOString()은 UTC라 저녁 8시 이후 다음날 날짜가 나옴
+const todayISO = (() => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+})();
+const weekAgoISO = (() => {
+  const d = new Date(); d.setDate(d.getDate() - 7);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+})();
 
 // 현재 출결 탭 날짜
 var curDate = new Date();

@@ -219,10 +219,87 @@ function renderStaff() {
           <div class="staff-role">${s.role}</div>
           <div style="font-size:12px;color:#3C3C43;margin-top:2px">📞 ${s.phone} · ${s.email}</div>
         </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openEditStaff('${s.id}')" style="padding:5px 10px;border-radius:7px;border:1px solid #E5E5EA;background:#F2F2F7;cursor:pointer;font-size:11px">✏️</button>
+          <button onclick="deleteStaffIdx('${s.id}')" style="padding:5px 10px;border-radius:7px;border:none;background:#FFEBEE;color:#C62828;cursor:pointer;font-size:11px">🗑️</button>
+        </div>
       </div>
       <div class="staff-certs">${certHTML}</div>
     </div>`;
   }).join('');
+}
+
+// ── 스태프 추가/편집 ──────────────────────────────────────────
+function openAddStaff() {
+  window._staffEditId = null;
+  document.getElementById('staff-modal-title').textContent = '새 스태프 추가';
+  ['sf-namekr','sf-name','sf-role','sf-phone','sf-email'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  window._staffCerts = [];
+  renderStaffCerts();
+  openOv('ov-staff-edit');
+}
+
+function openEditStaff(sid) {
+  var s = STAFF.find(function(x){ return x.id === sid; }); if (!s) return;
+  window._staffEditId = sid;
+  document.getElementById('staff-modal-title').textContent = s.nameKr + ' — 정보 수정';
+  document.getElementById('sf-namekr').value = s.nameKr || '';
+  document.getElementById('sf-name').value   = s.name   || '';
+  document.getElementById('sf-role').value   = s.role   || '';
+  document.getElementById('sf-phone').value  = s.phone  || '';
+  document.getElementById('sf-email').value  = s.email  || '';
+  window._staffCerts = JSON.parse(JSON.stringify(s.certs || []));
+  renderStaffCerts();
+  openOv('ov-staff-edit');
+}
+
+function renderStaffCerts() {
+  var wrap = document.getElementById('sf-certs-list'); if (!wrap) return;
+  wrap.innerHTML = (window._staffCerts || []).map(function(c, i){
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
+      + '<input class="m-input" style="flex:1;margin:0" value="' + (c.name||'') + '" oninput="window._staffCerts[' + i + '].name=this.value" placeholder="자격증명">'
+      + '<input class="m-input" type="date" style="width:130px;margin:0" value="' + (c.exp||'') + '" oninput="window._staffCerts[' + i + '].exp=this.value">'
+      + '<button onclick="window._staffCerts.splice(' + i + ',1);renderStaffCerts()" style="padding:4px 8px;border-radius:6px;border:none;background:#FFEBEE;color:#C62828;cursor:pointer">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function addStaffCert() {
+  if (!window._staffCerts) window._staffCerts = [];
+  window._staffCerts.push({ name:'', exp:'' });
+  renderStaffCerts();
+}
+
+async function saveStaffEdit() {
+  var nameKr = document.getElementById('sf-namekr').value.trim();
+  var name   = document.getElementById('sf-name').value.trim();
+  var role   = document.getElementById('sf-role').value.trim();
+  if (!nameKr || !name) { alert('이름을 입력해주세요.'); return; }
+  var COLORS = [{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'}];
+  var sid = window._staffEditId || ('S' + Date.now());
+  var existStaff = window._staffEditId ? STAFF.find(function(x){ return x.id === sid; }) : null;
+  var clr = existStaff ? { bg: existStaff.avBg, color: existStaff.avColor } : COLORS[STAFF.length % COLORS.length];
+  var staffData = {
+    id: sid, nameKr: nameKr, name: name, role: role,
+    phone: document.getElementById('sf-phone').value.trim(),
+    email: document.getElementById('sf-email').value.trim(),
+    certs: window._staffCerts || [], avBg: clr.bg, avColor: clr.color,
+  };
+  if (window._staffEditId) {
+    var idx = STAFF.findIndex(function(x){ return x.id === sid; });
+    if (idx >= 0) STAFF[idx] = staffData;
+  } else { STAFF.push(staffData); }
+  try { await SheetsAPI.saveStaff(staffData); } catch (e) { console.log('Staff save error:', e); }
+  closeOv('ov-staff-edit'); renderStaff(); alert(nameKr + ' 저장됨');
+}
+
+async function deleteStaffIdx(sid) {
+  if (!confirm('스태프를 삭제하시겠습니까?')) return;
+  STAFF = STAFF.filter(function(s){ return s.id !== sid; });
+  try { await SheetsAPI.deleteStaff(sid); } catch (e) {}
+  renderStaff();
 }
 
 // ── PCSP 관련 ─────────────────────────────────────────────────
