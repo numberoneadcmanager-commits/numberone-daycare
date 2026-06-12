@@ -1,27 +1,33 @@
 // 넘버원 어덜트 데이케어 — 빌링
+function _isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function initBilling(){
   var t=new Date(),day=t.getDay(),mon=new Date(t);mon.setDate(t.getDate()-day+1);
   var sun2=new Date(mon);sun2.setDate(mon.getDate()+13);
-  _billFrom=mon.toISOString().slice(0,10);_billTo=sun2.toISOString().slice(0,10);
+  _billFrom=_isoLocal(mon);_billTo=_isoLocal(sun2);
   var f=document.getElementById('bill-from'),t2=document.getElementById('bill-to');
   if(f)f.value=_billFrom;if(t2)t2.value=_billTo;
 }
-function generateBilling(){
+async function generateBilling(){
   _billFrom=document.getElementById('bill-from').value;
   _billTo=document.getElementById('bill-to').value;
   _billIns=document.getElementById('bill-ins').value;
   if(!_billFrom||!_billTo){alert('기간을 선택해주세요.');return;}
-  var dates=[],d=new Date(_billFrom+'T00:00:00'),end=new Date(_billTo+'T00:00:00');
-  while(d<=end){dates.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-  var dkeys=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ★ Sheets에서 해당 기간 출결을 직접 로드 (실제 출석만 청구)
+  var attData={};
+  try{
+    attData=await SheetsAPI.loadAttendanceRange(_billFrom,_billTo);
+  }catch(e){alert('출결 데이터 로드 실패: '+e.message);return;}
+
   var codes=BILLING_CONFIG.codes[_billIns]||BILLING_CONFIG.codes['Anthem_MLTC'];
   var tgtM=MEMBERS.filter(function(m){return m.ins===_billIns&&isActive(m);});
   _billData=[];
   tgtM.forEach(function(m){
-    dates.forEach(function(dt){
-      var dow=dkeys[new Date(dt+'T00:00:00').getDay()];if(!m.days.includes(dow))return;
-      var st=((allR[dt]||{})[m.id]||{}).status||'';
-      if(st==='absent'||st==='travel'||st==='hospital'||st==='leave')return;
+    Object.keys(attData).forEach(function(dt){
+      if(dt<_billFrom||dt>_billTo)return;
+      var st=((attData[dt]||{})[m.id]||{}).status||'';
+      // ★ 실제 출석(in) 또는 지각(late)만 청구
+      if(st!=='in'&&st!=='late')return;
       codes.forEach(function(c){_billData.push({member:m,date:dt,code:c.code,desc:c.desc,charge:c.charge,units:c.units,total:parseFloat((c.charge*c.units).toFixed(2))});});
     });
   });

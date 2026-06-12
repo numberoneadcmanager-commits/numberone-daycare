@@ -6,7 +6,7 @@
 // ── 방문자 ───────────────────────────────────────────────────
 function renderVisitorList() {
   const q         = (document.getElementById('vis-search') || {}).value || '';
-  const today     = new Date().toISOString().slice(0, 10);
+  const today     = todayISO;
   const thisMonth = today.slice(0, 7);
   const list      = VISITOR_LIST.filter(v =>
     !q || (v.name || '').toLowerCase().includes(q.toLowerCase()) || (v.org || '').toLowerCase().includes(q.toLowerCase())
@@ -35,7 +35,7 @@ function renderVisitorList() {
 function openVisitorModal(id) {
   document.getElementById('vis-modal-title').textContent = id ? '✏️ 방문자 수정' : '👥 방문자 추가';
   document.getElementById('vis-edit-id').value = id || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO;
   const now   = new Date().toTimeString().slice(0, 5);
   if (id) {
     const v = VISITOR_LIST.find(x => x.id === id);
@@ -119,7 +119,7 @@ function renderCouncilList() {
 function openCouncilModal(id) {
   document.getElementById('council-modal-title').textContent = id ? '✏️ 회의록 수정' : '📋 회의록 추가';
   document.getElementById('council-edit-id').value = id || '';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO;
   if (id) {
     const c = COUNCIL_LIST.find(x => x.id === id);
     if (c) {
