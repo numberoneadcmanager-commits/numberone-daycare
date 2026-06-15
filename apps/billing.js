@@ -82,3 +82,184 @@ function exportBillingCSV(){
   a.href=url;a.download='billing_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// 월별 출석부 생성
+// ══════════════════════════════════════════════════════════════
+
+function _attSheetDayAbbr(dayKey) {
+  return {Mon:'M',Tue:'T',Wed:'W',Thu:'TH',Fri:'F',Sat:'S',Sun:'SU'}[dayKey] || dayKey;
+}
+
+function _attSheetInsLabel(ins) {
+  return {Anthem_MLTC:'ANTHEM', Anthem_MAP:'ANTHEM', CLP:'CENTERLIGHT', SWH:'SWH'}[ins] || ins;
+}
+
+function _attSheetMemberPage(m, year, month, daysInMonth, type) {
+  var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                     'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  var insLabel = _attSheetInsLabel(m.ins);
+  var daysStr  = (m.days||[]).map(function(d){ return _attSheetDayAbbr(d); }).join(',');
+  var enName   = (m.en||m.kr||'').trim();
+
+  var rows = '';
+  for (var day = 1; day <= daysInMonth; day++) {
+    var date   = new Date(year, month - 1, day);
+    var dow    = date.getDay(); // 0=일, 6=토
+    var isSun  = (dow === 0);
+    var bgStyle = isSun ? 'background:#D8D8D8;' : '';
+    rows += '<tr style="' + bgStyle + '">'
+      + '<td class="c-num">' + day + '</td>'
+      + '<td class="c-day">' + DAY_NAMES[dow] + '</td>'
+      + '<td class="c-act">SDC ATTENDANCE O</td>'
+      + '<td class="c-time"></td>'
+      + '<td class="c-time"></td>'
+      + '<td class="c-sign"></td>'
+      + '</tr>';
+  }
+
+  return '<div class="att-pg">'
+    + '<div class="pg-hdr">'
+    +   '<div class="hdr-l">'
+    +     '<div class="ctr-name">NUMBER ONE ADULT DAYCARE</div>'
+    +     '<div class="ctr-addr">161-22 NORTHERN BLVD.#1FL FLUSHING. NY.11358</div>'
+    +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp;&nbsp; ' + type + '</div>'
+    +   '</div>'
+    +   '<div class="hdr-r">'
+    +     '<div class="mbr-name">' + enName + '</div>'
+    +     '<div class="mbr-ins">' + insLabel + ',' + (m.kr||'') + '(' + m.id + ')</div>'
+    +     '<div class="mbr-id">' + m.medicaid + ' (' + daysStr + ')</div>'
+    +   '</div>'
+    + '</div>'
+    + '<table class="att-tbl">'
+    +   '<thead><tr>'
+    +     '<th class="c-num"></th>'
+    +     '<th class="c-day"></th>'
+    +     '<th class="c-act"></th>'
+    +     '<th class="c-time">TIME IN</th>'
+    +     '<th class="c-time">TIME OUT</th>'
+    +     '<th class="c-sign">SIGN</th>'
+    +   '</tr></thead>'
+    +   '<tbody>' + rows + '</tbody>'
+    + '</table>'
+    + '</div>';
+}
+
+function _attSheetStyles() {
+  return '<style>'
+    + '@page{size:letter;margin:0}'
+    + '*{box-sizing:border-box;}'
+    + '.att-pg{'
+    +   'font-family:Arial,sans-serif;'
+    +   'width:8.5in;min-height:11in;'
+    +   'padding:0.35in 0.4in;'
+    +   'page-break-after:always;'
+    +   'page-break-inside:avoid;'
+    + '}'
+    + '.pg-hdr{display:flex;justify-content:space-between;align-items:flex-start;'
+    +   'border-bottom:2.5px solid #000;padding-bottom:6px;margin-bottom:8px;}'
+    + '.ctr-name{font-size:24px;font-weight:900;letter-spacing:0.5px;}'
+    + '.ctr-addr{font-size:11px;margin-top:2px;}'
+    + '.ctr-month{font-size:13px;font-weight:700;margin-top:5px;}'
+    + '.hdr-r{text-align:right;}'
+    + '.mbr-name{font-size:15px;font-weight:700;}'
+    + '.mbr-ins{font-size:12px;margin-top:2px;}'
+    + '.mbr-id{font-size:12px;margin-top:1px;}'
+    + '.att-tbl{width:100%;border-collapse:collapse;}'
+    + '.att-tbl th,.att-tbl td{border:1px solid #555;padding:3px 5px;font-size:11.5px;}'
+    + '.att-tbl th{text-align:center;background:#f0f0f0;font-weight:700;font-size:12px;}'
+    + '.c-num{width:32px;text-align:center;}'
+    + '.c-day{width:44px;text-align:center;}'
+    + '.c-act{text-align:center;}'
+    + '.c-time{width:90px;text-align:center;}'
+    + '.c-sign{width:110px;}'
+    + '</style>';
+}
+
+async function generateAttSheets(insFilter) {
+  var monthVal = (document.getElementById('att-sheet-month')||{}).value;
+  if (!monthVal) { alert('월을 선택해주세요'); return; }
+
+  var parts = monthVal.split('-');
+  var year  = parseInt(parts[0]);
+  var month = parseInt(parts[1]);
+  var daysInMonth = new Date(year, month, 0).getDate();
+
+  var statusEl = document.getElementById('att-sheet-status');
+
+  // 로드된 멤버 데이터 가져오기
+  var allMembers = [];
+  try {
+    var res = await apiGet({action:'read', sheet:'멤버'});
+    if (res && res.ok && res.data) {
+      allMembers = res.data.filter(function(r){
+        return String(r['상태']||'active') === 'active' || !r['상태'];
+      }).map(function(r){
+        return {
+          id:       String(r['ID']||''),
+          kr:       String(r['한글이름']||''),
+          en:       String(r['영문이름']||'').toUpperCase(),
+          medicaid: String(r['Medicaid']||'').toUpperCase(),
+          mltc:     String(r['MLTC']||''),
+          ins:      String(r['보험사']||'Anthem_MLTC'),
+          days:     r['출석요일'] ? String(r['출석요일']).split(',').map(function(d){return d.trim();}).filter(Boolean) : [],
+        };
+      }).filter(function(m){ return m.id && m.kr; });
+    }
+  } catch(e) {
+    alert('멤버 데이터 로드 실패: ' + e.message); return;
+  }
+
+  if (!allMembers.length) { alert('Active 멤버 데이터 없음'); return; }
+
+  var insGroups = insFilter === 'ALL'
+    ? ['Anthem_MLTC','CLP','SWH']
+    : [insFilter];
+
+  var MONTH_KR = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  for (var gi = 0; gi < insGroups.length; gi++) {
+    var ins = insGroups[gi];
+    var members = allMembers.filter(function(m){ return m.ins === ins; });
+    if (!members.length) {
+      if (statusEl) statusEl.textContent = _attSheetInsLabel(ins) + ' — 멤버 없음, 건너뜀';
+      continue;
+    }
+
+    if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' 출석부 생성 중... (' + members.length + '명)';
+
+    var html = _attSheetStyles();
+    for (var mi = 0; mi < members.length; mi++) {
+      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'ATTENDANCE');
+      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'TRANSPORTATION');
+    }
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    wrap.style.cssText = 'position:absolute;left:-9999px;top:0;';
+    document.body.appendChild(wrap);
+
+    var fname = 'AttSheet_' + _attSheetInsLabel(ins) + '_' + year + '_' + String(month).padStart(2,'0') + '.pdf';
+    try {
+      await html2pdf().set({
+        margin:     0,
+        filename:   fname,
+        image:      { type:'jpeg', quality:0.97 },
+        html2canvas:{ scale:2, useCORS:true, logging:false },
+        jsPDF:      { unit:'in', format:'letter', orientation:'portrait' },
+        pagebreak:  { mode:['avoid-all'], before:'.att-pg' }
+      }).from(wrap).save();
+    } catch(e) {
+      console.error('PDF 생성 오류:', e);
+    }
+    document.body.removeChild(wrap);
+
+    // 파일 간 딜레이
+    if (gi < insGroups.length - 1) {
+      await new Promise(function(r){ setTimeout(r, 800); });
+    }
+  }
+
+  if (statusEl) statusEl.textContent = '✅ 출석부 생성 완료!';
+}
