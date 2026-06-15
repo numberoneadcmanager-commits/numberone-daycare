@@ -185,10 +185,11 @@ async function generateAttSheets(insFilter) {
   var year  = parseInt(parts[0]);
   var month = parseInt(parts[1]);
   var daysInMonth = new Date(year, month, 0).getDate();
-
   var statusEl = document.getElementById('att-sheet-status');
 
-  // 로드된 멤버 데이터 가져오기
+  if (statusEl) statusEl.textContent = '⏳ 멤버 데이터 로드 중...';
+
+  // 멤버 데이터 로드
   var allMembers = [];
   try {
     var res = await apiGet({action:'read', sheet:'멤버'});
@@ -201,7 +202,6 @@ async function generateAttSheets(insFilter) {
           kr:       String(r['한글이름']||''),
           en:       String(r['영문이름']||'').toUpperCase(),
           medicaid: String(r['Medicaid']||'').toUpperCase(),
-          mltc:     String(r['MLTC']||''),
           ins:      String(r['보험사']||'Anthem_MLTC'),
           days:     r['출석요일'] ? String(r['출석요일']).split(',').map(function(d){return d.trim();}).filter(Boolean) : [],
         };
@@ -213,53 +213,40 @@ async function generateAttSheets(insFilter) {
 
   if (!allMembers.length) { alert('Active 멤버 데이터 없음'); return; }
 
-  var insGroups = insFilter === 'ALL'
-    ? ['Anthem_MLTC','CLP','SWH']
-    : [insFilter];
-
-  var MONTH_KR = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var insGroups = insFilter === 'ALL' ? ['Anthem_MLTC','CLP','SWH'] : [insFilter];
+  var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                     'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
 
   for (var gi = 0; gi < insGroups.length; gi++) {
     var ins = insGroups[gi];
     var members = allMembers.filter(function(m){ return m.ins === ins; });
-    if (!members.length) {
-      if (statusEl) statusEl.textContent = _attSheetInsLabel(ins) + ' — 멤버 없음, 건너뜀';
-      continue;
-    }
+    if (!members.length) continue;
 
-    if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' 출석부 생성 중... (' + members.length + '명)';
+    if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' (' + members.length + '명) 출석부 열기 중...';
 
-    var html = _attSheetStyles();
+    // 새 창에서 인쇄 — html2pdf보다 안정적
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+      + '<title>' + _attSheetInsLabel(ins) + ' ' + MONTH_NAMES[month-1] + ' ' + year + ' 출석부</title>'
+      + _attSheetStyles()
+      + '</head><body>';
+
     for (var mi = 0; mi < members.length; mi++) {
       html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'ATTENDANCE');
       html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'TRANSPORTATION');
     }
 
-    var wrap = document.createElement('div');
-    wrap.innerHTML = html;
-    wrap.style.cssText = 'position:absolute;left:-9999px;top:0;';
-    document.body.appendChild(wrap);
+    html += '<script>window.onload=function(){window.print();}<\/script></body></html>';
 
-    var fname = 'AttSheet_' + _attSheetInsLabel(ins) + '_' + year + '_' + String(month).padStart(2,'0') + '.pdf';
-    try {
-      await html2pdf().set({
-        margin:     0,
-        filename:   fname,
-        image:      { type:'jpeg', quality:0.97 },
-        html2canvas:{ scale:2, useCORS:true, logging:false },
-        jsPDF:      { unit:'in', format:'letter', orientation:'portrait' },
-        pagebreak:  { mode:['avoid-all'], before:'.att-pg' }
-      }).from(wrap).save();
-    } catch(e) {
-      console.error('PDF 생성 오류:', e);
-    }
-    document.body.removeChild(wrap);
+    var w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) { alert('팝업 차단을 해제해주세요'); return; }
+    w.document.write(html);
+    w.document.close();
 
-    // 파일 간 딜레이
+    // 보험사 간 딜레이
     if (gi < insGroups.length - 1) {
-      await new Promise(function(r){ setTimeout(r, 800); });
+      await new Promise(function(r){ setTimeout(r, 1500); });
     }
   }
 
-  if (statusEl) statusEl.textContent = '✅ 출석부 생성 완료!';
+  if (statusEl) statusEl.textContent = '✅ 출석부 창 열림 — 인쇄 창에서 PDF로 저장하세요!';
 }
