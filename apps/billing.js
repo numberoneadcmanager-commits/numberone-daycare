@@ -103,16 +103,17 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type) {
   var daysStr  = (m.days||[]).map(function(d){ return _attSheetDayAbbr(d); }).join(',');
   var enName   = (m.en||m.kr||'').trim();
 
+  var actText = (type === 'TRANSPORTATION') ? 'SDC TRANSPORTATION O' : 'SDC ATTENDANCE O';
   var rows = '';
   for (var day = 1; day <= daysInMonth; day++) {
     var date   = new Date(year, month - 1, day);
     var dow    = date.getDay(); // 0=일, 6=토
     var isSun  = (dow === 0);
-    var bgStyle = isSun ? 'background:#D8D8D8;' : '';
-    rows += '<tr style="' + bgStyle + '">'
+    var trClass = isSun ? ' class="sun-row"' : '';
+    rows += '<tr' + trClass + '>'
       + '<td class="c-num">' + day + '</td>'
       + '<td class="c-day">' + DAY_NAMES[dow] + '</td>'
-      + '<td class="c-act">SDC ATTENDANCE O</td>'
+      + '<td class="c-act">' + ((type==='TRANSPORTATION')?'SDC TRANSPORTATION O':'SDC ATTENDANCE O') + '</td>'
       + '<td class="c-time"></td>'
       + '<td class="c-time"></td>'
       + '<td class="c-sign"></td>'
@@ -149,6 +150,7 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type) {
 function _attSheetStyles() {
   return '<style>'
     + '@page{size:letter;margin:0}'
+    + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
     + '*{box-sizing:border-box;}'
     + '.att-pg{'
     +   'font-family:Arial,sans-serif;'
@@ -167,13 +169,14 @@ function _attSheetStyles() {
     + '.mbr-ins{font-size:12px;margin-top:2px;}'
     + '.mbr-id{font-size:12px;margin-top:1px;}'
     + '.att-tbl{width:100%;border-collapse:collapse;}'
-    + '.att-tbl th,.att-tbl td{border:1px solid #555;padding:3px 5px;font-size:11.5px;}'
-    + '.att-tbl th{text-align:center;background:#f0f0f0;font-weight:700;font-size:12px;}'
-    + '.c-num{width:32px;text-align:center;}'
-    + '.c-day{width:44px;text-align:center;}'
+    + '.att-tbl th,.att-tbl td{border:1.5px solid #444;padding:5px 6px;font-size:13.5px;}'
+    + '.att-tbl th{text-align:center;background:#e8e8e8 !important;font-weight:700;font-size:14px;padding:7px;}'
+    + '.c-num{width:36px;text-align:center;font-weight:700;}'
+    + '.c-day{width:50px;text-align:center;}'
     + '.c-act{text-align:center;}'
-    + '.c-time{width:90px;text-align:center;}'
+    + '.c-time{width:100px;text-align:center;}'
     + '.c-sign{width:110px;}'
+    + '.sun-row,.sun-row td{background:#CCCCCC !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
     + '</style>';
 }
 
