@@ -181,7 +181,7 @@ function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
     + '<div class="toc-title">NUMBER ONE ADULT DAYCARE<br>'
     + '<span style="font-size:16px;font-weight:700;">'
     + MONTH_NAMES[month-1] + ' ' + year + ' — ' + insLabel + ' 출석부 목차</span></div>'
-    + '<div class="toc-ins">📋 ' + insLabel + ' (' + members.length + '명)</div>'
+    + '<div class="toc-ins">📋 ' + insLabel + ' (' + idOrderMembers.length + '명)</div>'
     + rows
     + '<div style="flex:1"></div>'
     + '<div class="toc-footer">p. 1</div>'
