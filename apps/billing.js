@@ -131,7 +131,7 @@ function _attSheetStyles() {
     + '.att-tbl th{text-align:center;background:#e0e0e0 !important;font-weight:700;font-size:13px;padding:6px 5px;}'
     + '.c-num{width:36px;text-align:center;font-weight:700;}'
     + '.c-day{width:46px;text-align:center;}'
-    + '.c-act{width:155px;text-align:center;font-size:12px;}'  // SDC 컬럼 좁게
+    + '.c-act{width:190px;text-align:center;font-size:11px;white-space:nowrap;}'  // SDC 컬럼 좁게
     + '.c-time{width:80px;text-align:center;}'
     + '.c-sign{text-align:center;}'                             // SIGN — 남은 공간 전부
     // 일요일 회색
@@ -214,8 +214,8 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
     +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp; ' + type + '</div>'
     +   '</div>'
     +   '<div class="hdr-r">'
-    +     '<div class="mbr-name">' + enName + '</div>'
-    +     '<div class="mbr-ins">' + insLabel + ', ' + m.kr + ' (' + m.id + ')</div>'
+    +     '<div class="mbr-name">' + (m.kr||'') + '</div>'
+    +     '<div class="mbr-ins">' + insLabel + ' &nbsp;' + enName + '</div>'
     +     '<div class="mbr-id">' + m.medicaid + ' &nbsp;(' + daysStr + ')</div>'
     +   '</div>'
     + '</div>'
