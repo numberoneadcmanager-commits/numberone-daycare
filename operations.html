@@ -7,6 +7,7 @@
 <link rel="icon" href="data:,">
 <script src="https://accounts.google.com/gsi/client" async defer onload="if(typeof initGoogle==='function')initGoogle()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F2F2F7;color:#1C1C1E;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
@@ -933,6 +934,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div id="bill-status" style="font-size:12px;color:#8E8E93;text-align:center;margin-bottom:8px"></div>
         <button class="btn-full btn-primary" onclick="generateBillingCSV()" style="padding:14px;font-size:14px">📥 CSV 생성 및 다운로드</button>
       </div>
+      <!-- 출석부 생성 -->
+      <div class="card" style="margin-top:12px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">📄 월별 출석부 생성</div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:4px">출석부 월 선택</div>
+          <input class="m-input" type="month" id="att-sheet-month">
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:6px">보험사별 출력</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button class="btn-full" onclick="generateAttSheets('Anthem_MLTC')" style="padding:12px;font-size:13px;background:#E6F1FB;color:#185FA5;border:1.5px solid #A8C8F0;border-radius:10px;cursor:pointer;font-weight:600">📋 Anthem MLTC 출석부</button>
+            <button class="btn-full" onclick="generateAttSheets('CLP')" style="padding:12px;font-size:13px;background:#E1F5EE;color:#0F6E56;border:1.5px solid #A0D9C4;border-radius:10px;cursor:pointer;font-weight:600">📋 Centerlight 출석부</button>
+            <button class="btn-full" onclick="generateAttSheets('SWH')" style="padding:12px;font-size:13px;background:#FFF3E0;color:#B35900;border:1.5px solid #FFB347;border-radius:10px;cursor:pointer;font-weight:600">📋 SWH 출석부</button>
+            <button class="btn-full" onclick="generateAttSheets('ALL')" style="padding:12px;font-size:13px;background:#D85A30;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:700">📋 전체 출석부 (보험사별 3개 파일)</button>
+          </div>
+        </div>
+        <div id="att-sheet-status" style="font-size:12px;color:#8E8E93;text-align:center"></div>
+      </div>
+
       <div style="background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:13px;padding:14px;margin-top:10px">
         <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:6px">💡 청구 정보</div>
         <div style="font-size:11px;color:#534AB7;line-height:1.8">
