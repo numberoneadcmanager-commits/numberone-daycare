@@ -95,25 +95,111 @@ function _attSheetInsLabel(ins) {
   return {Anthem_MLTC:'ANTHEM', Anthem_MAP:'ANTHEM', CLP:'CENTERLIGHT', SWH:'SWH'}[ins] || ins;
 }
 
-function _attSheetMemberPage(m, year, month, daysInMonth, type) {
+function _attSheetStyles() {
+  return '<style>'
+    + '@page{size:letter;margin:0}'
+    + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;box-sizing:border-box;margin:0;padding:0;}'
+    // 페이지 레이아웃 — 바인딩용 왼쪽 여백 크게
+    + '.att-pg{'
+    +   'font-family:Arial,sans-serif;'
+    +   'width:8.5in;height:11in;'
+    +   'padding:0.25in 0.4in 0.2in 0.85in;' // top right bottom left(바인딩)
+    +   'page-break-after:always;'
+    +   'page-break-inside:avoid;'
+    +   'display:flex;flex-direction:column;'
+    + '}'
+    // 헤더 — 이름/보험사 크게
+    + '.pg-hdr{'
+    +   'display:flex;justify-content:space-between;align-items:flex-start;'
+    +   'border-bottom:3px solid #000;padding-bottom:8px;margin-bottom:8px;flex-shrink:0;'
+    + '}'
+    + '.ctr-name{font-size:22px;font-weight:900;letter-spacing:0.5px;}'
+    + '.ctr-addr{font-size:12px;margin-top:3px;}'
+    + '.ctr-month{font-size:14px;font-weight:700;margin-top:5px;}'
+    + '.hdr-r{text-align:right;}'
+    + '.mbr-name{font-size:22px;font-weight:900;}'   // 이름 크게
+    + '.mbr-ins{font-size:15px;font-weight:700;margin-top:4px;}'
+    + '.mbr-id{font-size:14px;margin-top:3px;}'
+    // 테이블
+    + '.att-tbl{width:100%;border-collapse:collapse;flex:1;table-layout:fixed;}'
+    + '.att-tbl th,.att-tbl td{'
+    +   'border:1.5px solid #444;'
+    +   'padding:4px 5px;'
+    +   'font-size:13px;'
+    +   'overflow:hidden;'
+    + '}'
+    + '.att-tbl th{text-align:center;background:#e0e0e0 !important;font-weight:700;font-size:13px;padding:6px 5px;}'
+    + '.c-num{width:36px;text-align:center;font-weight:700;}'
+    + '.c-day{width:46px;text-align:center;}'
+    + '.c-act{width:155px;text-align:center;font-size:12px;}'  // SDC 컬럼 좁게
+    + '.c-time{width:80px;text-align:center;}'
+    + '.c-sign{text-align:center;}'                             // SIGN — 남은 공간 전부
+    // 일요일 회색
+    + '.sun-row,.sun-row td{background:#C8C8C8 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
+    // 페이지 번호 푸터
+    + '.pg-footer{text-align:center;font-size:11px;color:#555;padding-top:4px;flex-shrink:0;border-top:1px solid #ccc;margin-top:4px;}'
+    // 목차 페이지
+    + '.toc-pg{'
+    +   'font-family:Arial,sans-serif;'
+    +   'width:8.5in;height:11in;'
+    +   'padding:0.4in 0.4in 0.3in 0.85in;'
+    +   'page-break-after:always;'
+    +   'page-break-inside:avoid;'
+    + '}'
+    + '.toc-title{font-size:22px;font-weight:900;border-bottom:3px solid #000;padding-bottom:8px;margin-bottom:14px;}'
+    + '.toc-ins{font-size:16px;font-weight:700;margin:14px 0 6px;color:#333;border-bottom:1.5px solid #999;padding-bottom:4px;}'
+    + '.toc-row{display:flex;justify-content:space-between;align-items:center;'
+    +   'font-size:14px;padding:5px 0;border-bottom:0.5px solid #ddd;}'
+    + '.toc-name{font-weight:600;}'
+    + '.toc-pages{color:#555;font-size:13px;}'
+    + '.toc-footer{text-align:center;font-size:11px;color:#555;margin-top:auto;padding-top:8px;border-top:1px solid #ccc;}'
+    + '</style>';
+}
+
+function _attSheetTOC(members, ins, year, month, startPage) {
+  var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                     'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  var insLabel = _attSheetInsLabel(ins);
+  var rows = '';
+  for (var i = 0; i < members.length; i++) {
+    var m = members[i];
+    var attPage = startPage + 1 + i * 2;
+    var trpPage = startPage + 2 + i * 2;
+    rows += '<div class="toc-row">'
+      + '<span class="toc-name">' + (m.en||m.kr) + ' &nbsp;<span style="font-weight:400;font-size:13px;color:#555">(' + m.kr + ')</span></span>'
+      + '<span class="toc-pages">출석부 p.' + attPage + ' &nbsp;·&nbsp; 교통 p.' + trpPage + '</span>'
+      + '</div>';
+  }
+  return '<div class="toc-pg">'
+    + '<div class="toc-title">NUMBER ONE ADULT DAYCARE<br>'
+    + '<span style="font-size:16px;font-weight:700;">'
+    + MONTH_NAMES[month-1] + ' ' + year + ' — ' + insLabel + ' 출석부 목차</span></div>'
+    + '<div class="toc-ins">📋 ' + insLabel + ' (' + members.length + '명)</div>'
+    + rows
+    + '<div style="flex:1"></div>'
+    + '<div class="toc-footer">p. 1</div>'
+    + '</div>';
+}
+
+function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
   var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   var insLabel = _attSheetInsLabel(m.ins);
   var daysStr  = (m.days||[]).map(function(d){ return _attSheetDayAbbr(d); }).join(',');
   var enName   = (m.en||m.kr||'').trim();
+  var actText  = (type === 'TRANSPORTATION') ? 'SDC TRANSPORTATION O' : 'SDC ATTENDANCE O';
 
-  var actText = (type === 'TRANSPORTATION') ? 'SDC TRANSPORTATION O' : 'SDC ATTENDANCE O';
   var rows = '';
   for (var day = 1; day <= daysInMonth; day++) {
     var date   = new Date(year, month - 1, day);
-    var dow    = date.getDay(); // 0=일, 6=토
+    var dow    = date.getDay();
     var isSun  = (dow === 0);
     var trClass = isSun ? ' class="sun-row"' : '';
     rows += '<tr' + trClass + '>'
       + '<td class="c-num">' + day + '</td>'
       + '<td class="c-day">' + DAY_NAMES[dow] + '</td>'
-      + '<td class="c-act">' + ((type==='TRANSPORTATION')?'SDC TRANSPORTATION O':'SDC ATTENDANCE O') + '</td>'
+      + '<td class="c-act">' + actText + '</td>'
       + '<td class="c-time"></td>'
       + '<td class="c-time"></td>'
       + '<td class="c-sign"></td>'
@@ -125,15 +211,19 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type) {
     +   '<div class="hdr-l">'
     +     '<div class="ctr-name">NUMBER ONE ADULT DAYCARE</div>'
     +     '<div class="ctr-addr">161-22 NORTHERN BLVD.#1FL FLUSHING. NY.11358</div>'
-    +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp;&nbsp; ' + type + '</div>'
+    +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp; ' + type + '</div>'
     +   '</div>'
     +   '<div class="hdr-r">'
     +     '<div class="mbr-name">' + enName + '</div>'
-    +     '<div class="mbr-ins">' + insLabel + ',' + (m.kr||'') + '(' + m.id + ')</div>'
-    +     '<div class="mbr-id">' + m.medicaid + ' (' + daysStr + ')</div>'
+    +     '<div class="mbr-ins">' + insLabel + ', ' + m.kr + ' (' + m.id + ')</div>'
+    +     '<div class="mbr-id">' + m.medicaid + ' &nbsp;(' + daysStr + ')</div>'
     +   '</div>'
     + '</div>'
     + '<table class="att-tbl">'
+    +   '<colgroup>'
+    +     '<col class="c-num"><col class="c-day"><col class="c-act">'
+    +     '<col class="c-time"><col class="c-time"><col class="c-sign">'
+    +   '</colgroup>'
     +   '<thead><tr>'
     +     '<th class="c-num"></th>'
     +     '<th class="c-day"></th>'
@@ -144,41 +234,10 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type) {
     +   '</tr></thead>'
     +   '<tbody>' + rows + '</tbody>'
     + '</table>'
+    + '<div class="pg-footer">p. ' + pageNum + '</div>'
     + '</div>';
 }
 
-function _attSheetStyles() {
-  return '<style>'
-    + '@page{size:letter;margin:0}'
-    + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
-    + '*{box-sizing:border-box;}'
-    + '.att-pg{'
-    +   'font-family:Arial,sans-serif;'
-    +   'width:8.5in;min-height:11in;'
-    +   'padding:0.35in 0.4in;'
-    +   'page-break-after:always;'
-    +   'page-break-inside:avoid;'
-    + '}'
-    + '.pg-hdr{display:flex;justify-content:space-between;align-items:flex-start;'
-    +   'border-bottom:2.5px solid #000;padding-bottom:6px;margin-bottom:8px;}'
-    + '.ctr-name{font-size:24px;font-weight:900;letter-spacing:0.5px;}'
-    + '.ctr-addr{font-size:11px;margin-top:2px;}'
-    + '.ctr-month{font-size:13px;font-weight:700;margin-top:5px;}'
-    + '.hdr-r{text-align:right;}'
-    + '.mbr-name{font-size:15px;font-weight:700;}'
-    + '.mbr-ins{font-size:12px;margin-top:2px;}'
-    + '.mbr-id{font-size:12px;margin-top:1px;}'
-    + '.att-tbl{width:100%;border-collapse:collapse;}'
-    + '.att-tbl th,.att-tbl td{border:1.5px solid #444;padding:5px 6px;font-size:13.5px;}'
-    + '.att-tbl th{text-align:center;background:#e8e8e8 !important;font-weight:700;font-size:14px;padding:7px;}'
-    + '.c-num{width:36px;text-align:center;font-weight:700;}'
-    + '.c-day{width:50px;text-align:center;}'
-    + '.c-act{text-align:center;}'
-    + '.c-time{width:100px;text-align:center;}'
-    + '.c-sign{width:110px;}'
-    + '.sun-row,.sun-row td{background:#CCCCCC !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
-    + '</style>';
-}
 
 async function generateAttSheets(insFilter) {
   var monthVal = (document.getElementById('att-sheet-month')||{}).value;
@@ -227,15 +286,22 @@ async function generateAttSheets(insFilter) {
 
     if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' (' + members.length + '명) 출석부 열기 중...';
 
-    // 새 창에서 인쇄 — html2pdf보다 안정적
+    var insLabel = _attSheetInsLabel(ins);
+    // 페이지 번호: p.1 = 목차, p.2~ = 멤버 페이지
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
-      + '<title>' + _attSheetInsLabel(ins) + ' ' + MONTH_NAMES[month-1] + ' ' + year + ' 출석부</title>'
+      + '<title>' + insLabel + ' ' + MONTH_NAMES[month-1] + ' ' + year + ' 출석부</title>'
       + _attSheetStyles()
       + '</head><body>';
 
+    // 목차 (p.1)
+    html += _attSheetTOC(members, ins, year, month, 1);
+
+    // 멤버 페이지 (p.2~)
     for (var mi = 0; mi < members.length; mi++) {
-      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'ATTENDANCE');
-      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'TRANSPORTATION');
+      var attPage = 2 + mi * 2;
+      var trpPage = 3 + mi * 2;
+      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'ATTENDANCE', attPage);
+      html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'TRANSPORTATION', trpPage);
     }
 
     html += '<script>window.onload=function(){window.print();}<\/script></body></html>';
