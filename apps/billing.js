@@ -156,18 +156,25 @@ function _attSheetStyles() {
     + '</style>';
 }
 
-function _attSheetTOC(members, ins, year, month, startPage) {
+function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   var insLabel = _attSheetInsLabel(ins);
+  // ID순 배열에서 각 멤버의 페이지 번호 계산
+  var pageMap = {};
+  for (var pi = 0; pi < idOrderMembers.length; pi++) {
+    pageMap[idOrderMembers[pi].id] = {
+      att: startPage + 1 + pi * 2,
+      trp: startPage + 2 + pi * 2
+    };
+  }
   var rows = '';
-  for (var i = 0; i < members.length; i++) {
-    var m = members[i];
-    var attPage = startPage + 1 + i * 2;
-    var trpPage = startPage + 2 + i * 2;
+  for (var i = 0; i < tocMembers.length; i++) {
+    var m = tocMembers[i];
+    var pg = pageMap[m.id] || {att:'?', trp:'?'};
     rows += '<div class="toc-row">'
-      + '<span class="toc-name">' + (m.en||m.kr) + ' &nbsp;<span style="font-weight:400;font-size:13px;color:#555">(' + m.kr + ')</span></span>'
-      + '<span class="toc-pages">출석부 p.' + attPage + ' &nbsp;·&nbsp; 교통 p.' + trpPage + '</span>'
+      + '<span class="toc-name">' + (m.kr||'') + ' &nbsp;<span style="font-weight:400;font-size:13px;color:#555">' + (m.en||'') + '</span></span>'
+      + '<span class="toc-pages">출석부 p.' + pg.att + ' &nbsp;·&nbsp; 교통 p.' + pg.trp + '</span>'
       + '</div>';
   }
   return '<div class="toc-pg">'
@@ -282,6 +289,10 @@ async function generateAttSheets(insFilter) {
   for (var gi = 0; gi < insGroups.length; gi++) {
     var ins = insGroups[gi];
     var members = allMembers.filter(function(m){ return m.ins === ins; });
+    // 출석부 순서: 멤버 ID 순
+    members.sort(function(a,b){ return String(a.id).localeCompare(String(b.id), undefined, {numeric:true}); });
+    // 목차용: 가나다 순 (별도 배열)
+    var tocMembers = members.slice().sort(function(a,b){ return (a.kr||'').localeCompare(b.kr||'', 'ko'); });
     if (!members.length) continue;
 
     if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' (' + members.length + '명) 출석부 열기 중...';
@@ -294,7 +305,7 @@ async function generateAttSheets(insFilter) {
       + '</head><body>';
 
     // 목차 (p.1)
-    html += _attSheetTOC(members, ins, year, month, 1);
+    html += _attSheetTOC(tocMembers, ins, year, month, 1, members);
 
     // 멤버 페이지 (p.2~)
     for (var mi = 0; mi < members.length; mi++) {
