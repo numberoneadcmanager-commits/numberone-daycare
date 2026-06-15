@@ -1279,6 +1279,12 @@ const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleuser
 const API_URL = 'https://script.google.com/macros/s/AKfycby88tpdxiWLOekrE2FViJr5ew6KeSeiXEoefR6houH9BHUsp2EkooGx5aNA1NvC2fyP/exec';
 var _currentUser = null;
 
+// ── state.js 변수 (forms_ops.js에서 필요) ──────────────────
+var _asmt = { mid: null, type: 'Initial', step: 0 };
+var _asSig = null, _ptSig = null;
+var _nsMid = null, _nsMemberSig = null, _nsStaffSig = null;
+var _mrMid = null, _mrSig = null;
+
 function initGoogle(){
   try{
     var s = JSON.parse(localStorage.getItem('noad_session')||'null');
