@@ -444,9 +444,10 @@ document.addEventListener('DOMContentLoaded', function () {
       <div class="fg" style="margin:0"><div class="fl">보조 기기</div><input class="fi" id="dev-${i}" placeholder="없음"></div>
     </div>`).join('');
 
+  // 멤버 select는 MEMBERS 로드 후 채워짐 (loadAllData에서 처리)
   ['inc','act','case'].forEach(px => {
     const sel = document.getElementById(px+'-msel');
-    if (sel) sel.innerHTML = MEMBERS.map(m=>`<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
+    if (sel && MEMBERS && MEMBERS.length) sel.innerHTML = MEMBERS.map(m=>`<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
   });
 
   ['inc','act','case'].forEach(px => {
