@@ -4,6 +4,9 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 멤버 목록 필터/렌더 ──────────────────────────────────────
+// 멤버 문서 목록 캐시
+var _docCache = {};
+
 async function toggleMemberDocs(mid, btn) {
   var wrap = document.getElementById('docs-' + mid);
   if (!wrap) return;
@@ -18,7 +21,6 @@ async function toggleMemberDocs(mid, btn) {
   wrap.innerHTML = '<div style="font-size:12px;color:#8E8E93;padding:8px 0">불러오는 중...</div>';
 
   try {
-    // 병렬로 모두 로드
     var [pcspRes, logRes, incRes, caseRes, authRes] = await Promise.all([
       SheetsAPI.readByMember('PCSP', mid),
       SheetsAPI.readByMember('JSONLog', mid),
@@ -27,56 +29,161 @@ async function toggleMemberDocs(mid, btn) {
       SheetsAPI.readByMember('auth', mid),
     ]);
 
+    // 캐시 저장
+    _docCache[mid] = { inc: incRes.data||[], cases: caseRes.data||[], auth: authRes.data||[] };
+
     var html = '<div style="border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden">';
 
     // PCSP
     var pcspList = (pcspRes.ok && pcspRes.data) ? pcspRes.data : [];
     var pcsp = pcspList.length ? pcspList[pcspList.length-1] : null;
-    var pcspExp = pcsp ? String(pcsp['갱신예정일']||'').slice(0,10) : '';
+    var pcspExp  = pcsp ? String(pcsp['갱신예정일']||'').slice(0,10) : '';
     var pcspDate = pcsp ? String(pcsp['작성일']||'').slice(0,10) : '';
-    var pcspExpired = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
-    html += docRow('📋', 'PCSP',
-      pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(pcspExpired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '')) : null);
+    var expired  = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
+    var pcspVal  = pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(expired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '')) : null;
+    html += docRow('📋','PCSP', pcspVal, pcsp ? 'openPCSPForm("'+mid+'")' : '');
 
-    // Drive JSON 문서들
+    // Drive JSON 문서
     var logs = (logRes.ok && logRes.data) ? logRes.data : [];
     function lastLog(type) {
-      var found = logs.filter(function(l){ return String(l['파일종류']||'') === type; });
+      var found = logs.filter(function(l){ return String(l['파일종류']||'')===type; });
       return found.length ? String(found[found.length-1]['저장일시']||'').slice(0,10) : null;
     }
-    html += docRow('🥗', 'Nutrition Screening', lastLog('Nutrition'));
-    html += docRow('📋', 'Assessment',          lastLog('Assessment'));
-    html += docRow('📄', 'Member Rights',        lastLog('MemberRights'));
+    html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? 'viewDriveDoc("'+mid+'","Nutrition")'  : '');
+    html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? 'viewDriveDoc("'+mid+'","Assessment")' : '');
+    html += docRow('📄','Member Rights',         lastLog('MemberRights'), lastLog('MemberRights') ? 'viewDriveDoc("'+mid+'","MemberRights")' : '');
 
     // Incident / Case / Auth
-    var incCount  = incRes.ok  ? (incRes.data ||[]).length  : 0;
-    var caseCount = caseRes.ok ? (caseRes.data||[]).length  : 0;
-    var authList  = authRes.ok ? (authRes.data||[])         : [];
-    var authActive = authList.filter(function(a){
-      return !a['종료일'] || String(a['종료일']) >= new Date().toISOString().slice(0,10);
+    var incData   = incRes.ok  ? (incRes.data ||[]) : [];
+    var caseData  = caseRes.ok ? (caseRes.data||[]) : [];
+    var authData  = authRes.ok ? (authRes.data||[]) : [];
+    var authActive = authData.filter(function(a){
+      return !String(a['종료일']||'') || String(a['종료일']) >= new Date().toISOString().slice(0,10);
     });
-    html += docRow('🚨', 'Incident Log',   incCount  ? incCount+'건'  : null);
-    html += docRow('📁', 'Case Log',       caseCount ? caseCount+'건' : null);
-    html += docRow('🔑', 'Authorization',  authActive.length ? authActive.length+'건 활성' : (authList.length ? authList.length+'건 (만료)' : null));
+    html += docRow('🚨','Incident Log', incData.length  ? incData.length+'건'  : null, incData.length  ? 'viewLogList("'+mid+'","incident")'  : '');
+    html += docRow('📁','Case Log',     caseData.length ? caseData.length+'건' : null, caseData.length ? 'viewLogList("'+mid+'","caselog")' : '');
+    html += docRow('🔑','Authorization', authActive.length ? authActive.length+'건 활성' : (authData.length ? authData.length+'건(만료)' : null),
+      authData.length ? 'viewLogList("'+mid+'","auth")' : '');
 
     html += '</div>';
     wrap.innerHTML = html;
   } catch(e) {
-    wrap.innerHTML = '<div style="font-size:12px;color:#FF3B30;padding:8px 0">❌ 오류: ' + e.message + '</div>';
+    wrap.innerHTML = '<div style="font-size:12px;color:#FF3B30;padding:8px 0">❌ 오류: '+e.message+'</div>';
   }
-
   btn.textContent = '📄 문서 접기';
   btn.disabled = false;
 }
 
-function docRow(icon, label, value) {
+function docRow(icon, label, value, onclick) {
   var hasData = value !== null && value !== undefined && value !== '';
-  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:.5px solid #F2F2F7">'
-    + '<span style="font-size:12px;color:#3C3C43">' + icon + ' ' + label + '</span>'
+  var click = onclick ? ' onclick="'+onclick+'" style="cursor:pointer"' : '';
+  return '<div class="doc-row"'+click+'>'
+    + '<span style="font-size:12px;color:#3C3C43">'+icon+' '+label+'</span>'
     + (hasData
-       ? '<span style="font-size:11px;color:#34C759;font-weight:600">' + value + '</span>'
-       : '<span style="font-size:11px;color:#C7C7CC">없음</span>')
+      ? '<span style="font-size:11px;color:#34C759;font-weight:600">'+value+(onclick?' →':'')+'</span>'
+      : '<span style="font-size:11px;color:#C7C7CC">없음</span>')
     + '</div>';
+}
+
+// Drive JSON 문서 팝업 뷰어
+async function viewDriveDoc(mid, fileType) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  var mName = m ? m.kr : mid;
+  document.getElementById('doc-viewer-title').textContent = mName+' — '+fileType;
+  document.getElementById('doc-viewer-body').innerHTML = '<div style="padding:16px;color:#8E8E93">불러오는 중...</div>';
+  openOv('ov-doc-viewer');
+  try {
+    var res = await SheetsAPI.loadJSON(mid, mName, fileType);
+    if (!res.ok || !res.data || !res.data.found) {
+      document.getElementById('doc-viewer-body').innerHTML = '<div style="padding:16px;color:#FF3B30">저장된 데이터 없음</div>';
+      return;
+    }
+    var d = res.data.data;
+    var html = '<div style="padding:12px">';
+    // Nutrition 전용 뷰
+    if (fileType==='Nutrition') {
+      html += nsView(d);
+    } else {
+      // 기타: JSON 키-값 표시
+      Object.keys(d).forEach(function(k){
+        if(k==='memberSig'||k==='staffSig'||k==='mid') return;
+        var v = d[k];
+        if(typeof v==='object') v = JSON.stringify(v);
+        html += '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:.5px solid #F2F2F7">'
+          +'<span style="font-size:11px;color:#8E8E93;min-width:100px">'+k+'</span>'
+          +'<span style="font-size:12px;color:#1C1C1E;flex:1">'+String(v||'—')+'</span></div>';
+      });
+      // 서명
+      if(d.memberSig) html += '<div style="margin-top:8px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">회원 서명</div><img src="'+d.memberSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+      if(d.staffSig)  html += '<div style="margin-top:8px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">스태프 서명</div><img src="'+d.staffSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+    }
+    html += '</div>';
+    document.getElementById('doc-viewer-body').innerHTML = html;
+  } catch(e) {
+    document.getElementById('doc-viewer-body').innerHTML = '<div style="padding:16px;color:#FF3B30">오류: '+e.message+'</div>';
+  }
+}
+
+// Nutrition 팝업 뷰
+function nsView(d) {
+  function rv(v,opt){return v===opt?'●':'○';}
+  function ck(v){return v?'☑':'☐';}
+  var html = '<div style="font-size:12px;line-height:2">';
+  html += '<b>날짜:</b> '+d.date+' &nbsp; <b>성별:</b> '+rv(d.gender,'Male')+' Male '+rv(d.gender,'Female')+' Female<br>';
+  html += '<b>키:</b> '+d.height+'in &nbsp; <b>체중:</b> '+d.weight+'lbs &nbsp; <b>BMI:</b> '+d.bmi+'<br>';
+  html += '<b>체중진단:</b> '+rv(d.assessment,'Normal')+' Normal '+rv(d.assessment,'Underweight')+' Underweight '+rv(d.assessment,'Overweight')+' Overweight '+rv(d.assessment,'Obese')+' Obese<br>';
+  if(d.dx) html += '<b>진단:</b> '+ck(d.dx.htn)+' HTN '+ck(d.dx.hld)+' Hyperlipidemia '+ck(d.dx.dm)+' Diabetes '+ck(d.dx.ckd)+' Kidney Dis. '+ck(d.dx.other)+' Others<br>';
+  if(d.diet) html += '<b>식단:</b> '+ck(d.diet.na)+' 2gm Na '+ck(d.diet.lf)+' Low fat '+ck(d.diet.carb)+' Carb '+ck(d.diet.renal)+' Renal '+ck(d.diet.other)+' '+d.diet.otherText+'<br>';
+  html += '<b>알러지:</b> '+rv(d.allergy,'No')+' No '+rv(d.allergy,'Yes')+' Yes '+(d.allergySpec||'')+'<br>';
+  html += '<b>Q1(BMI&lt;18):</b> '+rv(d.q1,'No')+' No '+rv(d.q1,'Yes')+' Yes &nbsp;';
+  html += '<b>Q2(BMI&gt;30):</b> '+rv(d.q2,'No')+' No '+rv(d.q2,'Yes')+' Yes<br>';
+  html += '<b>Q3(체중감소):</b> '+rv(d.q3,'No')+' No '+rv(d.q3,'Yes')+' Yes &nbsp;';
+  html += '<b>Q4(당뇨):</b> '+rv(d.q4,'No')+' No '+rv(d.q4,'Yes')+' Yes<br>';
+  html += '<b>Q5(신부전):</b> '+rv(d.q5,'No')+' No '+rv(d.q5,'Yes')+' Yes<br>';
+  html += '<b>영양상담:</b> '+rv(d.counselling,'Accepted')+' Accepted '+rv(d.counselling,'Declined')+' Declined<br>';
+  if(d.memberSig) html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">회원 서명</div><img src="'+d.memberSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  if(d.staffSig)  html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">스태프 서명</div><img src="'+d.staffSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  html += '</div>';
+  return html;
+}
+
+// Incident/Case/Auth 목록 팝업
+function viewLogList(mid, type) {
+  var m = MEMBERS.find(function(x){return x.id===mid;});
+  var mName = m ? m.kr : mid;
+  var cache = _docCache[mid] || {};
+  var data = type==='incident' ? cache.inc : type==='caselog' ? cache.cases : cache.auth;
+  var title = type==='incident' ? '🚨 Incident Log' : type==='caselog' ? '📁 Case Log' : '🔑 Authorization';
+  document.getElementById('doc-viewer-title').textContent = mName+' — '+title;
+
+  if (!data || !data.length) {
+    document.getElementById('doc-viewer-body').innerHTML = '<div style="padding:16px;color:#8E8E93">데이터 없음</div>';
+    openOv('ov-doc-viewer');
+    return;
+  }
+
+  var html = '<div style="padding:8px">';
+  data.forEach(function(r) {
+    html += '<div style="background:#F2F2F7;border-radius:10px;padding:10px;margin-bottom:8px;font-size:12px">';
+    if(type==='incident') {
+      html += '<div style="font-weight:700;color:#FF3B30">'+String(r['날짜']||'').slice(0,10)+' — '+String(r['유형']||'')+'</div>';
+      html += '<div style="color:#3C3C43;margin-top:3px">심각도: '+String(r['심각도']||'—')+'</div>';
+      html += '<div style="color:#555;margin-top:3px">'+String(r['설명']||'')+'</div>';
+    } else if(type==='caselog') {
+      html += '<div style="font-weight:700;color:#185FA5">'+String(r['날짜']||'').slice(0,10)+' — '+String(r['유형']||'')+'</div>';
+      html += '<div style="color:#3C3C43;margin-top:2px;font-weight:600">'+String(r['제목']||'')+'</div>';
+      html += '<div style="color:#555;margin-top:2px">'+String(r['내용']||'').slice(0,100)+'</div>';
+      if(r['상태']) html += '<div style="margin-top:3px;color:#8E8E93">상태: '+String(r['상태'])+'</div>';
+    } else { // auth
+      html += '<div style="font-weight:700;color:#0F6E56">Auth# '+String(r['Auth번호']||'—')+'</div>';
+      html += '<div style="color:#3C3C43;margin-top:2px">'+String(r['시작일']||'')+'  ~  '+String(r['종료일']||'')+'</div>';
+      html += '<div style="color:#555;margin-top:2px">'+String(r['서비스유형']||'')+'</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('doc-viewer-body').innerHTML = html;
+  openOv('ov-doc-viewer');
 }
 
 function filterM() {
@@ -348,20 +455,44 @@ async function uploadMembersToSheets() {
 }
 
 // ── 멤버 사진 ────────────────────────────────────────────────
-function openPhotoUpload(mid) {
+async function openPhotoUpload(mid) {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
-  input.onchange = e => {
+  input.onchange = async function(e) {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
-      const m = MEMBERS.find(x => x.id === mid); if (!m) return;
-      m.photo = ev.target.result;
-      mp[mid] = ev.target.result;
-      saveToStorage(); filterM();
-      alert(m.kr + ' 사진이 저장됐어요!');
+    reader.onload = async function(ev) {
+      const dataUrl = ev.target.result;
+      const base64  = dataUrl.split(',')[1];
+
+      // 1. 로컬 캐시 (빠른 표시용)
+      mp[mid] = dataUrl;
+
+      // 2. Drive에 저장 (영구 보관)
+      try {
+        const m = MEMBERS.find(x => x.id === mid);
+        const mName = m ? m.kr : mid;
+        const res = await SheetsAPI.post({
+          action:     'savePDF',
+          memberId:   mid,
+          memberName: mName,
+          fileType:   'Photo',
+          base64Data: base64,
+          author:     (currentUser && currentUser.name) || 'Staff',
+        });
+        if (res && res.ok && res.data && res.data.url) {
+          // Drive 링크를 멤버 시트 memo에 저장
+          console.log('사진 Drive 저장:', res.data.url);
+        }
+      } catch(err) {
+        console.log('사진 Drive 저장 실패:', err);
+      }
+
+      // 3. 멤버 카드 즉시 업데이트
+      renderMG();
     };
     reader.readAsDataURL(file);
   };
   input.click();
 }
+
