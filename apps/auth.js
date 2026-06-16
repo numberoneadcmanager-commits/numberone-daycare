@@ -104,11 +104,24 @@ function renderAuthList() {
 
     // 요일 표시
     var dayStr = '';
-    ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
-      var key = 'day' + d;
-      var val = a[key] || '0';
-      if (val !== '0') dayStr += '<span style="background:#E6F1FB;color:#185FA5;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin-right:2px">' + d + (val !== '1' ? '×'+val : '') + '</span>';
-    });
+    var hasDays = ['Mon','Tue','Wed','Thu','Fri'].some(function(d){ return (a['day'+d]||'0') !== '0'; });
+    if (hasDays) {
+      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+        var val = a['day'+d] || '0';
+        if (val !== '0') dayStr += '<span style="background:#E6F1FB;color:#185FA5;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin-right:2px">' + d + (val !== '1' ? '×'+val : '') + '</span>';
+      });
+    } else if (a.freqPerWeek) {
+      dayStr += '<span style="background:#F2F2F7;color:#8E8E93;border-radius:5px;padding:1px 6px;font-size:10px;margin-right:2px">주 ' + a.freqPerWeek + '회 (요일 미지정)</span>';
+    }
+
+    // 요일 미지정인 경우 모두 0으로 재설정
+    if (data.daysSpecified === false || data.daysSpecified === 'false') {
+      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+        var el = document.getElementById('auth-day-'+d.toLowerCase());
+        if (el) el.value = '0';
+      });
+      statusEl.textContent = '✅ AI 읽기 완료 (요일 미지정 — 주 '+data.freqPerWeek+'회로만 표시)';
+    }
 
     html += '<div class="log-card" style="' + border + '">'
       + '<div class="log-top"><div class="log-name">' + mname + '</div>' + authStatusBadge(a) + '</div>'
@@ -249,7 +262,7 @@ async function uploadAuthPDF() {
       reader.readAsDataURL(file);
     });
 
-    var res = await apiCall({}, {
+    var res = await SheetsAPI.call({
       action:     'savePDF',
       memberId:   selVal || 'auth',
       memberName: mName,
@@ -287,27 +300,30 @@ async function aiReadAuthPDF() {
       reader.readAsDataURL(file);
     });
 
-    var prompt = 'This is an insurance authorization PDF. Extract the following information and return ONLY a JSON object with these exact keys:\n'
+    var prompt = 'This is an insurance authorization PDF. Extract info and return ONLY JSON with these keys:\n'
       + '{\n'
       + '  "authNo": "authorization number",\n'
       + '  "memberName": "member last name, first name",\n'
       + '  "medicaidId": "medicaid number",\n'
-      + '  "insurer": "insurance company name",\n'
+      + '  "insurer": "insurance company name (Anthem/Centerlight/Senior Whole Health)",\n'
       + '  "serviceType": "SDC or Transportation",\n'
-      + '  "serviceCode": "procedure code like S5105 T2003 A0100 S5102",\n'
+      + '  "serviceCode": "procedure code: S5105 S5102 T2003 A0100",\n'
       + '  "startDate": "YYYY-MM-DD",\n'
       + '  "endDate": "YYYY-MM-DD",\n'
-      + '  "totalQty": "number",\n'
+      + '  "totalQty": "number only",\n'
       + '  "qtyUnit": "Day or Trip",\n'
-      + '  "freqPerWeek": "number",\n'
-      + '  "dayMon": "0 or 1 or trips count",\n'
-      + '  "dayTue": "0 or 1 or trips count",\n'
-      + '  "dayWed": "0 or 1 or trips count",\n'
-      + '  "dayThu": "0 or 1 or trips count",\n'
-      + '  "dayFri": "0 or 1 or trips count",\n'
+      + '  "freqPerWeek": "trips or days per week as number",\n'
+      + '  "daysSpecified": true or false (true only if specific days Mon/Tue/etc are listed),\n'
+      + '  "dayMon": "number of units on Monday (0 if not approved, 1 for SDC, 2 for round-trip transport). Use 0 if days not specified",\n'
+      + '  "dayTue": "same as dayMon",\n'
+      + '  "dayWed": "same as dayMon",\n'
+      + '  "dayThu": "same as dayMon",\n'
+      + '  "dayFri": "same as dayMon",\n'
       + '  "status": "Active or Hold",\n'
-      + '  "careManager": "care manager name"\n'
-      + '}\nReturn only JSON, no explanation.';
+      + '  "careManager": "care manager name or empty string"\n'
+      + '}\n'
+      + 'IMPORTANT: If only total weekly frequency is given (e.g. "8 per week") without specific day breakdown, set daysSpecified=false and all day values to 0.\n'
+      + 'Return only JSON, no explanation.';
 
     // Apps Script 경유 (CORS 우회)
     var res = await SheetsAPI.post({
@@ -333,11 +349,25 @@ async function aiReadAuthPDF() {
     if (data.qtyUnit)     document.getElementById('auth-qty-unit').value  = data.qtyUnit;
     if (data.status)      document.getElementById('auth-status-sel').value = data.status;
 
-    // 요일
+    // 요일 — 미지정이면 0으로, 지정이면 해당값
+    var daysSpecified = data.daysSpecified !== false; // 기본 true
     ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
       var el = document.getElementById('auth-day-'+d.toLowerCase());
-      if (el && data['day'+d] !== undefined) el.value = String(data['day'+d]);
+      if (el) el.value = daysSpecified && data['day'+d] !== undefined ? String(data['day'+d]) : '0';
     });
+
+    // 요일 미지정인 경우 모두 0으로 재설정
+    if (data.daysSpecified === false || data.daysSpecified === 'false') {
+      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+        var el = document.getElementById('auth-day-'+d.toLowerCase());
+        if (el) el.value = '0';
+      });
+      statusEl.textContent = '✅ AI 읽기 완료 (요일 미지정 — 주 '+data.freqPerWeek+'회로만 표시)';
+    }
+    // 미지정인 경우 안내
+    if (!daysSpecified) {
+      statusEl.textContent = '✅ AI 읽기 완료! ⚠️ 요일 미지정 — 멤버 출석요일 기준으로 직접 입력하세요.';
+    }
 
     // 보험사 매핑
     if (data.insurer) {
@@ -447,4 +477,54 @@ function updateAuthAlert(soon, expired) {
   if (soon)    msgs.push('<span style="color:#FF9500">⚠️ 30일내 만료 ' + soon + '건</span>');
   el.innerHTML = '🔑 Auth 알림: ' + msgs.join(' &nbsp;·&nbsp; ')
     + ' &nbsp;<a href="#" onclick="goTab(\'authorization\',null);return false;" style="font-size:11px;color:#185FA5">확인 →</a>';
+}
+
+// ── 요일 자동채우기 ───────────────────────────────────────────
+function autoFillAuthDays(mode) {
+  var sel = document.getElementById('auth-member-sel');
+  var mid = sel ? sel.value : '';
+  var m   = mid ? MEMBERS.find(function(x){ return x.id===mid; }) : null;
+  var days = m ? (m.days || []) : [];
+
+  ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+    var el  = document.getElementById('auth-day-'+d.toLowerCase());
+    if (!el) return;
+    if (mode === 'clear') {
+      el.value = '0';
+    } else if (mode === 'sdc') {
+      el.value = days.includes(d) ? '1' : '0';
+    } else if (mode === 'trans') {
+      // 교통 왕복: 출석요일×2
+      el.value = days.includes(d) ? '2' : '0';
+    }
+  });
+
+    // 요일 미지정인 경우 모두 0으로 재설정
+    if (data.daysSpecified === false || data.daysSpecified === 'false') {
+      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+        var el = document.getElementById('auth-day-'+d.toLowerCase());
+        if (el) el.value = '0';
+      });
+      statusEl.textContent = '✅ AI 읽기 완료 (요일 미지정 — 주 '+data.freqPerWeek+'회로만 표시)';
+    }
+
+  // freqPerWeek 자동계산
+  if (mode !== 'clear') {
+    var total = 0;
+    ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+      var el = document.getElementById('auth-day-'+d.toLowerCase());
+      if (el) total += parseInt(el.value) || 0;
+    });
+
+    // 요일 미지정인 경우 모두 0으로 재설정
+    if (data.daysSpecified === false || data.daysSpecified === 'false') {
+      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+        var el = document.getElementById('auth-day-'+d.toLowerCase());
+        if (el) el.value = '0';
+      });
+      statusEl.textContent = '✅ AI 읽기 완료 (요일 미지정 — 주 '+data.freqPerWeek+'회로만 표시)';
+    }
+    var freqEl = document.getElementById('auth-freq');
+    if (freqEl && total > 0) freqEl.value = total;
+  }
 }
