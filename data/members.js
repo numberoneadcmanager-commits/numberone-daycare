@@ -5,63 +5,65 @@
 
 // ── 멤버 목록 필터/렌더 ──────────────────────────────────────
 function filterM() {
-  const q  = document.getElementById('msearch').value.toLowerCase().trim();
-  const sf = (document.getElementById('status-filter') || {}).value || 'all';
+  const raw = document.getElementById('msearch').value.toLowerCase().trim();
+  const sf  = (document.getElementById('status-filter') || {}).value || 'all';
 
-  mFilt = MEMBERS.filter(m => {
-    const mS = sf === 'all' || (sf === 'active' && isActive(m)) || (sf === 'disenrolled' && !isActive(m));
+  mFilt = MEMBERS.filter(function(m) {
+    // 상태 필터
+    const mS = sf === 'all'
+      || (sf === 'active'      && isActive(m))
+      || (sf === 'disenrolled' && !isActive(m));
     if (!mS) return false;
-    if (!q)  return true;
+    if (!raw) return true;
 
-    // ── 통합 검색 ──────────────────────────────────────────
-    // 이름 (한글/영문)
-    if (m.kr.includes(q))                    return true;
-    if (m.en.toLowerCase().includes(q))      return true;
+    // 검색 대상 문자열 모두 합치기
+    var ins = (m.ins||'').toLowerCase();
+    var insKor = ins.includes('anthem') ? 'anthem'
+               : ins.includes('clp')    ? 'centerlight clp'
+               : ins.includes('swh')    ? 'swh senior whole health'
+               : ins;
 
-    // Medicaid / MLTC ID
-    if (m.medicaid.toLowerCase().includes(q)) return true;
-    if ((m.mltc||'').toLowerCase().includes(q)) return true;
-
-    // 보험사 (anthem, clp, centerlight, swh)
-    const insMap = { anthem_mltc:'anthem', anthem_map:'anthem map', clp:'centerlight', swh:'swh' };
-    const insLabel = (insMap[m.ins.toLowerCase()] || m.ins.toLowerCase());
-    if (insLabel.includes(q) || m.ins.toLowerCase().includes(q)) return true;
-
-    // 주소 (flushing, bronx, bayside 등)
-    if ((m.addr||'').toLowerCase().includes(q)) return true;
-
-    // 전화번호
-    if ((m.phone||'').toLowerCase().includes(q)) return true;
-
-    // 주치의
-    if ((m.pcp||'').toLowerCase().includes(q)) return true;
-
-    // 출석 요일 (mon, tue, wed, thu, fri / 월,화,수,목,금)
-    const dayKrMap = { '월':'Mon','화':'Tue','수':'Wed','목':'Thu','금':'Fri','토':'Sat','일':'Sun' };
-    const dayEnMap = { mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun' };
-    const dayKey = dayKrMap[q] || dayEnMap[q.slice(0,3)];
-    if (dayKey && m.days.includes(dayKey)) return true;
-
-    // 생일 월 (may→5, june→6 / 5월, 1월 등)
-    const monthMap = {
-      jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
-      jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
-      january:1,february:2,march:3,april:4,june:6,
-      july:7,august:8,september:9,october:10,november:11,december:12
+    // 생일 월 매핑
+    var MONTH = {
+      jan:1,january:1, feb:2,february:2, mar:3,march:3,
+      apr:4,april:4,   may:5,            jun:6,june:6,
+      jul:7,july:7,    aug:8,august:8,   sep:9,september:9,
+      oct:10,october:10, nov:11,november:11, dec:12,december:12
     };
-    const monthNum = monthMap[q] || (q.match(/^(\d{1,2})월$/) ? parseInt(q) : null);
-    if (monthNum && m.dob) {
-      const dobMonth = parseInt((m.dob||'').slice(5,7));
-      if (dobMonth === monthNum) return true;
+    var monthMatch = false;
+    if (MONTH[raw]) {
+      var dobM = parseInt((m.dob||'').slice(5,7));
+      if (dobM === MONTH[raw]) monthMatch = true;
     }
+    // "5월" 형식
+    var mNum = raw.match(/^(\d{1,2})월$/);
+    if (mNum && parseInt((m.dob||'').slice(5,7)) === parseInt(mNum[1])) monthMatch = true;
 
-    // 생일 연도 (1952, 1960 등)
-    if (q.match(/^\d{4}$/) && m.dob && m.dob.startsWith(q)) return true;
+    // 요일 매핑
+    var DAYMAP = {
+      mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun',
+      '월':'Mon','화':'Tue','수':'Wed','목':'Thu','금':'Fri','토':'Sat','일':'Sun'
+    };
+    var dayMatch = false;
+    var dayKey = DAYMAP[raw] || DAYMAP[raw.slice(0,3)];
+    if (dayKey && (m.days||[]).includes(dayKey)) dayMatch = true;
 
-    // 차트번호
-    if ((m.chartNo||'').includes(q)) return true;
+    // 연도 검색 (1952 등)
+    var yearMatch = raw.match(/^\d{4}$/) && (m.dob||'').startsWith(raw);
 
-    return false;
+    // 통합 검색
+    return (m.kr||'').includes(raw)
+      || (m.en||'').toLowerCase().includes(raw)
+      || (m.medicaid||'').toLowerCase().includes(raw)
+      || (m.mltc||'').toLowerCase().includes(raw)
+      || (m.addr||'').toLowerCase().includes(raw)
+      || (m.phone||'').includes(raw)
+      || (m.pcp||'').toLowerCase().includes(raw)
+      || (m.chartNo||'').includes(raw)
+      || insKor.includes(raw)
+      || monthMatch
+      || dayMatch
+      || yearMatch;
   });
 
   mPage = 0; renderMG();
