@@ -104,7 +104,6 @@ function _attSheetStyles() {
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;'
     +   'padding:0.25in 0.3in 0.2in 0.82in;'
-    + '.att-pg-trp{padding:0.25in 0.82in 0.2in 0.3in !important;}'
 
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
@@ -216,8 +215,10 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
       + '</tr>';
   }
 
-  var pgClass = (type === 'TRANSPORTATION') ? 'att-pg att-pg-trp' : 'att-pg';
-  return '<div class="' + pgClass + '">'
+  var pgPad = (type === 'TRANSPORTATION')
+    ? 'padding:0.25in 0.82in 0.2in 0.3in'   // 뒷면: 오른쪽 바인딩
+    : 'padding:0.25in 0.3in 0.2in 0.82in';  // 앞면: 왼쪽 바인딩
+  return '<div class="att-pg" style="' + pgPad + '">'
     + '<div class="pg-hdr">'
     +   '<div class="hdr-l">'
     +     '<div class="ctr-name">NUMBER ONE ADULT DAYCARE</div>'
