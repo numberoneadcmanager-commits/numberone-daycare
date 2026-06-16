@@ -97,13 +97,13 @@ function _attSheetInsLabel(ins) {
 
 function _attSheetStyles() {
   return '<style>'
-    + '@page{size:letter;margin:0}'
+    // 3-ring 바인딩: 항상 왼쪽 마진
+    + '@page{size:letter;margin:0.2in 0.22in 0.18in 0.75in;}'
     + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;box-sizing:border-box;margin:0;padding:0;}'
-    // 페이지 레이아웃 — 바인딩용 왼쪽 여백 크게
     + '.att-pg{'
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;'
-    +   'padding:0.25in 0.4in 0.2in 0.85in;' // top right bottom left(바인딩)
+    +   'padding:0.2in 0.22in 0.18in 0.75in;'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     +   'display:flex;flex-direction:column;'
@@ -132,7 +132,8 @@ function _attSheetStyles() {
     + '.c-num{width:36px;text-align:center;font-weight:700;}'
     + '.c-day{width:46px;text-align:center;}'
     + '.c-act{width:190px;text-align:center;font-size:11px;white-space:nowrap;}'  // SDC 컬럼 좁게
-    + '.c-time{width:80px;text-align:center;}'
+    + '.c-timein{width:118px;text-align:center;font-size:11.5px;padding:2px 3px;}'
+    + '.c-timeout{width:88px;text-align:center;font-size:11.5px;padding:2px 3px;}'
     + '.c-sign{text-align:center;}'                             // SIGN — 남은 공간 전부
     // 일요일 회색
     + '.sun-row,.sun-row td{background:#C8C8C8 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
@@ -142,7 +143,7 @@ function _attSheetStyles() {
     + '.toc-pg{'
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;'
-    +   'padding:0.4in 0.4in 0.3in 0.85in;'
+    +   'padding:0.3in 0.22in 0.25in 0.75in;'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     + '}'
@@ -207,8 +208,8 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
       + '<td class="c-num">' + day + '</td>'
       + '<td class="c-day">' + DAY_NAMES[dow] + '</td>'
       + '<td class="c-act">' + actText + '</td>'
-      + '<td class="c-time"></td>'
-      + '<td class="c-time"></td>'
+      + '<td class="c-timein">7&nbsp;&#9744;&nbsp; 8&nbsp;&#9744;&nbsp; 9&nbsp;&#9744;</td>'
+      + '<td class="c-timeout">12&nbsp;&#9744;&nbsp; 1&nbsp;&#9744;</td>'
       + '<td class="c-sign"></td>'
       + '</tr>';
   }
@@ -229,14 +230,14 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
     + '<table class="att-tbl">'
     +   '<colgroup>'
     +     '<col class="c-num"><col class="c-day"><col class="c-act">'
-    +     '<col class="c-time"><col class="c-time"><col class="c-sign">'
+    +     '<col class="c-timein"><col class="c-timeout"><col class="c-sign">'
     +   '</colgroup>'
     +   '<thead><tr>'
     +     '<th class="c-num"></th>'
     +     '<th class="c-day"></th>'
     +     '<th class="c-act"></th>'
-    +     '<th class="c-time">TIME IN</th>'
-    +     '<th class="c-time">TIME OUT</th>'
+    +     '<th class="c-timein">TIME IN</th>'
+    +     '<th class="c-timeout">TIME OUT</th>'
     +     '<th class="c-sign">SIGN</th>'
     +   '</tr></thead>'
     +   '<tbody>' + rows + '</tbody>'
