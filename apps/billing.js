@@ -104,7 +104,8 @@ function _attSheetStyles() {
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;'
     +   'padding:0.25in 0.3in 0.2in 0.82in;'
-    + '.att-pg-trp{padding:0.25in 0.82in 0.2in 0.3in;}'
+    + '.att-pg-trp{padding:0.25in 0.82in 0.2in 0.3in !important;}'
+
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     +   'display:flex;flex-direction:column;'
