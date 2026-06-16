@@ -121,6 +121,7 @@ var _mrMid = null, _mrSig = null;
 // 멤버 사진 캐시
 var mp = {};
 
-// 멤버 목록 (data/members.js에서 채워짐)
+// 멤버/스태프 목록 (data/members.js에서 채워짐)
 var MEMBERS = [];
 var STAFF = [];
+var DEFAULT_STAFF = [];

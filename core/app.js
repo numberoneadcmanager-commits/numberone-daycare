@@ -169,6 +169,11 @@ async function loadAllData() {
     if (all.councilList && all.councilList.length) COUNCIL_LIST = all.councilList;
     renderIncidents(); renderActivities(); renderCases();
     updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
+    // 멤버 select 업데이트 (Sheets에서 멤버 로드 후)
+    ['inc','act','case'].forEach(function(px){
+      var sel = document.getElementById(px+'-msel');
+      if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
+    });
   } catch (e) { console.log('loadAllData error:', e); }
 }
 
