@@ -236,8 +236,8 @@ function goToFormsAndOpenPCSP(){closeFrmBack();setTimeout(function(){prefillPCSP
 
 function openNutritionForMember(mid,mName){
   _nsMid = mid;
-  document.getElementById('frm-list').style.display='none';
-  document.getElementById('frm-nutrition').style.display='block';
+  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  var el=document.getElementById('frm-nutrition');if(el)el.style.display='block';
   var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(mid);}) : null;
   var nn=document.getElementById('ns-name');
   if(nn) nn.textContent = mName || '';
