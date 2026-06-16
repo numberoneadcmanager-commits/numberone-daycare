@@ -4,6 +4,81 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 멤버 목록 필터/렌더 ──────────────────────────────────────
+async function toggleMemberDocs(mid, btn) {
+  var wrap = document.getElementById('docs-' + mid);
+  if (!wrap) return;
+  if (wrap.style.display !== 'none') {
+    wrap.style.display = 'none';
+    btn.textContent = '📄 관련 문서 보기';
+    return;
+  }
+  btn.textContent = '⏳ 로딩 중...';
+  btn.disabled = true;
+  wrap.style.display = 'block';
+  wrap.innerHTML = '<div style="font-size:12px;color:#8E8E93;padding:8px 0">불러오는 중...</div>';
+
+  try {
+    // 병렬로 모두 로드
+    var [pcspRes, logRes, incRes, caseRes, authRes] = await Promise.all([
+      SheetsAPI.readByMember('PCSP', mid),
+      SheetsAPI.readByMember('JSONLog', mid),
+      SheetsAPI.readByMember('incident', mid),
+      SheetsAPI.readByMember('caselog', mid),
+      SheetsAPI.readByMember('auth', mid),
+    ]);
+
+    var html = '<div style="border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden">';
+
+    // PCSP
+    var pcspList = (pcspRes.ok && pcspRes.data) ? pcspRes.data : [];
+    var pcsp = pcspList.length ? pcspList[pcspList.length-1] : null;
+    var pcspExp = pcsp ? String(pcsp['갱신예정일']||'').slice(0,10) : '';
+    var pcspDate = pcsp ? String(pcsp['작성일']||'').slice(0,10) : '';
+    var pcspExpired = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
+    html += docRow('📋', 'PCSP',
+      pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(pcspExpired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '')) : null);
+
+    // Drive JSON 문서들
+    var logs = (logRes.ok && logRes.data) ? logRes.data : [];
+    function lastLog(type) {
+      var found = logs.filter(function(l){ return String(l['파일종류']||'') === type; });
+      return found.length ? String(found[found.length-1]['저장일시']||'').slice(0,10) : null;
+    }
+    html += docRow('🥗', 'Nutrition Screening', lastLog('Nutrition'));
+    html += docRow('📋', 'Assessment',          lastLog('Assessment'));
+    html += docRow('📄', 'Member Rights',        lastLog('MemberRights'));
+
+    // Incident / Case / Auth
+    var incCount  = incRes.ok  ? (incRes.data ||[]).length  : 0;
+    var caseCount = caseRes.ok ? (caseRes.data||[]).length  : 0;
+    var authList  = authRes.ok ? (authRes.data||[])         : [];
+    var authActive = authList.filter(function(a){
+      return !a['종료일'] || String(a['종료일']) >= new Date().toISOString().slice(0,10);
+    });
+    html += docRow('🚨', 'Incident Log',   incCount  ? incCount+'건'  : null);
+    html += docRow('📁', 'Case Log',       caseCount ? caseCount+'건' : null);
+    html += docRow('🔑', 'Authorization',  authActive.length ? authActive.length+'건 활성' : (authList.length ? authList.length+'건 (만료)' : null));
+
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div style="font-size:12px;color:#FF3B30;padding:8px 0">❌ 오류: ' + e.message + '</div>';
+  }
+
+  btn.textContent = '📄 문서 접기';
+  btn.disabled = false;
+}
+
+function docRow(icon, label, value) {
+  var hasData = value !== null && value !== undefined && value !== '';
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:.5px solid #F2F2F7">'
+    + '<span style="font-size:12px;color:#3C3C43">' + icon + ' ' + label + '</span>'
+    + (hasData
+       ? '<span style="font-size:11px;color:#34C759;font-weight:600">' + value + '</span>'
+       : '<span style="font-size:11px;color:#C7C7CC">없음</span>')
+    + '</div>';
+}
+
 function filterM() {
   if (!MEMBERS || !MEMBERS.length) return;
 
@@ -110,6 +185,8 @@ function renderMG() {
       <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#FFF3EE;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="generateMemberChart('${m.id}')">🪪 차트</button>
     </div>
     <a href="operations.html?tab=pcsp&mid=${m.id}" onclick="localStorage.setItem('pcsp_prefill_mid',this.getAttribute('data-mid'))" data-mid="${m.id}" style="display:block;margin-top:6px;padding:10px;background:#D85A30;color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-align:center;text-decoration:none">📋 PCSP 입력 →</a>
+    <button onclick="toggleMemberDocs('${m.id}',this)" style="width:100%;margin-top:6px;padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer">📄 관련 문서 보기</button>
+    <div id="docs-${m.id}" style="display:none;margin-top:8px"></div>
   </div>`).join('');
 
   const tot = Math.ceil(mFilt.length / PER);
