@@ -235,42 +235,181 @@ function saveAssessment(){
 function goToFormsAndOpenPCSP(){closeFrmBack();setTimeout(function(){prefillPCSPFromMember(_asmt.mid);},300);}
 
 function openNutritionForMember(mid,mName){
-  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
-  if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
-  _nsMid=mid;
-  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
+  _nsMid = mid;
+  document.getElementById('frm-list').style.display='none';
   document.getElementById('frm-nutrition').style.display='block';
-  var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
-  var nn=document.getElementById('ns-name');if(nn)nn.textContent=member['한글이름']+' ('+member['영문이름']+')';
-  var nd=document.getElementById('ns-dob');if(nd)nd.textContent=(member['생년월일']||'').slice(0,10);
-  var ndate=document.getElementById('ns-date');if(ndate)ndate.value=new Date().toISOString().slice(0,10);
-  _nsMemberSig=null;_nsStaffSig=null;
+  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(mid);}) : null;
+  var nn=document.getElementById('ns-name');
+  if(nn) nn.textContent = mName || '';
+  var nd=document.getElementById('ns-dob');
+  if(nd) nd.textContent = member ? (member['생년월일']||'').slice(0,10) : '';
+  var ndate=document.getElementById('ns-date');
+  if(ndate) ndate.value = new Date().toISOString().slice(0,10);
+
+  // 서명 캔버스 초기화
+  _nsMemberSig=null; _nsStaffSig=null;
+  ['ns-member-canvas','ns-staff-canvas'].forEach(function(id){
+    var c=document.getElementById(id); if(c){c._sigInit=false;}
+  });
+  ['ns-member-empty','ns-staff-empty'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.style.display='flex';
+  });
   initSigCanvas('ns-member-canvas','ns-member-empty',function(d){_nsMemberSig=d;});
   initSigCanvas('ns-staff-canvas','ns-staff-empty',function(d){_nsStaffSig=d;});
+
+  // 폼 초기화
+  ['ns-gender-m','ns-gender-f','ns-assess-normal','ns-assess-under','ns-assess-over','ns-assess-obese',
+   'ns-allergy-no','ns-allergy-yes','ns-counsel-accept','ns-counsel-decline',
+   'ns-q1-no','ns-q1-yes','ns-q2-no','ns-q2-yes','ns-q3-no','ns-q3-yes',
+   'ns-q4-no','ns-q4-yes','ns-q5-no','ns-q5-yes'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.checked=false;
+  });
+  ['ns-dx-htn','ns-dx-hld','ns-dx-dm','ns-dx-ckd','ns-dx-other',
+   'ns-diet-na','ns-diet-lf','ns-diet-carb','ns-diet-renal','ns-diet-other-chk'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.checked=false;
+  });
+  ['ns-height','ns-weight','ns-bmi','ns-diet-other','ns-allergy-spec'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  var statusEl=document.getElementById('ns-status');
+  if(statusEl) statusEl.textContent='';
+
+  // 이전 저장 데이터 로드 시도
+  loadNutrition(mid, mName);
 }
-function calcNSBMI(){var h=parseFloat((document.getElementById('ns-height')||{}).value||0);var w=parseFloat((document.getElementById('ns-weight')||{}).value||0);var el=document.getElementById('ns-bmi');if(el)el.value=(h>0&&w>0)?(w/(h*h)*703).toFixed(1):'';}
-function clearNSSig(who){var cid=who==='member'?'ns-member-canvas':'ns-staff-canvas';var eid=who==='member'?'ns-member-empty':'ns-staff-empty';clearSigCanvas(cid,eid);if(who==='member')_nsMemberSig=null;else _nsStaffSig=null;}
-function generateNutritionPDF(){
-  if(!_nsMid){alert('멤버가 선택되지 않았습니다');return;}
-  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
-  var mName=member?(member['한글이름']||''):'';
-  var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
-  var gc=function(id){var el=document.getElementById(id);return el&&el.checked?'✅':'☐';};
-  var nsData={mid:_nsMid,memberName:mName,date:gv2('ns-date'),height:gv2('ns-height'),weight:gv2('ns-weight'),bmi:gv2('ns-bmi'),memberSig:_nsMemberSig||'',staffSig:_nsStaffSig||'',savedAt:new Date().toISOString()};
-  saveJSONtoDrive(_nsMid,mName,'Nutrition',nsData).catch(function(){});
-  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nutrition - '+mName+'</title><style>body{font-family:Arial,sans-serif;font-size:10px;margin:20px}h1{font-size:13px;text-align:center}table{width:100%;border-collapse:collapse;margin-bottom:10px}td,th{border:1px solid #ccc;padding:5px 8px}th{background:#f5f5f5;font-weight:700}.sig{height:60px}@media print{button{display:none}}</style></head><body>'
-    +'<h1>NUMBER ONE ADULT DAYCARE — Nutrition Screening</h1>'
-    +'<table><tr><th>Participant</th><td>'+mName+'</td><th>Date</th><td>'+nsData.date+'</td></tr><tr><th>Height</th><td>'+nsData.height+'"</td><th>Weight</th><td>'+nsData.weight+' lbs</td></tr><tr><th>BMI</th><td colspan="3">'+nsData.bmi+'</td></tr></table>'
-    +'<table><tr><th colspan="3">Questions</th></tr>'
-    +'<tr><td>1. Underweight BMI &lt;18</td><td>'+gc('ns-q1-no')+' No</td><td>'+gc('ns-q1-yes')+' Yes</td></tr>'
-    +'<tr><td>2. Obese BMI &gt;30</td><td>'+gc('ns-q2-no')+' No</td><td>'+gc('ns-q2-yes')+' Yes</td></tr>'
-    +'<tr><td>3. Unintentional Weight Loss</td><td>'+gc('ns-q3-no')+' No</td><td>'+gc('ns-q3-yes')+' Yes</td></tr>'
-    +'<tr><td>4. Diabetes/HgbA1c &gt;5.7%</td><td>'+gc('ns-q4-no')+' No</td><td>'+gc('ns-q4-yes')+' Yes</td></tr>'
-    +'<tr><td>5. Chronic Kidney Disease</td><td>'+gc('ns-q5-no')+' No</td><td>'+gc('ns-q5-yes')+' Yes</td></tr></table>'
-    +'<table><tr><th>Member Sig</th><th>Staff Sig</th></tr><tr><td class="sig">'+(nsData.memberSig?'<img src="'+nsData.memberSig+'" style="height:55px">':'')+'</td><td class="sig">'+(nsData.staffSig?'<img src="'+nsData.staffSig+'" style="height:55px">':'')+'</td></tr></table>'
-    +'<button onclick="window.print()">🖨️ 인쇄</button></body></html>';
-  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
+
+function calcNSBMI(){
+  var h=parseFloat((document.getElementById('ns-height')||{}).value||0);
+  var w=parseFloat((document.getElementById('ns-weight')||{}).value||0);
+  var el=document.getElementById('ns-bmi');
+  if(el) el.value=(h>0&&w>0)?(w/(h*h)*703).toFixed(1):'';
 }
+
+function clearNSSig(who){
+  var cid=who==='member'?'ns-member-canvas':'ns-staff-canvas';
+  var eid=who==='member'?'ns-member-empty':'ns-staff-empty';
+  clearSigCanvas(cid,eid);
+  if(who==='member') _nsMemberSig=null; else _nsStaffSig=null;
+}
+
+function getNutritionData(){
+  function gv2(id){var el=document.getElementById(id);return el?el.value:'';}
+  function gc(id){var el=document.getElementById(id);return el?el.checked:false;}
+  function gr(name){var els=document.querySelectorAll('input[name="'+name+'"]');for(var i=0;i<els.length;i++){if(els[i].checked)return els[i].value;}return '';}
+  return {
+    mid:          _nsMid,
+    date:         gv2('ns-date'),
+    gender:       gr('ns-gender'),
+    height:       gv2('ns-height'),
+    weight:       gv2('ns-weight'),
+    bmi:          gv2('ns-bmi'),
+    assessment:   gr('ns-assess'),
+    dx:{ htn:gc('ns-dx-htn'), hld:gc('ns-dx-hld'), dm:gc('ns-dx-dm'), ckd:gc('ns-dx-ckd'), other:gc('ns-dx-other') },
+    diet:{ na:gc('ns-diet-na'), lf:gc('ns-diet-lf'), carb:gc('ns-diet-carb'), renal:gc('ns-diet-renal'), other:gc('ns-diet-other-chk'), otherText:gv2('ns-diet-other') },
+    allergy:      gr('ns-allergy'),
+    allergySpec:  gv2('ns-allergy-spec'),
+    q1: gr('ns-q1'), q2: gr('ns-q2'), q3: gr('ns-q3'), q4: gr('ns-q4'), q5: gr('ns-q5'),
+    counselling:  gr('ns-counsel'),
+    memberSig:    _nsMemberSig||'',
+    staffSig:     _nsStaffSig||'',
+    savedAt:      new Date().toISOString()
+  };
+}
+
+function setNutritionData(d){
+  function sv(id,v){var el=document.getElementById(id);if(el)el.value=v||'';}
+  function sc(id,v){var el=document.getElementById(id);if(el)el.checked=!!v;}
+  function sr(name,v){var els=document.querySelectorAll('input[name="'+name+'"]');els.forEach(function(el){if(el.value===v)el.checked=true;});}
+  sv('ns-date',d.date); sv('ns-height',d.height); sv('ns-weight',d.weight); sv('ns-bmi',d.bmi);
+  sr('ns-gender',d.gender||''); sr('ns-assess',d.assessment||'');
+  sr('ns-allergy',d.allergy||''); sv('ns-allergy-spec',d.allergySpec||'');
+  sr('ns-counsel',d.counselling||'');
+  sr('ns-q1',d.q1||''); sr('ns-q2',d.q2||''); sr('ns-q3',d.q3||''); sr('ns-q4',d.q4||''); sr('ns-q5',d.q5||'');
+  if(d.dx){sc('ns-dx-htn',d.dx.htn);sc('ns-dx-hld',d.dx.hld);sc('ns-dx-dm',d.dx.dm);sc('ns-dx-ckd',d.dx.ckd);sc('ns-dx-other',d.dx.other);}
+  if(d.diet){sc('ns-diet-na',d.diet.na);sc('ns-diet-lf',d.diet.lf);sc('ns-diet-carb',d.diet.carb);sc('ns-diet-renal',d.diet.renal);sc('ns-diet-other-chk',d.diet.other);sv('ns-diet-other',d.diet.otherText||'');}
+}
+
+async function loadNutrition(mid, mName){
+  var statusEl=document.getElementById('ns-status');
+  try {
+    var res = await loadJSONfromDrive(mid, mName||'', 'Nutrition');
+    if(res && res.ok && res.data && res.data.found && res.data.data){
+      setNutritionData(res.data.data);
+      if(statusEl) statusEl.textContent='✅ 이전 저장 데이터 로드됨';
+    }
+  } catch(e){ console.log('Nutrition load:', e); }
+}
+
+async function saveNutrition(){
+  if(!_nsMid){ alert('멤버를 선택해주세요'); return; }
+  var statusEl=document.getElementById('ns-status');
+  if(statusEl) statusEl.textContent='⏳ 저장 중...';
+  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(_nsMid);}) : null;
+  var mName = member ? (member['한글이름']||'') : '';
+  try {
+    var data = getNutritionData();
+    var res = await saveJSONtoDrive(_nsMid, mName, 'Nutrition', data);
+    if(res && res.ok && res.data && res.data.success){
+      if(statusEl) statusEl.textContent='✅ Drive에 저장됨!';
+    } else {
+      if(statusEl) statusEl.textContent='❌ 저장 실패';
+    }
+  } catch(e){
+    if(statusEl) statusEl.textContent='❌ 오류: '+e.message;
+  }
+}
+
+function printNutrition(){
+  if(!_nsMid){ alert('멤버를 선택해주세요'); return; }
+  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(_nsMid);}) : null;
+  var mName = member ? (member['한글이름']+' ('+member['영문이름']+')') : '';
+  var d = getNutritionData();
+  function ck(v){ return v ? '☒' : '☐'; }
+  function rk(val, opt){ return val===opt ? '● ' : 'O '; }
+
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nutrition Screening - '+mName+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:10px;margin:0.5in}h1{font-size:14px;text-align:center;margin-bottom:4px}'
+    +'.center{text-align:center;}.logo{font-size:18px;font-weight:900;} '
+    +'table{width:100%;border-collapse:collapse;margin-bottom:10px}'
+    +'td,th{border:1px solid #888;padding:5px 8px;font-size:10px}'
+    +'.row{display:flex;gap:20px;margin-bottom:8px;align-items:center}'
+    +'.lbl{font-weight:700;min-width:80px} .sig{height:50px;border-bottom:1px solid #000;margin-top:30px}'
+    +'@media print{button{display:none}}</style></head><body>'
+    +'<div class="center"><div class="logo">NUMBER ONE ADULT DAYCARE</div>'
+    +'<h1>Nutrition Screening</h1></div>'
+    +'<div class="row"><div class="lbl">Name:</div><div>'+mName+'</div>'
+    +'<div class="lbl">DOB:</div><div>'+(member?member['생년월일']:'')+'</div>'
+    +'<div class="lbl">Date:</div><div>'+d.date+'</div></div>'
+    +'<div class="row"><div class="lbl">Gender:</div><div>'+rk(d.gender,'Male')+'Male &nbsp;'+rk(d.gender,'Female')+'Female</div>'
+    +'<div class="lbl">Height:</div><div>'+d.height+'in</div>'
+    +'<div class="lbl">Weight:</div><div>'+d.weight+'lbs</div>'
+    +'<div class="lbl">BMI:</div><div>'+d.bmi+'</div></div>'
+    +'<div class="row"><div class="lbl">Assessment:</div>'
+    +'<div>'+rk(d.assessment,'Normal')+'Normal &nbsp;'+rk(d.assessment,'Underweight')+'Underweight &nbsp;'+rk(d.assessment,'Overweight')+'Overweight &nbsp;'+rk(d.assessment,'Obese')+'Obese</div></div>'
+    +'<div class="row"><div class="lbl">Diagnosis:</div>'
+    +'<div>'+ck(d.dx&&d.dx.htn)+' HTN &nbsp;'+ck(d.dx&&d.dx.hld)+' Hyperlipidemia &nbsp;'+ck(d.dx&&d.dx.dm)+' Diabetes &nbsp;'+ck(d.dx&&d.dx.ckd)+' Kidney Disease &nbsp;'+ck(d.dx&&d.dx.other)+' Others</div></div>'
+    +'<div class="row"><div class="lbl">Diet:</div>'
+    +'<div>'+ck(d.diet&&d.diet.na)+' 2gm Na &nbsp;'+ck(d.diet&&d.diet.lf)+' Low fat &nbsp;'+ck(d.diet&&d.diet.carb)+' Consistent Carb &nbsp;'+ck(d.diet&&d.diet.renal)+' Renal &nbsp;'+ck(d.diet&&d.diet.other)+' Others: '+(d.diet?d.diet.otherText||'':'')+'</div></div>'
+    +'<div class="row"><div class="lbl">Food Allergy:</div><div>'+rk(d.allergy,'No')+'No &nbsp;'+rk(d.allergy,'Yes')+'Yes &nbsp;'+(d.allergySpec||'')+'</div></div>'
+    +'<table><thead><tr><th>Question</th><th>No (아니오)</th><th>Yes (예)</th></tr></thead><tbody>'
+    +'<tr><td>1. Underweight (BMI &lt;18)</td><td>'+rk(d.q1,'No')+'No</td><td>'+rk(d.q1,'Yes')+'Yes</td></tr>'
+    +'<tr><td>2. Obese (BMI &gt;30)</td><td>'+rk(d.q2,'No')+'No</td><td>'+rk(d.q2,'Yes')+'Yes</td></tr>'
+    +'<tr><td>3. Unintentional Weight Loss</td><td>'+rk(d.q3,'No')+'No</td><td>'+rk(d.q3,'Yes')+'Yes</td></tr>'
+    +'<tr><td>4. Diabetes or HgbA1c &gt;5.7%</td><td>'+rk(d.q4,'No')+'No</td><td>'+rk(d.q4,'Yes')+'Yes</td></tr>'
+    +'<tr><td>5. Chronic Kidney Disease (not on Dialysis)</td><td>'+rk(d.q5,'No')+'No</td><td>'+rk(d.q5,'Yes')+'Yes</td></tr>'
+    +'</tbody></table>'
+    +'<p style="font-size:9px">If one or more of the above risk factors are identified, referral to registered dietitian is strongly recommended.</p>'
+    +'<div class="row"><div class="lbl">Nutrition Counselling:</div><div>'+rk(d.counselling,'Accepted')+'Accepted &nbsp;'+rk(d.counselling,'Declined')+'Declined</div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px">'
+    +(d.memberSig?'<div><img src="'+d.memberSig+'" style="height:50px"><div style="border-top:1px solid #000;font-size:9px">Member Signature (회원 서명)</div></div>':'<div><div class="sig"></div><div style="font-size:9px">Member Signature (회원 서명)</div></div>')
+    +(d.staffSig?'<div><img src="'+d.staffSig+'" style="height:50px"><div style="border-top:1px solid #000;font-size:9px">Completed by / Staff Signature</div></div>':'<div><div class="sig"></div><div style="font-size:9px">Completed by / Staff Signature</div></div>')
+    +'</div>'
+    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'</body></html>');
+  w.document.close();
+}
+
 
 function openMemberRightsForMember(mid,mName){
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
