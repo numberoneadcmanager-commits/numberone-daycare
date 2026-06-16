@@ -300,9 +300,21 @@ const SheetsAPI = {
       '멤버ID':     entry.memberId,
       '보험사':     entry.insurer,
       'Auth번호':   entry.authNo,
+      '서비스유형': entry.serviceType || '',
+      '서비스코드': entry.serviceCode || '',
       '시작일':     entry.startDate,
       '종료일':     entry.endDate,
-      '서비스유형': entry.service,
+      '총수량':     entry.totalQty || '',
+      '수량단위':   entry.qtyUnit || '',
+      '주당빈도':   entry.freqPerWeek || '',
+      '요일Mon':    entry.dayMon || '0',
+      '요일Tue':    entry.dayTue || '0',
+      '요일Wed':    entry.dayWed || '0',
+      '요일Thu':    entry.dayThu || '0',
+      '요일Fri':    entry.dayFri || '0',
+      '상태':       entry.status || 'Active',
+      '케어매니저': entry.careManager || '',
+      'PDF링크':    entry.pdfLink || '',
       '메모':       entry.note || '',
     };
     if (isEdit) return this.update('auth', entry.id, data);
@@ -315,14 +327,26 @@ const SheetsAPI = {
     if (!res.ok) return [];
     return (res.data || []).map(function(r) {
       return {
-        id:        String(r['ID'] || ''),
-        memberId:  String(r['멤버ID'] || ''),
-        insurer:   String(r['보험사'] || ''),
-        authNo:    String(r['Auth번호'] || ''),
-        startDate: String(r['시작일'] || ''),
-        endDate:   String(r['종료일'] || ''),
-        service:   String(r['서비스유형'] || ''),
-        note:      String(r['메모'] || ''),
+        id:          String(r['ID'] || ''),
+        memberId:    String(r['멤버ID'] || ''),
+        insurer:     String(r['보험사'] || ''),
+        authNo:      String(r['Auth번호'] || ''),
+        serviceType: String(r['서비스유형'] || ''),   // SDC / Transportation
+        serviceCode: String(r['서비스코드'] || ''),   // S5105 / T2003 / A0100 / S5102
+        startDate:   String(r['시작일'] || ''),
+        endDate:     String(r['종료일'] || ''),
+        totalQty:    String(r['총수량'] || ''),
+        qtyUnit:     String(r['수량단위'] || ''),     // Day / Trip
+        freqPerWeek: String(r['주당빈도'] || ''),
+        dayMon:      String(r['요일Mon'] || '0'),
+        dayTue:      String(r['요일Tue'] || '0'),
+        dayWed:      String(r['요일Wed'] || '0'),
+        dayThu:      String(r['요일Thu'] || '0'),
+        dayFri:      String(r['요일Fri'] || '0'),
+        status:      String(r['상태'] || 'Active'),
+        careManager: String(r['케어매니저'] || ''),
+        pdfLink:     String(r['PDF링크'] || ''),
+        note:        String(r['메모'] || ''),
       };
     });
   },
