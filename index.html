@@ -314,6 +314,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .g-btn:hover{background:#F9F9F9}
 .g-btn svg{flex-shrink:0}
 
+.doc-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:.5px solid #F2F2F7;transition:background .15s;}
+.doc-row[onclick]:hover{background:#F2F2F7;}
 </style>
 <script src="core/api.js" defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -423,6 +425,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <div id="ds-auth-alert" style="display:none;margin-bottom:10px"></div>
       <div id="ds-cert-alert" style="display:none;margin-bottom:10px"></div>
+      <div id="ds-auth-alert" style="display:none;background:#FFF3E0;border:1.5px solid #FFB347;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600"></div>
       <div style="margin-bottom:10px">
         <button class="btn-full" style="background:linear-gradient(135deg,#5856D6,#007AFF);color:#fff;border:none;border-radius:12px;padding:12px;font-size:13px;font-weight:700;cursor:pointer" onclick="window.location.href='operations.html'">
           📋 업무 관리 앱으로 이동 →
@@ -819,6 +822,275 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   </div>
 </div>
 
+<!-- 멤버 문서 뷰어 모달 -->
+<div class="ov" id="ov-doc-viewer" onclick="closeOv('ov-doc-viewer')"></div>
+<div class="modal" id="modal-ov-doc-viewer" style="display:none;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div class="modal-title">
+    <span id="doc-viewer-title">문서 보기</span>
+    <button class="modal-close" onclick="closeOv('ov-doc-viewer')">✕</button>
+  </div>
+  <div id="doc-viewer-body" style="padding:4px 0"></div>
+</div>
+
+<!-- 출결 상세 모달 -->
+<div class="ov" id="ov-att" onclick="closeOv('ov-att')"></div>
+<div class="modal" id="modal-ov-att" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="att-modal-title">출결 기록</span><button class="modal-close" onclick="closeOv('ov-att')">✕</button></div>
+  <div class="status-grid">
+    <div class="mst" id="mst-in" onclick="setMSt('in')"><span class="mico">✅</span>출석</div>
+    <div class="mst" id="mst-late" onclick="setMSt('late')"><span class="mico">⏰</span>지각</div>
+    <div class="mst" id="mst-absent" onclick="setMSt('absent')"><span class="mico">❌</span>결석</div>
+    <div class="mst" id="mst-travel" onclick="setMSt('travel')"><span class="mico">✈️</span>여행</div>
+    <div class="mst" id="mst-hospital" onclick="setMSt('hospital')"><span class="mico">🏥</span>입원</div>
+    <div class="mst" id="mst-leave" onclick="setMSt('leave')"><span class="mico">🏖️</span>휴가</div>
+  </div>
+  <div id="att-modal-date-section" style="display:none">
+    <div class="modal-date-row">
+      <div class="modal-input-wrap"><label>시작일</label><input class="m-input" type="date" id="m-start"></div>
+      <div class="modal-input-wrap"><label>종료일</label><input class="m-input" type="date" id="m-end"></div>
+    </div>
+  </div>
+  <div class="modal-date-row" style="margin-bottom:8px">
+    <div class="modal-input-wrap"><label>🕐 Sign-in 시간</label><input class="m-input" type="time" id="m-signin"></div>
+    <div class="modal-input-wrap"><label>🕔 Sign-out 시간</label><input class="m-input" type="time" id="m-signout"></div>
+  </div>
+  <div class="chip-row" id="m-chips"></div>
+  <textarea class="m-textarea" id="m-memo" placeholder="메모를 입력하세요..."></textarea>
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="clearAttModal()">초기화</button>
+    <button class="mbt mbt-save" onclick="saveAttModal()">저장</button>
+  </div>
+</div>
+
+<!-- Incident 모달 -->
+<div class="ov" id="ov-inc" onclick="closeOv('ov-inc')"></div>
+<div class="modal" id="modal-ov-inc" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>⚠️ Incident 기록</span><button class="modal-close" onclick="closeOv('ov-inc')">✕</button></div>
+  <div class="doh-note">Serious → DOH 24시간 이내 보고 필수</div>
+  <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="inc-date"></div><div class="fg" style="margin:0"><div class="fl">시간</div><input class="m-input" type="time" id="inc-time"></div></div>
+  <div class="fg" style="margin-top:10px"><div class="fl">멤버</div><input class="member-search-input" id="inc-msearch" placeholder="이름 검색..."><select class="member-sel" id="inc-msel" size="3"></select></div>
+  <div class="frow" style="margin-top:8px"><div class="fg" style="margin:0"><div class="fl">심각도</div><select class="m-select" id="inc-sev"><option>Minor</option><option>Moderate</option><option>Serious</option></select></div><div class="fg" style="margin:0"><div class="fl">유형</div><select class="m-select" id="inc-type"><option>낙상</option><option>행동 문제</option><option>의료 응급</option><option>분실/도난</option><option>학대/방임 의심</option><option>교통 사고</option><option>기타</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">발생 장소</div><input class="m-input" id="inc-loc" placeholder="식당, 화장실 등"></div>
+  <div class="fg"><div class="fl">사고 내용 <span class="freq">*</span></div><textarea class="m-textarea" id="inc-desc" placeholder="언제, 어디서, 어떻게 발생했는지 구체적으로"></textarea></div>
+  <div class="fg"><div class="fl">취한 조치</div><textarea class="m-textarea" id="inc-action" placeholder="응급처치, 보호자 연락, 병원 이송 등"></textarea></div>
+  <div class="frow"><div class="fg" style="margin:0"><div class="fl">목격자</div><input class="m-input" id="inc-wit" placeholder="이름, 직책"></div><div class="fg" style="margin:0"><div class="fl">DOH 보고</div><select class="m-select" id="inc-doh"><option>미보고</option><option>보고 완료</option><option>보고 불필요</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">작성자</div><input class="m-input" id="inc-writer" placeholder="이름, 직책"></div>
+  <div class="modal-btns" style="margin-top:10px"><button class="mbt mbt-cancel" onclick="closeOv('ov-inc')">취소</button><button class="mbt mbt-save" onclick="saveIncident()">저장</button></div>
+</div>
+
+<!-- Activity 모달 -->
+<div class="ov" id="ov-act" onclick="closeOv('ov-act')"></div>
+<div class="modal" id="modal-ov-act" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>📋 Activity 기록</span><button class="modal-close" onclick="closeOv('ov-act')">✕</button></div>
+  <div class="omig-note">활동 참여 기록은 Medicaid 청구 근거가 됩니다.</div>
+  <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="act-date"></div><div class="fg" style="margin:0"><div class="fl">카테고리</div><select class="m-select" id="act-cat"><option>운동/신체</option><option>미술/공예</option><option>음악</option><option>사회/교류</option><option>인지/교육</option><option>식사</option><option>개인위생</option><option>기타</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="act-msearch" placeholder="이름 검색..."><select class="member-sel" id="act-msel" size="3"></select></div>
+  <div class="frow" style="margin-top:8px"><div class="fg" style="margin:0"><div class="fl">활동명 <span class="freq">*</span></div><input class="m-input" id="act-name" placeholder="그룹 스트레칭, 수채화 등"></div><div class="fg" style="margin:0"><div class="fl">참여도</div><select class="m-select" id="act-part"><option>Active — 적극 참여</option><option>Passive — 소극적 참여</option><option>Refused — 참여 거부</option><option>Absent — 결석</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">메모</div><textarea class="m-textarea" id="act-memo" placeholder="반응, 특이사항 등"></textarea></div>
+  <div class="fg"><div class="fl">작성자</div><input class="m-input" id="act-writer" placeholder="이름, 직책"></div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-act')">취소</button><button class="mbt mbt-save" onclick="saveActivity()">저장</button></div>
+</div>
+
+<!-- Case 모달 -->
+<div class="ov" id="ov-case" onclick="closeOv('ov-case')"></div>
+<div class="modal" id="modal-ov-case" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span>📂 Case 기록</span><button class="modal-close" onclick="closeOv('ov-case')">✕</button></div>
+  <div class="frow"><div class="fg" style="margin:0"><div class="fl">날짜 <span class="freq">*</span></div><input class="m-input" type="date" id="case-date"></div><div class="fg" style="margin:0"><div class="fl">유형</div><select class="m-select" id="case-type"><option>Medicaid 갱신</option><option>SNAP</option><option>주거 지원</option><option>교통 지원</option><option>법률 지원</option><option>가족 상담</option><option>타 기관 연계</option><option>기타</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">멤버</div><input class="member-search-input" id="case-msearch" placeholder="이름 검색..."><select class="member-sel" id="case-msel" size="3"></select></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">제목 <span class="freq">*</span></div><input class="m-input" id="case-title" placeholder="Medicaid 2026년 갱신 신청 등"></div>
+  <div class="fg"><div class="fl">내용</div><textarea class="m-textarea" id="case-content" placeholder="상세 내용, 현황, 필요 서류 등"></textarea></div>
+  <div class="frow"><div class="fg" style="margin:0"><div class="fl">담당 기관</div><input class="m-input" id="case-agency" placeholder="HRA, DSS 등"></div><div class="fg" style="margin:0"><div class="fl">담당자</div><input class="m-input" id="case-contact" placeholder="이름, 연락처"></div></div>
+  <div class="frow" style="margin-top:8px"><div class="fg" style="margin:0"><div class="fl">팔로업 날짜</div><input class="m-input" type="date" id="case-followup"></div><div class="fg" style="margin:0"><div class="fl">상태</div><select class="m-select" id="case-status"><option>진행 중</option><option>완료</option><option>보류</option></select></div></div>
+  <div class="fg" style="margin-top:8px"><div class="fl">결과 / 비고</div><textarea class="m-textarea" id="case-result" placeholder="최종 결과, 추가 메모"></textarea></div>
+  <div class="fg"><div class="fl">작성자</div><input class="m-input" id="case-writer" placeholder="이름, 직책"></div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-case')">취소</button><button class="mbt mbt-save" onclick="saveCase()">저장</button></div>
+</div>
+
+<div class="ov" id="ov-status" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';"></div>
+<div class="modal" id="modal-ov-status" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="sm-name">상태 변경</span><button class="modal-close" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">&#10005;</button></div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-active" value="active" style="width:18px;height:18px;accent-color:#34C759"><div><div style="font-size:14px;font-weight:700;color:#1A7A3C">&#9679; Active</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">현재 서비스 이용 중</div></div></label>
+    <label style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:12px;border:1.5px solid #E5E5EA;cursor:pointer;background:#F9F9F9"><input type="radio" name="sm-status" id="sm-disenrolled" value="disenrolled" style="width:18px;height:18px;accent-color:#FF3B30"><div><div style="font-size:14px;font-weight:700;color:#C62828">&#9679; Disenrolled</div><div style="font-size:11px;color:#8E8E93;margin-top:2px">서비스 종료 / 타 센터로 이동</div></div></label>
+  </div>
+  <div id="sm-date-wrap" style="display:none;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">Disenroll 날짜</div>
+    <input class="m-input" type="date" id="sm-date" style="margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:#3C3C43;margin-bottom:5px">메모 (사유)</div>
+    <input class="m-input" id="sm-note" placeholder="타 센터로 이동, 입원 등">
+  </div>
+  <div style="font-size:11px;color:#B35900;background:#FFF3E0;padding:8px 11px;border-radius:9px;margin-bottom:12px">&#9888; Disenrolled 날짜까지 서비스 제공 및 Medicaid 청구 가능합니다.</div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="document.getElementById('ov-status').classList.remove('open');document.getElementById('modal-ov-status').style.display='none';">취소</button><button class="mbt mbt-save" onclick="saveStatus()">저장</button></div>
+</div>
+<div class="ov" id="ov-medit" onclick="closeOv('ov-medit')"></div>
+<div class="modal" id="modal-ov-medit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="medit-title">멤버 정보 수정</span><button class="modal-close" onclick="closeOv('ov-medit')">&#10005;</button></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📋 차트번호 (센터 내부 ID)</div><input class="m-input" id="me-chartno" placeholder="1002" style="font-size:16px;font-weight:700;color:#D85A30"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="me-en"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div><select class="m-select" id="me-ins"><option value="Anthem_MLTC">Anthem MLTC</option><option value="Anthem_MAP">Anthem MAP</option><option value="CLP">Centerlight PACE</option><option value="SWH">Senior Whole Health</option></select></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div><textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea></div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button><button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button></div>
+</div>
+<div class="ov" id="ov-staff-edit" onclick="closeOv('ov-staff-edit')"></div>
+<div class="modal" id="modal-ov-staff-edit" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title"><span id="staff-modal-title">스태프 추가</span><button class="modal-close" onclick="closeOv('ov-staff-edit')">&#10005;</button></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="sf-namekr" placeholder="정지윤"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름</div><input class="m-input" id="sf-name" placeholder="Zoey Jeong"></div></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">직책</div><input class="m-input" id="sf-role" placeholder="Program Director"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화</div><input class="m-input" type="tel" id="sf-phone"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">이메일</div><input class="m-input" type="email" id="sf-email"></div></div>
+  <div style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="fl" style="font-size:11px">자격증</div><button onclick="addStaffCert()" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E5E5EA;background:#F2F2F7;cursor:pointer">➕ 추가</button></div>
+    <div id="sf-certs-list"></div>
+  </div>
+  <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-staff-edit')">취소</button><button class="mbt mbt-save" onclick="saveStaffEdit()">저장</button></div>
+</div>
+<!-- Auth Modal -->
+<div class="ov" id="ov-auth" onclick="closeOv('ov-auth')"></div>
+<div class="modal" id="modal-ov-auth" style="display:none;max-height:92vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="auth-modal-title">➕ Auth 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-auth')">✕</button>
+  </div>
+
+  <!-- AI 읽기 + PDF 업로드 -->
+  <div style="background:#EDE9FE;border-radius:10px;padding:10px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:#5856D6;margin-bottom:6px">📄 Auth PDF 업로드</div>
+    <input type="file" id="auth-pdf-file" accept=".pdf" style="font-size:12px;margin-bottom:6px;width:100%">
+    <div style="display:flex;gap:6px">
+      <button onclick="uploadAuthPDF()" style="flex:1;padding:8px;border-radius:8px;border:none;background:#5856D6;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📤 Drive 저장</button>
+      <button onclick="aiReadAuthPDF()" style="flex:1;padding:8px;border-radius:8px;border:none;background:#D85A30;color:#fff;font-size:12px;font-weight:700;cursor:pointer">✨ AI 자동읽기</button>
+    </div>
+    <div id="auth-pdf-status" style="font-size:11px;color:#5856D6;margin-top:5px;text-align:center"></div>
+    <input type="hidden" id="auth-pdf-link">
+  </div>
+
+  <!-- 멤버 선택 -->
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>멤버 *</label>
+    <input class="m-input" id="auth-member-search" placeholder="이름 검색..." autocomplete="off" style="margin-bottom:6px" oninput="filterAuthMemberList()">
+    <select id="auth-member-sel" style="width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:8px 12px;font-size:13px;background:#fff;outline:none;height:100px;display:block" size="5"></select>
+    <div id="auth-member-selected" style="font-size:12px;color:#34C759;font-weight:600;margin-top:4px;display:none"></div>
+  </div>
+
+  <!-- 보험사 + Auth# -->
+  <div class="modal-date-row">
+    <div class="modal-input-wrap">
+      <label>보험사 *</label>
+      <select class="m-select" id="auth-insurer" onchange="autoServiceCode()">
+        <option>Anthem MLTC</option>
+        <option>Anthem MAP</option>
+        <option>Centerlight PACE</option>
+        <option>Senior Whole Health</option>
+        <option>기타</option>
+      </select>
+    </div>
+    <div class="modal-input-wrap">
+      <label>Auth # *</label>
+      <input class="m-input" id="auth-number" placeholder="승인번호">
+    </div>
+  </div>
+
+  <!-- 서비스 유형 + 코드 -->
+  <div class="modal-date-row">
+    <div class="modal-input-wrap">
+      <label>서비스 유형</label>
+      <select class="m-select" id="auth-service-type" onchange="autoServiceCode()">
+        <option value="SDC">SDC (데이케어)</option>
+        <option value="Transportation">Transportation (교통)</option>
+        <option value="기타">기타</option>
+      </select>
+    </div>
+    <div class="modal-input-wrap">
+      <label>서비스 코드</label>
+      <input class="m-input" id="auth-service-code" placeholder="S5105 / T2003 / A0100 / S5102">
+    </div>
+  </div>
+
+  <!-- 시작일 + 종료일 -->
+  <div class="modal-date-row">
+    <div class="modal-input-wrap">
+      <label>시작일 * (MM/DD/YYYY)</label>
+      <input class="m-input" id="auth-start" type="text" placeholder="01/01/2026" oninput="autoFormatDate(this)">
+    </div>
+    <div class="modal-input-wrap">
+      <label>종료일 * (MM/DD/YYYY)</label>
+      <input class="m-input" id="auth-end" type="text" placeholder="12/31/2026" oninput="autoFormatDate(this)">
+    </div>
+  </div>
+
+  <!-- 총수량 + 단위 + 주당빈도 -->
+  <div class="modal-date-row">
+    <div class="modal-input-wrap">
+      <label>총 승인 수량</label>
+      <input class="m-input" id="auth-total-qty" type="number" placeholder="124">
+    </div>
+    <div class="modal-input-wrap">
+      <label>단위</label>
+      <select class="m-select" id="auth-qty-unit">
+        <option value="Day">Day</option>
+        <option value="Trip">Trip</option>
+      </select>
+    </div>
+    <div class="modal-input-wrap">
+      <label>주당 빈도</label>
+      <input class="m-input" id="auth-freq" type="number" placeholder="5">
+    </div>
+  </div>
+
+  <!-- 승인 요일 -->
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>승인 요일 (일수/횟수 입력, 0=미승인)</label>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px">
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Mon</div><input class="m-input" id="auth-day-mon" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Tue</div><input class="m-input" id="auth-day-tue" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Wed</div><input class="m-input" id="auth-day-wed" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Thu</div><input class="m-input" id="auth-day-thu" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Fri</div><input class="m-input" id="auth-day-fri" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+    </div>
+    <div style="font-size:10px;color:#8E8E93;margin-top:3px">SDC: 1=출석, 0=미출석 / Transportation: 2=왕복, 1=편도, 0=없음</div>
+  </div>
+
+  <!-- 상태 + 케어매니저 -->
+  <div class="modal-date-row">
+    <div class="modal-input-wrap">
+      <label>상태</label>
+      <select class="m-select" id="auth-status-sel">
+        <option value="Active">🟢 Active</option>
+        <option value="Hold">⏸️ Hold</option>
+        <option value="Modified">🔄 Modified</option>
+        <option value="Expired">❌ Expired</option>
+      </select>
+    </div>
+    <div class="modal-input-wrap">
+      <label>케어매니저</label>
+      <input class="m-input" id="auth-care-mgr" placeholder="Care manager 이름">
+    </div>
+  </div>
+
+  <!-- 메모 -->
+  <div class="modal-input-wrap" style="margin-bottom:12px">
+    <label>메모</label>
+    <textarea class="m-textarea" id="auth-note" placeholder="Hold 사유, 변경 내용 등"></textarea>
+  </div>
+
+  <input type="hidden" id="auth-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-auth')">취소</button>
+    <button class="mbt mbt-save" onclick="saveAuth()">저장</button>
+  </div>
+</div>
+
 <!-- 출결 상세 모달 -->
 <div class="ov" id="ov-att" onclick="closeOv('ov-att')"></div>
 <div class="modal" id="modal-ov-att" style="display:none" onclick="event.stopPropagation()">
@@ -991,258 +1263,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 </div>
 
 <script>
-// ===== AUTH DATA =====
-var AUTH_LIST = JSON.parse(localStorage.getItem('auth_list')||'[]');
-
-function saveAuthStorage() {
-  localStorage.setItem('auth_list', JSON.stringify(AUTH_LIST));
-}
-
-function authStatus(endDate) {
-  var today = new Date(); today.setHours(0,0,0,0);
-  var end = new Date(endDate+'T00:00:00');
-  var diff = Math.floor((end - today) / 86400000);
-  if (diff < 0) return 'expired';
-  if (diff <= 30) return 'soon';
-  return 'active';
-}
-
-function authStatusLabel(endDate) {
-  var s = authStatus(endDate);
-  var end = new Date(endDate+'T00:00:00');
-  var diff = Math.floor((end - new Date().setHours(0,0,0,0)) / 86400000);
-  if (s === 'expired') return '<span class="badge b-red">❌ 만료됨</span>';
-  if (s === 'soon') return '<span class="badge b-warn">⚠️ ' + diff + '일 후 만료</span>';
-  return '<span class="badge b-ok">✅ 유효 (' + diff + '일)</span>';
-}
-
-var _authFilter = 'all';
-function setAuthFilter(f, el) {
-  _authFilter = f;
-  document.querySelectorAll('#panel-authorization .fpill').forEach(function(p){ p.classList.remove('active'); });
-  el.classList.add('active');
-  renderAuthList();
-}
-
-function renderAuthList() {
-  var q = (document.getElementById('auth-search')||{}).value||'';
-  var list = AUTH_LIST.filter(function(a) {
-    var m = MEMBERS.find(function(x){return x.id===a.memberId;});
-    var name = m ? (m.kr+m.en) : '';
-    var match = !q || name.toLowerCase().includes(q.toLowerCase()) || (a.authNo||'').includes(q);
-    var st = authStatus(a.endDate);
-    var filterMatch = _authFilter==='all' || _authFilter===st;
-    return match && filterMatch;
-  });
-
-  // 상태별 카운트
-  var active=0, soon=0, expired=0;
-  AUTH_LIST.forEach(function(a){
-    var s = authStatus(a.endDate);
-    if(s==='active') active++;
-    else if(s==='soon') soon++;
-    else expired++;
-  });
-  var el = document.getElementById('auth-active'); if(el) el.textContent = active;
-  el = document.getElementById('auth-soon'); if(el) el.textContent = soon;
-  el = document.getElementById('auth-exp'); if(el) el.textContent = expired;
-
-  // 대시보드 알림
-  updateAuthAlert(soon, expired);
-
-  var html = '';
-  if (!list.length) { html = '<div class="empty-msg">Auth 기록이 없어요</div>'; }
-  list.sort(function(a,b){ return a.endDate < b.endDate ? -1 : 1; });
-  list.forEach(function(a) {
-    var m = MEMBERS.find(function(x){return x.id===a.memberId;});
-    var mname = m ? (m.kr + ' ' + m.en) : '(알 수 없음)';
-    var st = authStatus(a.endDate);
-    var border = st==='expired'?'border:1.5px solid #FF3B30':st==='soon'?'border:1.5px solid #FF9500':'';
-    html += '<div class="log-card" style="'+border+'">'
-      + '<div class="log-top">'
-      + '<div class="log-name">' + mname + '</div>'
-      + authStatusLabel(a.endDate)
-      + '</div>'
-      + '<div style="font-size:12px;color:#3C3C43;margin-bottom:5px">'
-      + '<b>' + (a.insurer||'') + '</b> &nbsp;·&nbsp; Auth#: <b>' + (a.authNo||'—') + '</b>'
-      + '</div>'
-      + '<div style="font-size:11px;color:#8E8E93">'
-      + (a.service||'') + ' &nbsp;|&nbsp; ' + (a.startDate||'') + ' ~ ' + (a.endDate||'')
-      + (a.note ? ' &nbsp;|&nbsp; ' + a.note : '')
-      + '</div>'
-      + '<div class="log-actions" style="margin-top:7px">'
-      + '<button class="btn-sm" onclick="editAuth(\'' + a.id + '\')">✏️ 수정</button>'
-      + '<button class="btn-danger" onclick="deleteAuth(\'' + a.id + '\')">삭제</button>'
-      + '</div>'
-      + '</div>';
-  });
-  var el2 = document.getElementById('auth-list');
-  if(el2) el2.innerHTML = html;
-}
-
-function updateAuthAlert(soon, expired) {
-  var el = document.getElementById('ds-auth-alert');
-  if (!el) return;
-  if (soon === 0 && expired === 0) { el.style.display='none'; return; }
-  el.style.display = 'block';
-  var html = '';
-  if (expired > 0) html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;cursor:pointer" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
-    + '<span style="font-size:13px;font-weight:700;color:#900">❌ 만료된 Auth ' + expired + '건</span>'
-    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 갱신 필요</span></div>';
-  if (soon > 0) html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer;margin-top:6px" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
-    + '<span style="font-size:13px;font-weight:700;color:#B35900">⚠️ 30일내 만료 Auth ' + soon + '건</span>'
-    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 확인하세요</span></div>';
-  el.innerHTML = html;
-}
-
-function openAuthModal(id) {
-  document.getElementById('auth-modal-title').textContent = id ? '✏️ Auth 수정' : '➕ Auth 추가';
-  document.getElementById('auth-edit-id').value = id || '';
-  document.getElementById('auth-member-search').value = '';
-  document.getElementById('auth-number').value = '';
-  document.getElementById('auth-start').value = '';
-  document.getElementById('auth-end').value = '';
-  document.getElementById('auth-note').value = '';
-  filterAuthMemberList();
-
-  if (id) {
-    var a = AUTH_LIST.find(function(x){return x.id===id;});
-    if (a) {
-      document.getElementById('auth-insurer').value = a.insurer||'Anthem MLTC';
-      document.getElementById('auth-number').value = a.authNo||'';
-      document.getElementById('auth-start').value = toDisplayDate(a.startDate||'');
-      document.getElementById('auth-end').value = toDisplayDate(a.endDate||'');
-      document.getElementById('auth-service').value = a.service||'Adult Day Services (S5105)';
-      document.getElementById('auth-note').value = a.note||'';
-      // 멤버 선택
-      var sel = document.getElementById('auth-member-sel');
-      filterAuthMemberList();
-      sel.value = a.memberId;
-    }
-  }
-  openOv('ov-auth');
-}
-
-function filterAuthMemberList() {
-  var q = (document.getElementById('auth-member-search').value||'').toLowerCase();
-  var sel = document.getElementById('auth-member-sel');
-  sel.innerHTML = '';
-  var filtered = MEMBERS.filter(function(m){
-    return m.status !== 'disenrolled' && (!q || (m.kr||'').includes(q) || (m.en||'').toLowerCase().includes(q));
-  });
-  filtered.forEach(function(m) {
-    var opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = (m.kr||'') + ' ' + (m.en||'');
-    sel.appendChild(opt);
-  });
-  // 선택 이벤트
-  sel.onchange = function(){
-    var el = document.getElementById('auth-member-selected');
-    var selected = sel.options[sel.selectedIndex];
-    if(el && selected) {
-      el.style.display = 'block';
-      el.textContent = '✅ ' + selected.textContent;
-    }
-  };
-  // 선택 표시 초기화
-  var el = document.getElementById('auth-member-selected');
-  if(el) el.style.display = 'none';
-}
-
-function toDisplayDate(str) {
-  // YYYY-MM-DD → MM/DD/YYYY
-  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return m[2] + '/' + m[3] + '/' + m[1];
-  return str;
-}
-
-function autoFormatDate(input) {
-  var v = input.value.replace(/\D/g, '');
-  if (v.length >= 8) {
-    input.value = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4,8);
-  } else if (v.length >= 4) {
-    input.value = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4);
-  } else if (v.length >= 2) {
-    input.value = v.slice(0,2) + '/' + v.slice(2);
-  }
-}
-
-function parseDate(str) {
-  if (!str) return '';
-  // MM/DD/YYYY
-  var m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m1) return m1[3] + '-' + m1[1].padStart(2,'0') + '-' + m1[2].padStart(2,'0');
-  // 이미 YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  // 숫자만 8자리 (MMDDYYYY)
-  var v = str.replace(/\D/g, '');
-  if (v.length === 8) return v.slice(4,8)+'-'+v.slice(0,2)+'-'+v.slice(2,4);
-  return '';
-}
-
-function saveAuth() {
-  var sel = document.getElementById('auth-member-sel');
-  var memberId = sel && sel.value ? sel.value : '';
-  var authNo = document.getElementById('auth-number').value.trim();
-  var startDate = parseDate(document.getElementById('auth-start').value.trim());
-  var endDate = parseDate(document.getElementById('auth-end').value.trim());
-  if (!memberId) { alert('멤버를 선택해주세요 (목록에서 클릭)'); return; }
-  if (!authNo) { alert('Auth# 을 입력해주세요'); return; }
-  if (!startDate || !endDate) { alert('시작일과 종료일을 입력해주세요 (예: 2026-01-01)'); return; }
-
-  var editId = document.getElementById('auth-edit-id').value;
-  var entry = {
-    id: editId || ('auth_' + Date.now()),
-    memberId: memberId,
-    insurer: document.getElementById('auth-insurer').value,
-    authNo: authNo,
-    startDate: startDate,
-    endDate: endDate,
-    service: document.getElementById('auth-service').value,
-    note: document.getElementById('auth-note').value.trim(),
-    updatedAt: new Date().toISOString()
-  };
-
-  if (editId) {
-    var idx = AUTH_LIST.findIndex(function(x){return x.id===editId;});
-    if (idx >= 0) AUTH_LIST[idx] = entry; else AUTH_LIST.push(entry);
-  } else {
-    AUTH_LIST.push(entry);
-  }
-  saveAuthStorage();
-  // Sheets 동기화 — Apps Script 헤더에 맞춘 키
-  if(apiUrl) {
-    var sheetsData = {
-      'ID': entry.id,
-      '멤버ID': entry.memberId,
-      '보험사': entry.insurer,
-      'Auth번호': entry.authNo,
-      '시작일': entry.startDate,
-      '종료일': entry.endDate,
-      '서비스유형': entry.service,
-      '메모': entry.note
-    };
-    apiCall({}, {
-      action: editId ? 'update' : 'append',
-      sheet: 'auth',
-      id: editId || null,
-      data: sheetsData
-    }).catch(function(e){ console.log('Auth Sheets sync:', e); });
-  }
-  closeOv('ov-auth');
-  renderAuthList();
-}
-
-function editAuth(id) { openAuthModal(id); }
-
-function deleteAuth(id) {
-  if (!confirm('삭제하시겠어요?')) return;
-  AUTH_LIST = AUTH_LIST.filter(function(x){return x.id!==id;});
-  saveAuthStorage();
-  if(apiUrl) apiCall({},{action:'delete',sheet:'auth',id:id}).catch(function(e){});
-  renderAuthList();
-}
+// AUTH_LIST — Sheets에서 로드 (core/app.js loadAllData)
+var AUTH_LIST = [];
 </script>
 
 <!-- Visitor Log Modal -->
