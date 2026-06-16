@@ -472,7 +472,7 @@ async function openPhotoUpload(mid) {
       try {
         const m = MEMBERS.find(x => x.id === mid);
         const mName = m ? m.kr : mid;
-        const res = await SheetsAPI.post({
+        const res = await apiCall({}, {
           action:     'savePDF',
           memberId:   mid,
           memberName: mName,

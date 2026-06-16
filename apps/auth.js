@@ -249,8 +249,8 @@ async function uploadAuthPDF() {
       reader.readAsDataURL(file);
     });
 
-    var res = await SheetsAPI.post({
-      action: 'savePDF',
+    var res = await apiCall({}, {
+      action:     'savePDF',
       memberId:   selVal || 'auth',
       memberName: mName,
       fileType:   'Auth_' + authNo,
@@ -260,9 +260,10 @@ async function uploadAuthPDF() {
 
     if (res && res.ok && res.data && res.data.url) {
       document.getElementById('auth-pdf-link').value = res.data.url;
-      statusEl.textContent = '✅ PDF 업로드 완료!';
+      statusEl.textContent = '✅ PDF 업로드 완료! (' + mName + ')';
     } else {
-      statusEl.textContent = '❌ 업로드 실패';
+      statusEl.textContent = '❌ 업로드 실패 — Drive 권한 확인 필요';
+      console.error('savePDF 응답:', res);
     }
   } catch(e) {
     statusEl.textContent = '❌ 오류: ' + e.message;
@@ -308,26 +309,17 @@ async function aiReadAuthPDF() {
       + '  "careManager": "care manager name"\n'
       + '}\nReturn only JSON, no explanation.';
 
-    var response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: prompt }
-          ]
-        }]
-      })
+    // Apps Script 경유 (CORS 우회)
+    var res = await SheetsAPI.post({
+      action: 'aiReadAuth',
+      base64Data: base64,
+      prompt: prompt
     });
 
-    var result = await response.json();
-    var text = (result.content && result.content[0]) ? result.content[0].text : '';
-    var clean = text.replace(/```json|```/g, '').trim();
-    var data = JSON.parse(clean);
+    if (!res || !res.ok || !res.data || !res.data.success) {
+      throw new Error(res && res.data && res.data.error ? res.data.error : 'Apps Script 오류');
+    }
+    var data = res.data.result;
 
     // 폼에 자동 채우기
     if (data.authNo)      document.getElementById('auth-number').value    = data.authNo;
