@@ -5,68 +5,70 @@
 
 // ── 멤버 목록 필터/렌더 ──────────────────────────────────────
 function filterM() {
-  // MEMBERS가 아직 로드되지 않은 경우 안전 처리
-  if (typeof MEMBERS === 'undefined' || !MEMBERS || !MEMBERS.length) return;
+  if (!MEMBERS || !MEMBERS.length) return;
 
-  const raw = document.getElementById('msearch').value.toLowerCase().trim();
-  const sf  = (document.getElementById('status-filter') || {}).value || 'all';
+  var raw = ((document.getElementById('msearch') || {}).value || '').toLowerCase().trim();
+  var sf  = ((document.getElementById('status-filter') || {}).value) || 'all';
+
+  // 보험사 라벨 매핑
+  function insLabel(ins) {
+    ins = (ins || '').toLowerCase();
+    if (ins.includes('anthem')) return 'anthem anthem_mltc anthem_map';
+    if (ins.includes('clp'))    return 'clp centerlight';
+    if (ins.includes('swh'))    return 'swh senior whole health';
+    return ins;
+  }
+
+  // 생일 월 매핑
+  var MONTHS = {
+    jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
+    jul:7, aug:8, sep:9, oct:10, nov:11, dec:12,
+    january:1, february:2, march:3, april:4, june:6,
+    july:7, august:8, september:9, october:10, november:11, december:12
+  };
+
+  // 요일 매핑
+  var DAYS = {
+    mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun',
+    '월':'Mon', '화':'Tue', '수':'Wed', '목':'Thu', '금':'Fri', '토':'Sat', '일':'Sun'
+  };
 
   mFilt = MEMBERS.filter(function(m) {
     // 상태 필터
-    const mS = sf === 'all'
+    var mS = sf === 'all'
       || (sf === 'active'      && isActive(m))
       || (sf === 'disenrolled' && !isActive(m));
     if (!mS) return false;
     if (!raw) return true;
 
-    // 검색 대상 문자열 모두 합치기
-    var ins = (m.ins||'').toLowerCase();
-    var insKor = ins.includes('anthem') ? 'anthem'
-               : ins.includes('clp')    ? 'centerlight clp'
-               : ins.includes('swh')    ? 'swh senior whole health'
-               : ins;
+    // ── 1. 텍스트 통합 검색 ──────────────────────────────
+    var txt = [
+      m.kr || '',
+      (m.en || '').toLowerCase(),
+      (m.medicaid || '').toLowerCase(),
+      (m.mltc || '').toLowerCase(),
+      (m.addr || '').toLowerCase(),
+      (m.phone || '').replace(/-/g,''),
+      (m.pcp || '').toLowerCase(),
+      (m.chartNo || ''),
+      insLabel(m.ins),
+    ].join(' ');
+    if (txt.includes(raw)) return true;
 
-    // 생일 월 매핑
-    var MONTH = {
-      jan:1,january:1, feb:2,february:2, mar:3,march:3,
-      apr:4,april:4,   may:5,            jun:6,june:6,
-      jul:7,july:7,    aug:8,august:8,   sep:9,september:9,
-      oct:10,october:10, nov:11,november:11, dec:12,december:12
-    };
-    var monthMatch = false;
-    if (MONTH[raw]) {
-      var dobM = parseInt((m.dob||'').slice(5,7));
-      if (dobM === MONTH[raw]) monthMatch = true;
-    }
-    // "5월" 형식
+    // ── 2. 생일 월 (may, june, 5월, 12월) ───────────────
+    var dobMonth = parseInt((m.dob || '').slice(5, 7));
+    if (MONTHS[raw] !== undefined && dobMonth === MONTHS[raw]) return true;
     var mNum = raw.match(/^(\d{1,2})월$/);
-    if (mNum && parseInt((m.dob||'').slice(5,7)) === parseInt(mNum[1])) monthMatch = true;
+    if (mNum && dobMonth === parseInt(mNum[1])) return true;
 
-    // 요일 매핑
-    var DAYMAP = {
-      mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun',
-      '월':'Mon','화':'Tue','수':'Wed','목':'Thu','금':'Fri','토':'Sat','일':'Sun'
-    };
-    var dayMatch = false;
-    var dayKey = DAYMAP[raw] || DAYMAP[raw.slice(0,3)];
-    if (dayKey && (m.days||[]).includes(dayKey)) dayMatch = true;
+    // ── 3. 생년 (1952 등) ────────────────────────────────
+    if (/^\d{4}$/.test(raw) && (m.dob || '').startsWith(raw)) return true;
 
-    // 연도 검색 (1952 등)
-    var yearMatch = raw.match(/^\d{4}$/) && (m.dob||'').startsWith(raw);
+    // ── 4. 출석 요일 (mon, tue / 월, 화) ────────────────
+    var dayKey = DAYS[raw] || DAYS[raw.slice(0,3)];
+    if (dayKey && (m.days || []).includes(dayKey)) return true;
 
-    // 통합 검색
-    return (m.kr||'').includes(raw)
-      || (m.en||'').toLowerCase().includes(raw)
-      || (m.medicaid||'').toLowerCase().includes(raw)
-      || (m.mltc||'').toLowerCase().includes(raw)
-      || (m.addr||'').toLowerCase().includes(raw)
-      || (m.phone||'').includes(raw)
-      || (m.pcp||'').toLowerCase().includes(raw)
-      || (m.chartNo||'').includes(raw)
-      || insKor.includes(raw)
-      || monthMatch
-      || dayMatch
-      || yearMatch;
+    return false;
   });
 
   mPage = 0; renderMG();
