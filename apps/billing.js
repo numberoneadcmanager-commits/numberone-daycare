@@ -97,13 +97,14 @@ function _attSheetInsLabel(ins) {
 
 function _attSheetStyles() {
   return '<style>'
-    // 3-ring 바인딩: 항상 왼쪽 마진
-    + '@page{size:letter;margin:0.2in 0.22in 0.18in 0.75in;}'
+    // 3-ring 양면: ATTENDANCE=왼쪽, TRANSPORTATION=오른쪽 바인딩 (클래스로 구분)
+    + '@page{size:letter;margin:0;}'
     + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;box-sizing:border-box;margin:0;padding:0;}'
     + '.att-pg{'
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;'
-    +   'padding:0.2in 0.22in 0.18in 0.75in;'
+    +   'padding:0.25in 0.3in 0.2in 0.82in;'
+    + '.att-pg-trp{padding:0.25in 0.82in 0.2in 0.3in;}'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     +   'display:flex;flex-direction:column;'
@@ -214,7 +215,8 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
       + '</tr>';
   }
 
-  return '<div class="att-pg">'
+  var pgClass = (type === 'TRANSPORTATION') ? 'att-pg att-pg-trp' : 'att-pg';
+  return '<div class="' + pgClass + '">'
     + '<div class="pg-hdr">'
     +   '<div class="hdr-l">'
     +     '<div class="ctr-name">NUMBER ONE ADULT DAYCARE</div>'
