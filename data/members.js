@@ -5,6 +5,9 @@
 
 // ── 멤버 목록 필터/렌더 ──────────────────────────────────────
 function filterM() {
+  // MEMBERS가 아직 로드되지 않은 경우 안전 처리
+  if (typeof MEMBERS === 'undefined' || !MEMBERS || !MEMBERS.length) return;
+
   const raw = document.getElementById('msearch').value.toLowerCase().trim();
   const sf  = (document.getElementById('status-filter') || {}).value || 'all';
 
