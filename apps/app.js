@@ -60,6 +60,29 @@ function selectApp(type) {
   document.getElementById('app-select-screen').style.display = 'none';
   if (type === 'ops') { window.location.href = 'operations.html'; return; }
   document.getElementById('app').style.display = 'flex';
+
+  // 앱 화면 진입 시 Sheets 데이터 로드 (타이밍 보장)
+  if (!window._sheetsLoadedOnce) {
+    window._sheetsLoadedOnce = true;
+    SheetsAPI.ping().then(function(ok) {
+      SheetsAPI.setStatusPill(ok);
+      if (ok) {
+        loadFromSheets().then(function(ok2) {
+          if (ok2) {
+            renderDash(); filterM(); renderStaff();
+            renderIncidents(); renderActivities(); renderCases();
+            renderAuthList(); renderVisitorList(); renderCouncilList();
+            ['inc','act','case'].forEach(function(px){
+              var sel = document.getElementById(px+'-msel');
+              if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
+            });
+            loadAttFromSheets(toISO(curDate));
+          }
+        });
+      }
+    });
+  }
+
   const pill = document.getElementById('api-pill');
   if (pill) {
     const nameShort = _currentUser.name ? _currentUser.name.split(' ')[0] : _currentUser.email.split('@')[0];
@@ -517,10 +540,11 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('rpt-from').value = weekAgoISO;
   document.getElementById('rpt-to').value   = todayISO;
 
-  // Sheets 연결 후 데이터 로드 + 출결 로드
+  // Sheets 연결 후 데이터 로드 + 출결 로드 (앱 화면 진입 시에도 selectApp에서 한번 더 보장)
   SheetsAPI.ping().then(ok => {
     SheetsAPI.setStatusPill(ok);
-    if (ok) {
+    if (ok && !window._sheetsLoadedOnce) {
+      window._sheetsLoadedOnce = true;
       loadFromSheets().then(ok2 => {
         if (ok2) {
           renderDash(); filterM(); renderStaff();
