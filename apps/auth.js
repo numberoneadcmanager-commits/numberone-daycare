@@ -114,15 +114,6 @@ function renderAuthList() {
       dayStr += '<span style="background:#F2F2F7;color:#8E8E93;border-radius:5px;padding:1px 6px;font-size:10px;margin-right:2px">주 ' + a.freqPerWeek + '회 (요일 미지정)</span>';
     }
 
-    // 요일 미지정인 경우 모두 0으로 재설정
-    if (data.daysSpecified === false || data.daysSpecified === 'false') {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
-        var el = document.getElementById('auth-day-'+d.toLowerCase());
-        if (el) el.value = '0';
-      });
-      statusEl.textContent = '✅ AI 읽기 완료 (요일 미지정 — 주 '+data.freqPerWeek+'회로만 표시)';
-    }
-
     html += '<div class="log-card" style="' + border + '">'
       + '<div class="log-top"><div class="log-name">' + mname + '</div>' + authStatusBadge(a) + '</div>'
       + '<div style="font-size:12px;color:#3C3C43;margin:4px 0"><b>' + (a.insurer||'') + '</b>'
@@ -268,7 +259,7 @@ async function uploadAuthPDF() {
       memberName: mName,
       fileType:   'Auth_' + authNo,
       base64Data: base64,
-      author:     (currentUser && currentUser.name) || 'Staff',
+      author:     (_currentUser && _currentUser.name) || 'Staff',
     });
 
     if (res && res.ok && res.data && res.data.url) {
