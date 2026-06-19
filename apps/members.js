@@ -41,7 +41,7 @@ async function toggleMemberDocs(mid, btn) {
     var pcspDate = pcsp ? String(pcsp['작성일']||'').slice(0,10) : '';
     var expired  = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
     var pcspVal  = pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(expired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '')) : null;
-    html += docRow('📋','PCSP', pcspVal, pcsp ? 'openPCSPForm("'+mid+'")' : '');
+    html += docRow('📋','PCSP', pcspVal, pcsp ? "openPCSPForm('"+mid+"')" : '');
 
     // Drive JSON 문서
     var logs = (logRes.ok && logRes.data) ? logRes.data : [];
@@ -49,9 +49,9 @@ async function toggleMemberDocs(mid, btn) {
       var found = logs.filter(function(l){ return String(l['파일종류']||'')===type; });
       return found.length ? String(found[found.length-1]['저장일시']||'').slice(0,10) : null;
     }
-    html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? 'viewDriveDoc("'+mid+'","Nutrition")'  : '');
-    html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? 'viewDriveDoc("'+mid+'","Assessment")' : '');
-    html += docRow('📄','Member Rights',         lastLog('MemberRights'), lastLog('MemberRights') ? 'viewDriveDoc("'+mid+'","MemberRights")' : '');
+    html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? "viewDriveDoc('"+mid+"','Nutrition')"  : '');
+    html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? "viewDriveDoc('"+mid+"','Assessment')" : '');
+    html += docRow('📄','Member Rights',         lastLog('MemberRights'), lastLog('MemberRights') ? "viewDriveDoc('"+mid+"','MemberRights')" : '');
 
     // Incident / Case / Auth
     var incData   = incRes.ok  ? (incRes.data ||[]) : [];
@@ -60,10 +60,10 @@ async function toggleMemberDocs(mid, btn) {
     var authActive = authData.filter(function(a){
       return !String(a['종료일']||'') || String(a['종료일']) >= new Date().toISOString().slice(0,10);
     });
-    html += docRow('🚨','Incident Log', incData.length  ? incData.length+'건'  : null, incData.length  ? 'viewLogList("'+mid+'","incident")'  : '');
-    html += docRow('📁','Case Log',     caseData.length ? caseData.length+'건' : null, caseData.length ? 'viewLogList("'+mid+'","caselog")' : '');
+    html += docRow('🚨','Incident Log', incData.length  ? incData.length+'건'  : null, incData.length  ? "viewLogList('"+mid+"','incident')"  : '');
+    html += docRow('📁','Case Log',     caseData.length ? caseData.length+'건' : null, caseData.length ? "viewLogList('"+mid+"','caselog')" : '');
     html += docRow('🔑','Authorization', authActive.length ? authActive.length+'건 활성' : (authData.length ? authData.length+'건(만료)' : null),
-      authData.length ? 'viewLogList("'+mid+'","auth")' : '');
+      authData.length ? "viewLogList('"+mid+"','auth')" : '');
 
     html += '</div>';
     wrap.innerHTML = html;
