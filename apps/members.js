@@ -103,6 +103,8 @@ async function viewDriveDoc(mid, fileType) {
     // Nutrition 전용 뷰
     if (fileType==='Nutrition') {
       html += nsView(d);
+    } else if (fileType==='Assessment') {
+      html += asmtView(d);
     } else {
       // 기타: JSON 키-값 표시
       Object.keys(d).forEach(function(k){
@@ -143,6 +145,69 @@ function nsView(d) {
   html += '<b>영양상담:</b> '+rv(d.counselling,'Accepted')+' Accepted '+rv(d.counselling,'Declined')+' Declined<br>';
   if(d.memberSig) html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">회원 서명</div><img src="'+d.memberSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
   if(d.staffSig)  html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">스태프 서명</div><img src="'+d.staffSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  html += '</div>';
+  return html;
+}
+
+// Assessment 팝업 뷰
+function asmtView(d) {
+  function row(label, val) {
+    if (val === undefined || val === null || val === '') return '';
+    return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:.5px solid #F2F2F7">'
+      + '<span style="font-size:11px;color:#8E8E93;min-width:90px">' + label + '</span>'
+      + '<span style="font-size:12px;color:#1C1C1E;flex:1">' + val + '</span></div>';
+  }
+  var ADL_LABEL = {bathing:'목욕',hygiene:'개인위생',dressing:'옷입기',mobility:'이동',transfer:'이동보조',eating:'식사',toilet:'화장실'};
+  var ADL_SCORE = {1:'1 독립',2:'2 약간도움',3:'3 많은도움',4:'4 거부'};
+
+  var html = '<div style="font-size:12px">';
+  html += row('평가일', d.date);
+  html += row('평가자', d.assessor);
+  html += row('생년월일', d.dob);
+  html += row('Medicaid #', d.medicaid);
+  html += row('전화', d.phone);
+  html += row('주소', d.addr);
+  html += row('주치의', d.pcp);
+
+  if (d.adl && Object.values(d.adl).some(function(v){return v;})) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">ADL 평가</div>';
+    Object.keys(ADL_LABEL).forEach(function(k){
+      if (d.adl[k]) html += row(ADL_LABEL[k], ADL_SCORE[d.adl[k]] || d.adl[k]);
+    });
+  }
+
+  if (d.medications && d.medications.length) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">복용 약물</div>';
+    d.medications.forEach(function(m){
+      if (m.name) html += row(m.name, (m.dose||'') + (m.reason ? ' — ' + m.reason : ''));
+    });
+  }
+
+  if (d.caregiver && d.caregiver.name) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">주 보호자</div>';
+    html += row(d.caregiver.name, (d.caregiver.rel||'') + ' · ' + (d.caregiver.phone||''));
+  }
+  if (d.ec1 && d.ec1.name) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">비상 연락처 1</div>';
+    html += row(d.ec1.name, (d.ec1.rel||'') + ' · ' + (d.ec1.phone||''));
+  }
+  if (d.ec2 && d.ec2.name) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">비상 연락처 2</div>';
+    html += row(d.ec2.name, (d.ec2.rel||'') + ' · ' + (d.ec2.phone||''));
+  }
+
+  if (d.personal && Object.values(d.personal).some(function(v){return v;})) {
+    html += '<div style="font-size:12px;font-weight:700;margin:12px 0 6px">개인 이력</div>';
+    html += row('직업', d.personal.work);
+    html += row('교육', d.personal.edu);
+    html += row('취미', d.personal.hobbies);
+    html += row('종교', d.personal.religion);
+    html += row('희망사항', d.personal.hopes);
+  }
+
+  if (d.ptSig) html += '<div style="margin-top:10px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">회원/대리인 서명</div><img src="'+d.ptSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  if (d.asSig) html += '<div style="margin-top:8px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">평가자 서명</div><img src="'+d.asSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+
   html += '</div>';
   return html;
 }
@@ -349,7 +414,7 @@ var _meEditDays = new Set();
 function openAddMember() {
   window._meditMid = null;
   document.getElementById('medit-title').textContent = '새 멤버 추가';
-  ['me-kr','me-en','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
+  ['me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('me-dob').value = '';
@@ -368,6 +433,9 @@ function openMemberEdit(mid) {
   const cno = document.getElementById('me-chartno'); if (cno) cno.value = m.chartNo || m.id || '';
   document.getElementById('me-kr').value      = m.kr       || '';
   document.getElementById('me-en').value      = m.en       || '';
+  document.getElementById('me-lastname').value   = m.lastName   || '';
+  document.getElementById('me-firstname').value  = m.firstName  || '';
+  document.getElementById('me-middlename').value = m.middleName || '';
   document.getElementById('me-dob').value     = m.dob      || '';
   document.getElementById('me-phone').value   = m.phone    || '';
   document.getElementById('me-addr').value    = m.addr     || '';
@@ -405,6 +473,9 @@ async function saveMemberEdit() {
   const cno2 = document.getElementById('me-chartno'); if (cno2) m.chartNo = cno2.value.trim();
   m.kr       = document.getElementById('me-kr').value.trim();
   m.en       = document.getElementById('me-en').value.trim().toUpperCase();
+  m.lastName   = document.getElementById('me-lastname').value.trim().toUpperCase();
+  m.firstName  = document.getElementById('me-firstname').value.trim().toUpperCase();
+  m.middleName = document.getElementById('me-middlename').value.trim().toUpperCase();
   m.dob      = document.getElementById('me-dob').value;
   m.phone    = document.getElementById('me-phone').value.trim();
   m.addr     = document.getElementById('me-addr').value.trim();
@@ -496,3 +567,70 @@ async function openPhotoUpload(mid) {
   input.click();
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// 영문이름 Last/First/Middle 자동 분리 (일회성 도구)
+// ══════════════════════════════════════════════════════════════
+function _parseEnName(en) {
+  en = (en || '').trim();
+  if (!en) return { lastName:'', firstName:'', middleName:'' };
+
+  // "LEE, ANN S." 형식 (쉼표 있음) → Last, First Middle
+  if (en.includes(',')) {
+    var parts = en.split(',');
+    var last  = parts[0].trim();
+    var rest  = (parts[1] || '').trim().split(/\s+/).filter(Boolean);
+    return {
+      lastName:   last,
+      firstName:  rest[0] || '',
+      middleName: rest.slice(1).join(' ') || ''
+    };
+  }
+
+  // "KIM JUNG HO" 형식 (공백 구분) → First Middle... Last (보통 한국식 영문표기는 Last가 맨 앞)
+  var words = en.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    return { lastName: words[0], firstName:'', middleName:'' };
+  }
+  if (words.length === 2) {
+    return { lastName: words[0], firstName: words[1], middleName:'' };
+  }
+  // 3단어 이상: 첫 단어=Last, 둘째=First, 나머지=Middle
+  return {
+    lastName:   words[0],
+    firstName:  words[1],
+    middleName: words.slice(2).join(' ')
+  };
+}
+
+async function splitMemberNames() {
+  if (!MEMBERS || !MEMBERS.length) { alert('멤버 데이터가 로드되지 않았어요'); return; }
+  if (!confirm('전체 ' + MEMBERS.length + '명의 영문이름을 Last/First/Middle로 자동 분리합니다.\n이미 입력된 값이 있으면 덮어쓰지 않아요. 계속하시겠어요?')) return;
+
+  var msgEl = document.getElementById('api-msg');
+  var done = 0, skipped = 0, failed = 0;
+
+  for (var i = 0; i < MEMBERS.length; i++) {
+    var m = MEMBERS[i];
+
+    // 이미 분리되어 있으면 스킵
+    if (m.lastName || m.firstName || m.middleName) { skipped++; continue; }
+
+    var parsed = _parseEnName(m.en);
+    m.lastName   = parsed.lastName;
+    m.firstName  = parsed.firstName;
+    m.middleName = parsed.middleName;
+
+    try {
+      await SheetsAPI.saveMember(m);
+      done++;
+    } catch(e) {
+      failed++;
+    }
+
+    if (msgEl) msgEl.textContent = '⏳ 처리 중... ' + (i+1) + '/' + MEMBERS.length + ' (완료:' + done + ' 스킵:' + skipped + ' 실패:' + failed + ')';
+  }
+
+  if (msgEl) msgEl.textContent = '✅ 완료! 분리:' + done + '건, 이미있음(스킵):' + skipped + '건, 실패:' + failed + '건';
+  alert('이름 분리 완료!\n분리: ' + done + '건\n스킵(이미 입력됨): ' + skipped + '건\n실패: ' + failed + '건\n\n잘못 나뉜 항목은 멤버 수정에서 직접 고쳐주세요.');
+}
