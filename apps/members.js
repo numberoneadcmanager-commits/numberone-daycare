@@ -150,6 +150,19 @@ async function viewDriveDoc(mid, fileType) {
 }
 
 // Nutrition 팝업 뷰
+function _authorFooter(d) {
+  if (!d.createdBy && !d.lastEditedBy) return '';
+  var html = '<div style="margin-top:12px;padding-top:8px;border-top:1px solid #F2F2F7;font-size:10px;color:#8E8E93">';
+  if (d.createdBy) {
+    html += '✍️ 최초 작성: ' + d.createdBy + (d.createdAt ? ' (' + String(d.createdAt).slice(0,16).replace('T',' ') + ')' : '');
+  }
+  if (d.lastEditedBy && d.lastEditedBy !== d.createdBy) {
+    html += '<br>🔄 마지막 수정: ' + d.lastEditedBy + (d.savedAt ? ' (' + String(d.savedAt).slice(0,16).replace('T',' ') + ')' : '');
+  }
+  html += '</div>';
+  return html;
+}
+
 function nsView(d) {
   function rv(v,opt){return v===opt?'●':'○';}
   function ck(v){return v?'☑':'☐';}
@@ -168,6 +181,7 @@ function nsView(d) {
   html += '<b>영양상담:</b> '+rv(d.counselling,'Accepted')+' Accepted '+rv(d.counselling,'Declined')+' Declined<br>';
   if(d.memberSig) html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">회원 서명</div><img src="'+d.memberSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
   if(d.staffSig)  html += '<div style="margin-top:6px"><div style="font-size:10px;color:#8E8E93">스태프 서명</div><img src="'+d.staffSig+'" style="height:44px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  html += _authorFooter(d);
   html += '</div>';
   return html;
 }
@@ -230,6 +244,7 @@ function asmtView(d) {
 
   if (d.ptSig) html += '<div style="margin-top:10px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">회원/대리인 서명</div><img src="'+d.ptSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
   if (d.asSig) html += '<div style="margin-top:8px"><div style="font-size:11px;color:#8E8E93;margin-bottom:4px">평가자 서명</div><img src="'+d.asSig+'" style="height:50px;border:1px solid #E5E5EA;border-radius:6px"></div>';
+  html += _authorFooter(d);
 
   html += '</div>';
   return html;
@@ -572,7 +587,7 @@ async function openPhotoUpload(mid) {
           memberName: mName,
           fileType:   'Photo',
           base64Data: base64,
-          author:     (currentUser && currentUser.name) || 'Staff',
+          author:     (_currentUser && _currentUser.name) || 'Staff',
         });
         if (res && res.ok && res.data && res.data.url) {
           // Drive 링크를 멤버 시트 memo에 저장

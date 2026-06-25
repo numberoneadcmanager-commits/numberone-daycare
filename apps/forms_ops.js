@@ -180,7 +180,16 @@ function openAssessmentForMember(mid,mName){
   var adr=document.getElementById('as-addr');if(adr)adr.value=member['주소']||'';
   var pcp=document.getElementById('as-pcp');if(pcp)pcp.value=member['주치의']||'';
   var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toISOString().slice(0,10);
-  loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){if(res&&res.ok&&res.data&&res.data.found&&res.data.data)fillAssessmentFromJSON(res.data.data);}).catch(function(){});
+  _asExistingCreatedBy = ''; _asExistingCreatedByEmail = ''; _asExistingCreatedAt = '';
+  loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){
+    if(res&&res.ok&&res.data&&res.data.found&&res.data.data){
+      var d = res.data.data;
+      fillAssessmentFromJSON(d);
+      _asExistingCreatedBy      = d.createdBy      || d.lastEditedBy      || '';
+      _asExistingCreatedByEmail = d.createdByEmail || d.lastEditedByEmail || '';
+      _asExistingCreatedAt      = d.createdAt      || d.savedAt          || '';
+    }
+  }).catch(function(){});
   goAssessStep(0);_ptSig=null;_asSig=null;
   initSigCanvas('pt-sig-canvas','pt-sig-empty',function(d){_ptSig=d;});
   initSigCanvas('as-sig-canvas','as-sig-empty',function(d){_asSig=d;});
@@ -210,7 +219,13 @@ function collectAssessmentData(){
     ec1:{name:gv2('ec1-name'),rel:gv2('ec1-rel'),phone:gv2('ec1-hphone')},
     ec2:{name:gv2('ec2-name'),rel:gv2('ec2-rel'),phone:gv2('ec2-hphone')},
     personal:{work:gv2('ph-work'),edu:gv2('ph-edu'),hobbies:gv2('ph-hobbies'),religion:gv2('ph-religion'),hopes:gv2('ph-hopes')},
-    ptSig:_ptSig||'',asSig:_asSig||'',signed:!!(_ptSig&&_asSig),savedAt:new Date().toISOString()};
+    ptSig:_ptSig||'',asSig:_asSig||'',signed:!!(_ptSig&&_asSig),
+    createdBy:    _asExistingCreatedBy || (_currentUser?(_currentUser.name||''):''),
+    createdByEmail: _asExistingCreatedByEmail || (_currentUser?(_currentUser.email||''):''),
+    createdAt:    _asExistingCreatedAt || new Date().toISOString(),
+    lastEditedBy:    _currentUser?(_currentUser.name||''):'',
+    lastEditedByEmail: _currentUser?(_currentUser.email||''):'',
+    savedAt:new Date().toISOString()};
 }
 function fillAssessmentFromJSON(data){
   var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
@@ -236,6 +251,7 @@ function goToFormsAndOpenPCSP(){closeFrmBack();setTimeout(function(){prefillPCSP
 
 function openNutritionForMember(mid,mName){
   _nsMid = mid;
+  _nsExistingCreatedBy = ''; _nsExistingCreatedByEmail = ''; _nsExistingCreatedAt = '';
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   var el=document.getElementById('frm-nutrition');if(el)el.style.display='block';
   var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(mid);}) : null;
@@ -313,6 +329,11 @@ function getNutritionData(){
     memberSig:    _nsMemberSig||'',
     staffSig:     _nsStaffSig||'',
     signed:       !!(_nsMemberSig && _nsStaffSig),
+    createdBy:    _nsExistingCreatedBy || (_currentUser?(_currentUser.name||''):''),
+    createdByEmail: _nsExistingCreatedByEmail || (_currentUser?(_currentUser.email||''):''),
+    createdAt:    _nsExistingCreatedAt || new Date().toISOString(),
+    lastEditedBy:    _currentUser?(_currentUser.name||''):'',
+    lastEditedByEmail: _currentUser?(_currentUser.email||''):'',
     savedAt:      new Date().toISOString()
   };
 }
@@ -335,8 +356,14 @@ async function loadNutrition(mid, mName){
   try {
     var res = await loadJSONfromDrive(mid, mName||'', 'Nutrition');
     if(res && res.ok && res.data && res.data.found && res.data.data){
-      setNutritionData(res.data.data);
-      if(statusEl) statusEl.textContent='✅ 이전 저장 데이터 로드됨';
+      var d = res.data.data;
+      setNutritionData(d);
+      // 원작성자 정보 보존 (최초 작성자는 바뀌지 않도록)
+      _nsExistingCreatedBy      = d.createdBy      || d.lastEditedBy      || '';
+      _nsExistingCreatedByEmail = d.createdByEmail || d.lastEditedByEmail || '';
+      _nsExistingCreatedAt      = d.createdAt      || d.savedAt          || '';
+      var authorNote = d.createdBy ? (' · 최초 작성: ' + d.createdBy) : '';
+      if(statusEl) statusEl.textContent='✅ 이전 저장 데이터 로드됨' + authorNote;
     }
   } catch(e){ console.log('Nutrition load:', e); }
 }

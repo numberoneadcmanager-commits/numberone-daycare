@@ -351,6 +351,11 @@ async function savePCSPFull(){
     rights:rights,
     sig:sigData||'',sigdate:gp('p-sigdate'),
     signed:!!(sigData&&sigData.length>100),
+    createdBy:    (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdBy || (_currentUser?(_currentUser.name||''):''),
+    createdByEmail: (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdByEmail || (_currentUser?(_currentUser.email||''):''),
+    createdAt:    (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdAt || new Date().toISOString(),
+    lastEditedBy:    _currentUser?(_currentUser.name||''):'',
+    lastEditedByEmail: _currentUser?(_currentUser.email||''):'',
     status:'active',updatedAt:new Date().toISOString()
   };
 
