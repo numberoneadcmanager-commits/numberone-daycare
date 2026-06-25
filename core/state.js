@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 상수 ─────────────────────────────────────────────────────
-const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com', 'chouung11@gmail.com', 'numberone.adc.lee@gmail.com', 'numberone.adc.kimj@gmail.com'];
+const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com', 'chouung11@gmail.com', 'numberone.adc.lee@gmail.com', 'numberone.adc.kimj@gmail.com','numberone.adc.kimj@gmail.com'];
 const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
 
 const DKR  = {Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'};
