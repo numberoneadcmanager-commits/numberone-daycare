@@ -40,7 +40,9 @@ async function toggleMemberDocs(mid, btn) {
     var pcspExp  = pcsp ? String(pcsp['갱신예정일']||'').slice(0,10) : '';
     var pcspDate = pcsp ? String(pcsp['작성일']||'').slice(0,10) : '';
     var expired  = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
-    var pcspVal  = pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(expired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '')) : null;
+    var pcspStatus = pcsp ? String(pcsp['상태']||'') : '';
+    var pcspBadge  = pcspStatus === '서명대기' ? ' &nbsp;<span style="background:#FFF3E0;color:#B35900;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">📝 서명대기</span>' : '';
+    var pcspVal  = pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(expired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '') + pcspBadge) : null;
     html += docRow('📋','PCSP', pcspVal, pcsp ? "openPCSPForm('"+mid+"')" : '');
 
     // Drive JSON 문서
@@ -49,9 +51,13 @@ async function toggleMemberDocs(mid, btn) {
       var found = logs.filter(function(l){ return String(l['파일종류']||'')===type; });
       return found.length ? String(found[found.length-1]['저장일시']||'').slice(0,10) : null;
     }
-    html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? "viewDriveDoc('"+mid+"','Nutrition')"  : '');
-    html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? "viewDriveDoc('"+mid+"','Assessment')" : '');
+    html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? "viewDriveDoc('"+mid+"','Nutrition')"  : '', '_pendingNutrition_'+mid);
+    html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? "viewDriveDoc('"+mid+"','Assessment')" : '', '_pendingAssessment_'+mid);
     html += docRow('📄','Member Rights',         lastLog('MemberRights'), lastLog('MemberRights') ? "viewDriveDoc('"+mid+"','MemberRights')" : '');
+
+    // 서명 여부 비동기 체크 (배지 나중에 채움)
+    if (lastLog('Nutrition'))  _checkSignedBadge(mid, 'Nutrition');
+    if (lastLog('Assessment')) _checkSignedBadge(mid, 'Assessment');
 
     // Incident / Case / Auth
     var incData   = incRes.ok  ? (incRes.data ||[]) : [];
@@ -74,15 +80,32 @@ async function toggleMemberDocs(mid, btn) {
   btn.disabled = false;
 }
 
-function docRow(icon, label, value, onclick) {
+function docRow(icon, label, value, onclick, badgeId) {
   var hasData = value !== null && value !== undefined && value !== '';
   var click = onclick ? ' onclick="'+onclick+'" style="cursor:pointer"' : '';
+  var badgeSpan = badgeId ? '<span id="'+badgeId+'"></span>' : '';
   return '<div class="doc-row"'+click+'>'
     + '<span style="font-size:12px;color:#3C3C43">'+icon+' '+label+'</span>'
     + (hasData
-      ? '<span style="font-size:11px;color:#34C759;font-weight:600">'+value+(onclick?' →':'')+'</span>'
+      ? '<span style="font-size:11px;color:#34C759;font-weight:600">'+value+(onclick?' →':'')+badgeSpan+'</span>'
       : '<span style="font-size:11px;color:#C7C7CC">없음</span>')
     + '</div>';
+}
+
+// Nutrition/Assessment 서명 여부 비동기 체크 → 배지 채우기
+async function _checkSignedBadge(mid, fileType) {
+  try {
+    var m = MEMBERS.find(function(x){return x.id===mid;});
+    var mName = m ? m.kr : mid;
+    var res = await SheetsAPI.loadJSON(mid, mName, fileType);
+    if (!res.ok || !res.data || !res.data.found) return;
+    var d = res.data.data || {};
+    var el = document.getElementById('_pending' + fileType + '_' + mid);
+    if (!el) return;
+    if (d.signed === false) {
+      el.innerHTML = ' &nbsp;<span style="background:#FFF3E0;color:#B35900;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">📝 서명대기</span>';
+    }
+  } catch(e) { /* 무시 */ }
 }
 
 // Drive JSON 문서 팝업 뷰어
@@ -633,4 +656,109 @@ async function splitMemberNames() {
 
   if (msgEl) msgEl.textContent = '✅ 완료! 분리:' + done + '건, 이미있음(스킵):' + skipped + '건, 실패:' + failed + '건';
   alert('이름 분리 완료!\n분리: ' + done + '건\n스킵(이미 입력됨): ' + skipped + '건\n실패: ' + failed + '건\n\n잘못 나뉜 항목은 멤버 수정에서 직접 고쳐주세요.');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 서명대기 폼 전체보기 (PCSP / Nutrition / Assessment)
+// ══════════════════════════════════════════════════════════════
+async function showPendingSignatures() {
+  var titleEl = document.getElementById('doc-viewer-title');
+  var bodyEl  = document.getElementById('doc-viewer-body');
+  if (titleEl) titleEl.textContent = '📝 서명대기 목록';
+  if (bodyEl)  bodyEl.innerHTML = '<div style="padding:20px;text-align:center;color:#8E8E93">불러오는 중...</div>';
+  openOv('ov-doc-viewer');
+
+  var pending = []; // { mid, mName, type, date, icon }
+
+  try {
+    // 1) PCSP — Sheets에서 '상태'=서명대기 인 것
+    var pcspRes = await SheetsAPI.read('PCSP');
+    if (pcspRes.ok && pcspRes.data) {
+      pcspRes.data.forEach(function(p) {
+        if (String(p['상태']||'') === '서명대기') {
+          pending.push({
+            mid: String(p['멤버ID']||''),
+            mName: String(p['한글이름']||''),
+            type: 'PCSP', icon: '📋',
+            date: String(p['작성일']||'').slice(0,10),
+            onclick: "closeOv('ov-doc-viewer');openPCSPForm('"+(p['ID']||'')+"')"
+          });
+        }
+      });
+    }
+
+    // 2) Nutrition / Assessment — JSONLog 전체 조회 후 각 파일 signed 체크
+    var logRes = await SheetsAPI.read('JSONLog');
+    var logs = (logRes.ok && logRes.data) ? logRes.data : [];
+    var checkTargets = logs.filter(function(l){
+      var t = String(l['파일종류']||'');
+      return t === 'Nutrition' || t === 'Assessment';
+    });
+
+    // 멤버별 + 종류별 최신 1건만
+    var latestMap = {};
+    checkTargets.forEach(function(l){
+      var key = l['멤버ID'] + '_' + l['파일종류'];
+      var savedAt = String(l['저장일시']||'');
+      if (!latestMap[key] || savedAt > latestMap[key]['저장일시']) latestMap[key] = l;
+    });
+
+    var checks = Object.values(latestMap).map(async function(l) {
+      var mid = String(l['멤버ID']||'');
+      var mName = String(l['한글이름']||'');
+      var fileType = String(l['파일종류']||'');
+      try {
+        var res = await SheetsAPI.loadJSON(mid, mName, fileType);
+        if (res.ok && res.data && res.data.found) {
+          var d = res.data.data || {};
+          if (d.signed === false) {
+            pending.push({
+              mid: mid, mName: mName, type: fileType,
+              icon: fileType === 'Nutrition' ? '🥗' : '📋',
+              date: String(l['저장일시']||'').slice(0,10),
+              onclick: "closeOv('ov-doc-viewer');"
+                + "window.location.href='operations.html?tab=forms&mid="+mid+"&type="+fileType+"'"
+            });
+          }
+        }
+      } catch(e) { /* 무시 */ }
+    });
+
+    await Promise.all(checks);
+
+    // 날짜 오름차순(오래된 것 먼저)
+    pending.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+
+    var countEl = document.getElementById('pending-sig-count');
+    if (countEl) countEl.textContent = pending.length;
+
+    if (!pending.length) {
+      if (bodyEl) bodyEl.innerHTML = '<div style="padding:20px;text-align:center;color:#34C759;font-weight:600">✅ 서명대기 없음! 모두 완료됐어요.</div>';
+      return;
+    }
+
+    var html = '<div style="font-size:12px;color:#8E8E93;margin-bottom:10px">총 ' + pending.length + '건 — 태블릿으로 순서대로 열어 서명받으세요</div>';
+    pending.forEach(function(p) {
+      html += '<div onclick="' + p.onclick + '" style="background:#FFF3E0;border:1px solid #FFB347;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
+        + '<div><div style="font-size:13px;font-weight:700">' + p.icon + ' ' + p.mName + '</div>'
+        + '<div style="font-size:11px;color:#8E8E93;margin-top:2px">' + p.type + ' · ' + p.date + '</div></div>'
+        + '<span style="color:#FF9500;font-size:13px">서명받기 →</span>'
+        + '</div>';
+    });
+    if (bodyEl) bodyEl.innerHTML = html;
+
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div style="padding:20px;color:#FF3B30">오류: ' + e.message + '</div>';
+  }
+}
+
+// 대시보드 진입 시 서명대기 카운트 자동 업데이트 (가벼운 PCSP만 체크)
+async function updatePendingSigCount() {
+  try {
+    var res = await SheetsAPI.read('PCSP');
+    if (!res.ok || !res.data) return;
+    var count = res.data.filter(function(p){ return String(p['상태']||'')==='서명대기'; }).length;
+    var el = document.getElementById('pending-sig-count');
+    if (el) el.textContent = count;
+  } catch(e) {}
 }

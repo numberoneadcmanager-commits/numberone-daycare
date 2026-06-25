@@ -392,6 +392,7 @@ function initData(){
   // URL 파라미터 처리 (케어 관리 앱에서 넘어온 경우)
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
+  var formType = params.get('type'); // 'Nutrition' / 'Assessment' / null(=PCSP)
   var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
   if(tab === 'pcsp' || tab === 'forms'){
     localStorage.removeItem('pcsp_prefill_mid');
@@ -399,11 +400,17 @@ function initData(){
     var formsTabEl = document.querySelector('.tab[onclick*="forms"]');
     goTab('forms', formsTabEl);
     if(mid){
-      // 멤버 캐시 로드 후 PCSP 열기
       setTimeout(function(){
         if(typeof loadFormsMemberDropdown === 'function') loadFormsMemberDropdown();
         setTimeout(function(){
-          if(typeof prefillPCSPFromMember === 'function'){
+          var member = (_formsMemberCache||[]).find(function(m){return String(m['ID'])===String(mid);});
+          var mName = member ? (member['한글이름']||'') : '';
+
+          if (formType === 'Nutrition' && typeof openNutritionForMember === 'function') {
+            openNutritionForMember(mid, mName);
+          } else if (formType === 'Assessment' && typeof openAssessmentForMember === 'function') {
+            openAssessmentForMember(mid, mName);
+          } else if(typeof prefillPCSPFromMember === 'function'){
             prefillPCSPFromMember(mid);
           } else if(typeof openPCSPForMember === 'function'){
             openPCSPForMember(mid, '');
@@ -415,15 +422,66 @@ function initData(){
 }
 
 function prefillPCSPFromMember(mid){
-  apiGet({action:'read',sheet:'멤버'}).then(function(res){
-    var member=null;
-    if(res.ok&&res.data){
-      member=res.data.find(function(r){return String(r['ID'])===String(mid);});
+  // 1) 멤버 정보 + 2) 해당 멤버의 저장된 PCSP 목록을 함께 조회
+  Promise.all([
+    apiGet({action:'read',sheet:'멤버'}),
+    apiGet({action:'readByMember',sheet:'PCSP',memberId:mid})
+  ]).then(function(results){
+    var memberRes = results[0];
+    var pcspRes   = results[1];
+    var member = null;
+    if (memberRes.ok && memberRes.data) {
+      member = memberRes.data.find(function(r){ return String(r['ID']) === String(mid); });
     }
-    if(member){
-      selectPCSPMember(member);
+    var pcspRows = (pcspRes.ok && pcspRes.data) ? pcspRes.data : [];
+
+    if (!pcspRows.length) {
+      // 저장된 PCSP 없음 → 새로 작성
+      if (member) selectPCSPMember(member);
+      else openPCSPForm();
+      return;
+    }
+
+    // 작성일 최신순 정렬
+    pcspRows.sort(function(a,b){
+      return String(b['작성일']||'').localeCompare(String(a['작성일']||''));
+    });
+
+    if (pcspRows.length === 1) {
+      // PCSP 1개 → 바로 열기
+      loadPCSPFromSheets().then(function(){
+        openPCSPForm(pcspRows[0]['ID']);
+      });
     } else {
-      openPCSPForm();
+      // 여러 개 → 선택 팝업
+      showPCSPSelectPopup(pcspRows, member, mid);
     }
-  }).catch(function(){openPCSPForm();});
+  }).catch(function(){ openPCSPForm(); });
+}
+
+// 멤버에 저장된 PCSP가 여러 개일 때 선택 팝업
+function showPCSPSelectPopup(pcspRows, member, mid){
+  var mName = member ? (member['한글이름']||'') : '';
+  var html = '<div style="padding:4px 0">';
+  html += '<div style="font-size:13px;font-weight:700;margin-bottom:10px">' + mName + ' — 저장된 PCSP ' + pcspRows.length + '건</div>';
+  pcspRows.forEach(function(p){
+    var date = String(p['작성일']||'').slice(0,10);
+    var exp  = String(p['갱신예정일']||'').slice(0,10);
+    var expired = exp && exp < new Date().toISOString().slice(0,10);
+    html += '<div onclick="closeOv(\'ov-doc-viewer\');loadPCSPFromSheets().then(function(){openPCSPForm(\''+p['ID']+'\');})" '
+      + 'style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
+      + '<div style="font-size:13px;font-weight:600">작성일: ' + date + '</div>'
+      + '<div style="font-size:12px;color:' + (expired ? '#FF3B30' : '#34C759') + ';margin-top:3px">갱신예정일: ' + (exp || '—') + (expired ? ' (만료)' : '') + '</div>'
+      + '<div style="font-size:11px;color:#8E8E93;margin-top:3px">작성자: ' + (p['작성자']||'—') + '</div>'
+      + '</div>';
+  });
+  html += '<button onclick="closeOv(\'ov-doc-viewer\');' + (member ? 'selectPCSPMember(' + JSON.stringify(member).replace(/"/g,'&quot;') + ')' : 'openPCSPForm()') + '" '
+    + 'style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #D85A30;background:#FFF3EE;color:#D85A30;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px">➕ 새 PCSP 작성</button>';
+  html += '</div>';
+
+  var titleEl = document.getElementById('doc-viewer-title');
+  var bodyEl  = document.getElementById('doc-viewer-body');
+  if (titleEl) titleEl.textContent = 'PCSP 선택';
+  if (bodyEl)  bodyEl.innerHTML = html;
+  openOv('ov-doc-viewer');
 }

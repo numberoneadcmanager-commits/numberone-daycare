@@ -350,6 +350,7 @@ async function savePCSPFull(){
     work:gp('work'),work_desc:gp('work-desc'),
     rights:rights,
     sig:sigData||'',sigdate:gp('p-sigdate'),
+    signed:!!(sigData&&sigData.length>100),
     status:'active',updatedAt:new Date().toISOString()
   };
 
@@ -364,51 +365,62 @@ async function savePCSPFull(){
   var saveBtn = document.getElementById('pcsp-save-btn');
   if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='⏳ 저장 중...'; }
 
+  var hasSig = !!(sigData && sigData.length > 100);
+
   try {
-    // 서명 이미지 리사이즈 (용량 최소화)
-    var sigBase64 = null;
-    if(sigData && sigData.length > 100){
+    if (hasSig) {
+      // ── 서명 있음: Word + PDF 최종 생성 ──────────────────────
       var sigCanvas2 = document.createElement('canvas');
       sigCanvas2.width = 250; sigCanvas2.height = 55;
       var sigCanvas = document.getElementById('pcsp-sig-canvas');
       sigCanvas2.getContext('2d').drawImage(sigCanvas, 0, 0, 250, 55);
-      sigBase64 = sigCanvas2.toDataURL('image/png').replace(/^data:image\/png;base64,/,'');
+      var sigBase64 = sigCanvas2.toDataURL('image/png').replace(/^data:image\/png;base64,/,'');
+
+      var res = await apiCall({
+        action: 'fillPCSP',
+        memberId: memberId,
+        memberName: memberName,
+        sigBase64: sigBase64,
+        pcsp: entry
+      });
+
+      if(!res||!res.ok||!res.data||!res.data.success){
+        throw new Error(res&&res.data&&res.data.error ? res.data.error : '서버 오류');
+      }
+
+      await apiCall({
+        action:'savePDF',
+        memberId:memberId,
+        memberName:memberName,
+        fileType:'PCSP_Final',
+        base64Data:res.data.pdfBase64,
+        author:_currentUser?(_currentUser.name||''):''
+      });
+
+      // JSON도 최신 상태로 갱신
+      await saveJSONtoDrive(memberId, memberName, 'PCSP', entry);
+
+      apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{
+        'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,
+        '작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':(entry.diag||'').slice(0,100),
+        '목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'',
+        '목표3':(entry.goals[2]||{}).goal||'','상태':'완료'
+      }}).catch(function(){});
+
+      alert('✅ PCSP 저장 완료!\n'+memberName+'\n📄 Word + PDF → Drive 저장됨');
+    } else {
+      // ── 서명 없음: JSON만 임시저장 (서명대기) ────────────────
+      await saveJSONtoDrive(memberId, memberName, 'PCSP', entry);
+
+      apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{
+        'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,
+        '작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':(entry.diag||'').slice(0,100),
+        '목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'',
+        '목표3':(entry.goals[2]||{}).goal||'','상태':'서명대기'
+      }}).catch(function(){});
+
+      alert('💾 임시저장 완료!\n'+memberName+'\n✍️ 나중에 서명만 추가하면 완료돼요.');
     }
-
-    // 1) Apps Script에 Word 채우기 + 서명 삽입 + PDF 변환 요청
-    var res = await apiCall({
-      action: 'fillPCSP',
-      memberId: memberId,
-      memberName: memberName,
-      sigBase64: sigBase64,
-      pcsp: entry
-    });
-
-    if(!res||!res.ok||!res.data||!res.data.success){
-      throw new Error(res&&res.data&&res.data.error ? res.data.error : '서버 오류');
-    }
-
-    var pdfBase64 = res.data.pdfBase64;
-
-    // 3) 최종 PDF Drive 저장
-    await apiCall({
-      action:'savePDF',
-      memberId:memberId,
-      memberName:memberName,
-      fileType:'PCSP_Final',
-      base64Data:pdfBase64,
-      author:_currentUser?(_currentUser.name||''):''
-    });
-
-    // 4) Sheets 요약 저장
-    apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{
-      'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,
-      '작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':(entry.diag||'').slice(0,100),
-      '목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'',
-      '목표3':(entry.goals[2]||{}).goal||'','상태':entry.status
-    }}).catch(function(){});
-
-    alert('✅ PCSP 저장 완료!\n'+memberName+'\n📄 Word + PDF → Drive 저장됨');
     showPCSPList();
 
   } catch(e){

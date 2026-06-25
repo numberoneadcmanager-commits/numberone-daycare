@@ -210,7 +210,7 @@ function collectAssessmentData(){
     ec1:{name:gv2('ec1-name'),rel:gv2('ec1-rel'),phone:gv2('ec1-hphone')},
     ec2:{name:gv2('ec2-name'),rel:gv2('ec2-rel'),phone:gv2('ec2-hphone')},
     personal:{work:gv2('ph-work'),edu:gv2('ph-edu'),hobbies:gv2('ph-hobbies'),religion:gv2('ph-religion'),hopes:gv2('ph-hopes')},
-    ptSig:_ptSig||'',asSig:_asSig||'',savedAt:new Date().toISOString()};
+    ptSig:_ptSig||'',asSig:_asSig||'',signed:!!(_ptSig&&_asSig),savedAt:new Date().toISOString()};
 }
 function fillAssessmentFromJSON(data){
   var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
@@ -312,6 +312,7 @@ function getNutritionData(){
     counselling:  gr('ns-counsel'),
     memberSig:    _nsMemberSig||'',
     staffSig:     _nsStaffSig||'',
+    signed:       !!(_nsMemberSig && _nsStaffSig),
     savedAt:      new Date().toISOString()
   };
 }
