@@ -773,6 +773,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     </div>
 
     <div class="panel" id="panel-settings">
+      <div class="settings-card" style="background:#FFF3E0;border:1.5px solid #FFB347">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:14px;font-weight:700">📝 서명대기 폼 전체보기</div>
+          <span id="pending-sig-count" style="background:#FF9500;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:700">0</span>
+        </div>
+        <div style="font-size:12px;color:#8E8E93;margin-bottom:10px">컴퓨터로 작성 후 서명만 남은 PCSP / Nutrition / Assessment를 한눈에 보고, 태블릿으로 순회하며 서명받으세요.</div>
+        <button class="btn-full" style="background:#FF9500;color:#fff;border:none;border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer" onclick="showPendingSignatures()">📝 서명대기 목록 보기</button>
+      </div>
       <div class="settings-card">
         <div style="font-size:14px;font-weight:700;margin-bottom:10px">🏥 보험사 현황 (전체 166명)</div>
         <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
