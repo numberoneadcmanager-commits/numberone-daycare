@@ -1151,6 +1151,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div><!-- /app -->
 
 <!-- Staff Modal -->
+<div class="ov" id="ov-doc-viewer" onclick="closeOv('ov-doc-viewer')"></div>
+<div class="modal" id="modal-ov-doc-viewer" style="display:none;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div class="modal-title">
+    <span id="doc-viewer-title">PCSP 선택</span>
+    <button class="modal-close" onclick="closeOv('ov-doc-viewer')">✕</button>
+  </div>
+  <div id="doc-viewer-body" style="padding:4px 0"></div>
+</div>
+
 <div class="ov" id="ov-staff" onclick="closeOv('ov-staff')"></div>
 <div class="modal" id="modal-ov-staff" style="display:none" onclick="event.stopPropagation()">
   <div class="modal-handle"></div>
@@ -1424,6 +1433,8 @@ var _currentUser = null;
 var _asmt = { mid: null, type: 'Initial', step: 0 };
 var _asSig = null, _ptSig = null;
 var _nsMid = null, _nsMemberSig = null, _nsStaffSig = null;
+var _nsExistingCreatedBy = '', _nsExistingCreatedByEmail = '', _nsExistingCreatedAt = '';
+var _asExistingCreatedBy = '', _asExistingCreatedByEmail = '', _asExistingCreatedAt = '';
 var _mrMid = null, _mrSig = null;
 
 function initGoogle(){
