@@ -141,6 +141,7 @@ function goTab(tab, el) {
   if (tab === 'authorization' && typeof renderAuthList     === 'function') renderAuthList();
   if (tab === 'visitor'       && typeof renderVisitorList  === 'function') renderVisitorList();
   if (tab === 'council'       && typeof renderCouncilList  === 'function') renderCouncilList();
+  if (tab === 'settings'      && typeof updatePendingSigCount === 'function') updatePendingSigCount();
 }
 
 // ── API 관련 ──────────────────────────────────────────────────
