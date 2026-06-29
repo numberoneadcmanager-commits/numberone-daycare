@@ -430,7 +430,7 @@ function toggleStatusRadio() {
     document.getElementById('sm-disenrolled').checked ? 'block' : 'none';
 }
 
-function saveStatus() {
+async function saveStatus() {
   const m = MEMBERS.find(x => x.id === window._statusMid); if (!m) return;
   if (document.getElementById('sm-disenrolled').checked) {
     m.status = 'disenrolled';
@@ -439,10 +439,10 @@ function saveStatus() {
   } else { m.status = 'active'; m.disenrollDate = ''; m.disenrollNote = ''; }
   document.getElementById('ov-status').classList.remove('open');
   document.getElementById('modal-ov-status').style.display = 'none';
-  if (apiUrl) {
-    apiCall({}, { action: 'upsert', sheet: '멤버', key: 'ID', value: m.id,
-      data: { 'ID': m.id, '상태': m.status, 'Disenroll날짜': m.disenrollDate || '' } }).catch(() => {});
-  }
+  // ★ 멤버 전체 필드를 함께 저장 (상태만 보내면 나머지 컬럼이 빈 값으로 덮어써짐)
+  try {
+    await SheetsAPI.saveMember(m);
+  } catch(e) { console.log('상태 저장 오류:', e); }
   saveToStorage(); renderAtt(); filterM(); renderDash();
 }
 
@@ -524,22 +524,17 @@ async function saveMemberEdit() {
   const memoEl = document.getElementById('me-memo'); if (memoEl) m.memo = memoEl.value.trim();
   m.days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].filter(d => _meEditDays.has(d));
 
-  if (apiUrl) {
-    apiCall({}, { action: 'upsert', sheet: '멤버', key: 'ID', value: m.id, data: {
-      'ID': m.id, '한글이름': m.kr, '영문이름': m.en, 'Medicaid': m.medicaid, 'MLTC': m.mltc,
-      '주치의': m.pcp, '출석요일': m.days.join(','), '전화': m.phone, '주소': m.addr,
-      '생년월일': m.dob ? m.dob.slice(0,10) : '', '보험사': m.ins, '상태': m.status || 'active',
-      'Disenroll날짜': m.disenrollDate || '', '메모': m.memo || '',
-      'avBg': m.avBg || '#E6F1FB', 'avColor': m.avColor || '#185FA5',
-    }}).catch(e => console.log(e));
-  }
+  // ★ SheetsAPI.saveMember()로 통일 — 전체 필드를 한번에 정확히 저장
+  try {
+    await SheetsAPI.saveMember(m);
+  } catch(e) { console.log('멤버 저장 오류:', e); }
+
   saveToStorage(); closeOv('ov-medit'); filterM(); renderAtt();
   alert((isNew ? '새 멤버 추가: ' : '') + m.kr + ' 저장됨');
 }
 
 // ── 멤버 Sheets 전체 업로드 ──────────────────────────────────
 async function uploadMembersToSheets() {
-  if (!apiUrl) { alert('Google Sheets URL을 먼저 설정해주세요.'); return; }
   if (!confirm('멤버 ' + MEMBERS.length + '명 업로드?')) return;
   const btn = document.getElementById('btn-upload-members');
   if (btn) { btn.textContent = '업로드 중...'; btn.disabled = true; }
@@ -547,13 +542,7 @@ async function uploadMembersToSheets() {
   for (let i = 0; i < MEMBERS.length; i++) {
     const m = MEMBERS[i];
     try {
-      await apiCall({}, { action: 'upsert', sheet: '멤버', key: 'ID', value: m.id, data: {
-        'ID': m.id, '한글이름': m.kr, '영문이름': m.en, 'Medicaid': m.medicaid, 'MLTC': m.mltc,
-        '주치의': m.pcp || '', '출석요일': (m.days || []).join(','), '전화': m.phone || '',
-        '주소': m.addr || '', '생년월일': m.dob ? m.dob.slice(0,10) : '', '보험사': m.ins || '',
-        '상태': m.status || 'active', 'Disenroll날짜': m.disenrollDate || '', '메모': m.memo || '',
-        'avBg': m.avBg || '#E6F1FB', 'avColor': m.avColor || '#185FA5',
-      }});
+      await SheetsAPI.saveMember(m);
       ok++;
     } catch (e) {}
     if (btn && i % 10 === 0) btn.textContent = '업로드 중... ' + (i + 1) + '/' + MEMBERS.length;
@@ -581,7 +570,7 @@ async function openPhotoUpload(mid) {
       try {
         const m = MEMBERS.find(x => x.id === mid);
         const mName = m ? m.kr : mid;
-        const res = await apiCall({}, {
+        const res = await SheetsAPI.post({
           action:     'savePDF',
           memberId:   mid,
           memberName: mName,
