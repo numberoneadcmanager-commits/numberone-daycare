@@ -99,15 +99,18 @@ function _attSheetStyles() {
   return '<style>'
     // 3-ring 양면: ATTENDANCE=왼쪽, TRANSPORTATION=오른쪽 바인딩 (클래스로 구분)
     + '@page{size:letter;margin:0;}'
-    + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;box-sizing:border-box;margin:0;padding:0;}'
+    + 'html,body{margin:0;padding:0;}'
+    + 'body,*{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;box-sizing:border-box;}'
     + '.att-pg{'
     +   'font-family:Arial,sans-serif;'
-    +   'width:8.5in;height:11in;'
+    +   'width:8.5in;height:11in;max-height:11in;overflow:hidden;'
     +   'padding:0.25in 0.3in 0.2in 0.82in;'
-
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
+    +   'break-after:page;'
+    +   'break-inside:avoid;'
     +   'display:flex;flex-direction:column;'
+    +   'position:relative;'
     + '}'
     // 헤더 — 이름/보험사 크게
     + '.pg-hdr{'
@@ -122,46 +125,52 @@ function _attSheetStyles() {
     + '.mbr-ins{font-size:15px;font-weight:700;margin-top:4px;}'
     + '.mbr-id{font-size:14px;margin-top:3px;}'
     // 테이블
-    + '.att-tbl{width:100%;border-collapse:collapse;flex:1;table-layout:fixed;}'
+    + '.att-tbl{width:100%;border-collapse:collapse;flex:1 1 auto;table-layout:fixed;min-height:0;}'
     + '.att-tbl th,.att-tbl td{'
     +   'border:1.5px solid #444;'
-    +   'padding:4px 5px;'
-    +   'font-size:13px;'
+    +   'padding:3px 5px;'
+    +   'font-size:12px;'
     +   'overflow:hidden;'
+    +   'line-height:1.25;'
     + '}'
-    + '.att-tbl th{text-align:center;background:#e0e0e0 !important;font-weight:700;font-size:13px;padding:6px 5px;}'
-    + '.c-num{width:36px;text-align:center;font-weight:700;}'
-    + '.c-day{width:46px;text-align:center;}'
-    + '.c-act{width:190px;text-align:center;font-size:11px;white-space:nowrap;}'  // SDC 컬럼 좁게
-    + '.c-timein{width:118px;text-align:center;font-size:11.5px;padding:2px 3px;}'
-    + '.c-timeout{width:88px;text-align:center;font-size:11.5px;padding:2px 3px;}'
+    + '.att-tbl th{text-align:center;background:#e0e0e0 !important;font-weight:700;font-size:12px;padding:5px 5px;}'
+    + '.c-num{width:32px;text-align:center;font-weight:700;}'
+    + '.c-day{width:42px;text-align:center;}'
+    + '.c-act{width:175px;text-align:center;font-size:10.5px;white-space:nowrap;}'  // SDC 컬럼 좁게
+    + '.c-timein{width:112px;text-align:center;font-size:11px;padding:2px 3px;}'
+    + '.c-timeout{width:84px;text-align:center;font-size:11px;padding:2px 3px;}'
     + '.c-sign{text-align:center;}'                             // SIGN — 남은 공간 전부
     // 일요일 회색
     + '.sun-row,.sun-row td{background:#C8C8C8 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
     // 페이지 번호 푸터
-    + '.pg-footer{text-align:center;font-size:11px;color:#555;padding-top:4px;flex-shrink:0;border-top:1px solid #ccc;margin-top:4px;}'
-    // 목차 페이지
+    + '.pg-footer{text-align:center;font-size:10px;color:#555;padding-top:3px;flex-shrink:0;border-top:1px solid #ccc;margin-top:3px;}'
+    // 목차 페이지 — 여러 장으로 자동 분할
     + '.toc-pg{'
     +   'font-family:Arial,sans-serif;'
-    +   'width:8.5in;height:11in;'
+    +   'width:8.5in;height:11in;max-height:11in;overflow:hidden;'
     +   'padding:0.3in 0.22in 0.25in 0.75in;'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
+    +   'break-after:page;'
+    +   'break-inside:avoid;'
+    +   'display:flex;flex-direction:column;'
     + '}'
-    + '.toc-title{font-size:22px;font-weight:900;border-bottom:3px solid #000;padding-bottom:8px;margin-bottom:14px;}'
-    + '.toc-ins{font-size:16px;font-weight:700;margin:14px 0 6px;color:#333;border-bottom:1.5px solid #999;padding-bottom:4px;}'
+    + '.toc-title{font-size:20px;font-weight:900;border-bottom:3px solid #000;padding-bottom:6px;margin-bottom:10px;flex-shrink:0;}'
+    + '.toc-ins{font-size:14px;font-weight:700;margin:0 0 6px;color:#333;border-bottom:1.5px solid #999;padding-bottom:4px;flex-shrink:0;}'
     + '.toc-row{display:flex;justify-content:space-between;align-items:center;'
-    +   'font-size:14px;padding:5px 0;border-bottom:0.5px solid #ddd;}'
+    +   'font-size:12.5px;padding:4px 0;border-bottom:0.5px solid #ddd;flex-shrink:0;}'
     + '.toc-name{font-weight:600;}'
-    + '.toc-pages{color:#555;font-size:13px;}'
-    + '.toc-footer{text-align:center;font-size:11px;color:#555;margin-top:auto;padding-top:8px;border-top:1px solid #ccc;}'
+    + '.toc-pages{color:#555;font-size:12px;}'
+    + '.toc-footer{text-align:center;font-size:10px;color:#555;margin-top:auto;padding-top:6px;border-top:1px solid #ccc;flex-shrink:0;}'
     + '</style>';
 }
 
+// 목차를 여러 페이지로 자동 분할 (한 페이지당 최대 줄 수 제한)
 function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   var insLabel = _attSheetInsLabel(ins);
+
   // ID순 배열에서 각 멤버의 페이지 번호 계산
   var pageMap = {};
   for (var pi = 0; pi < idOrderMembers.length; pi++) {
@@ -170,24 +179,34 @@ function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
       trp: startPage + 2 + pi * 2
     };
   }
-  var rows = '';
-  for (var i = 0; i < tocMembers.length; i++) {
-    var m = tocMembers[i];
-    var pg = pageMap[m.id] || {att:'?', trp:'?'};
-    rows += '<div class="toc-row">'
-      + '<span class="toc-name">' + (m.kr||'') + ' &nbsp;<span style="font-weight:400;font-size:13px;color:#555">' + (m.en||'') + '</span></span>'
-      + '<span class="toc-pages">출석부 p.' + pg.att + ' &nbsp;·&nbsp; 교통 p.' + pg.trp + '</span>'
+
+  // 한 목차 페이지에 들어갈 수 있는 최대 행 수 (여유있게 잡음)
+  var ROWS_PER_PAGE = 28;
+  var totalPages = Math.max(1, Math.ceil(tocMembers.length / ROWS_PER_PAGE));
+
+  var html = '';
+  for (var p = 0; p < totalPages; p++) {
+    var slice = tocMembers.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+    var rows = '';
+    slice.forEach(function(m) {
+      var pg = pageMap[m.id] || {att:'?', trp:'?'};
+      rows += '<div class="toc-row">'
+        + '<span class="toc-name">' + (m.kr||'') + ' &nbsp;<span style="font-weight:400;font-size:12px;color:#555">' + (m.en||'') + '</span></span>'
+        + '<span class="toc-pages">출석부 p.' + pg.att + ' &nbsp;·&nbsp; 교통 p.' + pg.trp + '</span>'
+        + '</div>';
+    });
+
+    html += '<div class="toc-pg">'
+      + '<div class="toc-title">NUMBER ONE ADULT DAYCARE<br>'
+      + '<span style="font-size:14px;font-weight:700;">'
+      + MONTH_NAMES[month-1] + ' ' + year + ' — ' + insLabel + ' 출석부 목차</span></div>'
+      + '<div class="toc-ins">📋 ' + insLabel + ' (' + idOrderMembers.length + '명)' + (totalPages > 1 ? ' — 목차 ' + (p+1) + '/' + totalPages : '') + '</div>'
+      + rows
+      + '<div class="toc-footer">p. ' + (p+1) + '</div>'
       + '</div>';
   }
-  return '<div class="toc-pg">'
-    + '<div class="toc-title">NUMBER ONE ADULT DAYCARE<br>'
-    + '<span style="font-size:16px;font-weight:700;">'
-    + MONTH_NAMES[month-1] + ' ' + year + ' — ' + insLabel + ' 출석부 목차</span></div>'
-    + '<div class="toc-ins">📋 ' + insLabel + ' (' + idOrderMembers.length + '명)</div>'
-    + rows
-    + '<div style="flex:1"></div>'
-    + '<div class="toc-footer">p. 1</div>'
-    + '</div>';
+
+  return html;
 }
 
 function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
@@ -287,6 +306,9 @@ async function generateAttSheets(insFilter) {
 
   if (!allMembers.length) { alert('Active 멤버 데이터 없음'); return; }
 
+  // 목차 페이지 수에 따라 멤버 페이지 시작점을 정확히 계산하기 위해 미리 산출
+  var TOC_ROWS_PER_PAGE = 28;
+
   var insGroups = insFilter === 'ALL' ? ['Anthem_MLTC','CLP','SWH'] : [insFilter];
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
@@ -303,19 +325,23 @@ async function generateAttSheets(insFilter) {
     if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' (' + members.length + '명) 출석부 열기 중...';
 
     var insLabel = _attSheetInsLabel(ins);
-    // 페이지 번호: p.1 = 목차, p.2~ = 멤버 페이지
+
+    // 목차 페이지 수 계산 (멤버 페이지 시작점을 정확히 맞추기 위함)
+    var tocPageCount = Math.max(1, Math.ceil(members.length / TOC_ROWS_PER_PAGE));
+
+    // 페이지 번호: p.1~N = 목차, 이후 = 멤버 페이지
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
       + '<title>' + insLabel + ' ' + MONTH_NAMES[month-1] + ' ' + year + ' 출석부</title>'
       + _attSheetStyles()
       + '</head><body>';
 
-    // 목차 (p.1)
-    html += _attSheetTOC(tocMembers, ins, year, month, 1, members);
+    // 목차 (p.1 ~ tocPageCount) — startPage 인자는 멤버페이지 시작 오프셋용
+    html += _attSheetTOC(tocMembers, ins, year, month, tocPageCount, members);
 
-    // 멤버 페이지 (p.2~)
+    // 멤버 페이지 (목차 다음부터)
     for (var mi = 0; mi < members.length; mi++) {
-      var attPage = 2 + mi * 2;
-      var trpPage = 3 + mi * 2;
+      var attPage = tocPageCount + 1 + mi * 2;
+      var trpPage = tocPageCount + 2 + mi * 2;
       html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'ATTENDANCE', attPage);
       html += _attSheetMemberPage(members[mi], year, month, daysInMonth, 'TRANSPORTATION', trpPage);
     }
