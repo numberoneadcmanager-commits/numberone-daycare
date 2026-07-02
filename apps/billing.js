@@ -310,12 +310,16 @@ async function generateAttSheets(insFilter) {
   var TOC_ROWS_PER_PAGE = 28;
 
   var insGroups = insFilter === 'ALL' ? ['Anthem_MLTC','CLP','SWH'] : [insFilter];
+    // Anthem_MAP은 Anthem_MLTC 버튼으로 함께 처리
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
 
   for (var gi = 0; gi < insGroups.length; gi++) {
     var ins = insGroups[gi];
-    var members = allMembers.filter(function(m){ return m.ins === ins; });
+    var members = allMembers.filter(function(m){
+      if (ins === 'Anthem_MLTC') return m.ins === 'Anthem_MLTC' || m.ins === 'Anthem_MAP';
+      return m.ins === ins;
+    });
     // 출석부 순서: 멤버 ID 순
     members.sort(function(a,b){ return String(a.id).localeCompare(String(b.id), undefined, {numeric:true}); });
     // 목차용: 가나다 순 (별도 배열)
