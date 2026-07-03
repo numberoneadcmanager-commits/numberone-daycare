@@ -245,7 +245,7 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
     +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp; ' + type + '</div>'
     +   '</div>'
     +   '<div class="hdr-r">'
-    +     '<div class="mbr-name">' + (m.kr||'') + '</div>'
+    +     '<div class="mbr-name">' + (m.kr||'') + ' &nbsp;<span style="font-size:14px;font-weight:600;color:#666">#' + (m.id||'') + '</span></div>'
     +     '<div class="mbr-ins">' + insLabel + ' &nbsp;' + enName + '</div>'
     +     '<div class="mbr-id">' + m.medicaid + ' &nbsp;(' + daysStr + ')</div>'
     +   '</div>'
