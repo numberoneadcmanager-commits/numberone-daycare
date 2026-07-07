@@ -1879,7 +1879,7 @@ function renderGrievanceList(){
 function openGrModal(id){
   document.getElementById('gr-modal-title').textContent=id?'✏️ Grievance 수정':'😤 Grievance 추가';
   document.getElementById('gr-edit-id').value=id||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   if(id){var g=GR_LIST.find(function(x){return x.id===id;});if(g){document.getElementById('gr-date').value=g.date||today;document.getElementById('gr-type').value=g.type||'Grievance';document.getElementById('gr-member').value=g.member||'';document.getElementById('gr-content').value=g.content||'';document.getElementById('gr-action').value=g.action||'';document.getElementById('gr-staff').value=g.staff||'';document.getElementById('gr-status').value=g.status||'open';document.getElementById('gr-result').value=g.result||'';}}
   else{document.getElementById('gr-date').value=today;document.getElementById('gr-member').value='';document.getElementById('gr-content').value='';document.getElementById('gr-action').value='';document.getElementById('gr-staff').value='';document.getElementById('gr-result').value='';}
   openOv('ov-gr');
@@ -1949,7 +1949,7 @@ function renderFDList(){
 
 function openFDModal(id){
   document.getElementById('fd-edit-id').value=id||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   if(id){var f=FD_LIST.find(function(x){return x.id===id;});if(f){document.getElementById('fd-date').value=f.date||today;document.getElementById('fd-time').value=f.time||'';document.getElementById('fd-count').value=f.count||'';document.getElementById('fd-duration').value=f.duration||'';document.getElementById('fd-type').value=f.type||'실제 대피 훈련';document.getElementById('fd-staff').value=f.staff||'';document.getElementById('fd-note').value=f.note||'';}}
   else{document.getElementById('fd-date').value=today;document.getElementById('fd-time').value='';document.getElementById('fd-count').value='';document.getElementById('fd-duration').value='';document.getElementById('fd-staff').value='';document.getElementById('fd-note').value='';}
   openOv('ov-fd');
@@ -2029,7 +2029,7 @@ function renderTempList(){
 
 function openTempModal(){
   document.getElementById('temp-edit-id').value='';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var now=new Date().toTimeString().slice(0,5);
   document.getElementById('temp-date').value=today;
   document.getElementById('temp-time').value=now;
@@ -2174,7 +2174,7 @@ function setActFilter(f,el){_actFilter=f;document.querySelectorAll('#panel-activ
 
 function renderActivityList(){
   var q=(document.getElementById('act-search')||{}).value||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var thisMonth=today.slice(0,7);
   var nextMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,1).toISOString().slice(0,7);
   var list=ACT_LIST.filter(function(a){
@@ -2201,7 +2201,7 @@ function renderActivityList(){
 
 function openActModal(id){
   document.getElementById('act-edit-id').value=id||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   if(id){var a=ACT_LIST.find(function(x){return x.id===id;});if(a){document.getElementById('act-date').value=a.date||today;document.getElementById('act-time').value=a.time||'';document.getElementById('act-name').value=a.name||'';document.getElementById('act-cat').value=a.cat||'신체활동';document.getElementById('act-staff').value=a.staff||'';document.getElementById('act-note').value=a.note||'';}}
   else{document.getElementById('act-date').value=today;document.getElementById('act-time').value='';document.getElementById('act-name').value='';document.getElementById('act-staff').value='';document.getElementById('act-note').value='';}
   openOv('ov-act');
