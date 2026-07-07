@@ -39,7 +39,7 @@ async function toggleMemberDocs(mid, btn) {
     var pcsp = pcspList.length ? pcspList[pcspList.length-1] : null;
     var pcspExp  = pcsp ? String(pcsp['갱신예정일']||'').slice(0,10) : '';
     var pcspDate = pcsp ? String(pcsp['작성일']||'').slice(0,10) : '';
-    var expired  = pcspExp && pcspExp < new Date().toISOString().slice(0,10);
+    var expired  = pcspExp && pcspExp < new Date().toLocaleDateString('sv-SE');
     var pcspStatus = pcsp ? String(pcsp['상태']||'') : '';
     var pcspBadge  = pcspStatus === '서명대기' ? ' &nbsp;<span style="background:#FFF3E0;color:#B35900;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">📝 서명대기</span>' : '';
     var pcspVal  = pcsp ? (pcspDate + (pcspExp ? ' · 만료: <b style="color:'+(expired?'#FF3B30':'#34C759')+'">'+pcspExp+'</b>' : '') + pcspBadge) : null;
@@ -64,7 +64,7 @@ async function toggleMemberDocs(mid, btn) {
     var caseData  = caseRes.ok ? (caseRes.data||[]) : [];
     var authData  = authRes.ok ? (authRes.data||[]) : [];
     var authActive = authData.filter(function(a){
-      return !String(a['종료일']||'') || String(a['종료일']) >= new Date().toISOString().slice(0,10);
+      return !String(a['종료일']||'') || String(a['종료일']) >= new Date().toLocaleDateString('sv-SE');
     });
     html += docRow('🚨','Incident Log', incData.length  ? incData.length+'건'  : null, incData.length  ? "viewLogList('"+mid+"','incident')"  : '');
     html += docRow('📁','Case Log',     caseData.length ? caseData.length+'건' : null, caseData.length ? "viewLogList('"+mid+"','caselog')" : '');
@@ -563,25 +563,18 @@ async function openPhotoUpload(mid) {
       const dataUrl = ev.target.result;
       const base64  = dataUrl.split(',')[1];
 
-      // 1. 로컬 캐시 (빠른 표시용)
+      // 1. 로컬 캐시 + 멤버 객체에 즉시 반영
       mp[mid] = dataUrl;
+      const mObj = MEMBERS.find(x => x.id === mid);
+      if (mObj) mObj.photo = dataUrl;
+      saveToStorage(); // localStorage에 사진 보존 (새로고침 대비)
 
-      // 2. Drive에 저장 (영구 보관)
+      // 2. Drive에 JSON으로 저장 (다른 기기에서 복원 가능)
       try {
         const m = MEMBERS.find(x => x.id === mid);
         const mName = m ? m.kr : mid;
-        const res = await SheetsAPI.post({
-          action:     'savePDF',
-          memberId:   mid,
-          memberName: mName,
-          fileType:   'Photo',
-          base64Data: base64,
-          author:     (_currentUser && _currentUser.name) || 'Staff',
-        });
-        if (res && res.ok && res.data && res.data.url) {
-          // Drive 링크를 멤버 시트 memo에 저장
-          console.log('사진 Drive 저장:', res.data.url);
-        }
+        await SheetsAPI.saveJSON(mid, mName, 'Photo', { photo: dataUrl, savedAt: new Date().toISOString() });
+        console.log('사진 Drive 저장 완료:', mid);
       } catch(err) {
         console.log('사진 Drive 저장 실패:', err);
       }
@@ -764,5 +757,65 @@ async function updatePendingSigCount() {
     var count = res.data.filter(function(p){ return String(p['상태']||'')==='서명대기'; }).length;
     var el = document.getElementById('pending-sig-count');
     if (el) el.textContent = count;
+
+    // 대시보드 알림도 함께 업데이트
+    var alertEl = document.getElementById('ds-sig-alert');
+    if (alertEl) {
+      if (count > 0) {
+        alertEl.style.display = 'block';
+        alertEl.innerHTML = '📝 서명대기 PCSP <b style="color:#B35900">' + count + '건</b> — 클릭해서 확인 →';
+      } else {
+        alertEl.style.display = 'none';
+      }
+    }
   } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════
+// 멤버 사진 Drive에서 복원 (다른 기기 동기화)
+// ══════════════════════════════════════════════════════════════
+async function restorePhotosFromDrive() {
+  var msgEl = document.getElementById('api-msg');
+  if (msgEl) msgEl.textContent = '⏳ Drive에서 사진 목록 확인 중...';
+
+  try {
+    // JSONLog에서 Photo 타입 멤버 목록 조회
+    var logRes = await SheetsAPI.read('JSONLog');
+    if (!logRes.ok || !logRes.data) { if(msgEl) msgEl.textContent='❌ JSONLog 조회 실패'; return; }
+
+    var photoLogs = logRes.data.filter(function(l){ return String(l['파일종류']||'') === 'Photo'; });
+    // 멤버별 최신 1건
+    var latest = {};
+    photoLogs.forEach(function(l){
+      var mid = String(l['멤버ID']||'');
+      var at  = String(l['저장일시']||'');
+      if (!latest[mid] || at > latest[mid].at) latest[mid] = { mid: mid, name: String(l['한글이름']||''), at: at };
+    });
+
+    var targets = Object.values(latest).filter(function(t){
+      var m = MEMBERS.find(function(x){ return x.id === t.mid; });
+      return m && !m.photo; // 이미 사진 있으면 스킵
+    });
+
+    if (!targets.length) { if(msgEl) msgEl.textContent='✅ 복원할 사진 없음 (모두 최신)'; return; }
+
+    var done = 0;
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      try {
+        var res = await SheetsAPI.loadJSON(t.mid, t.name, 'Photo');
+        if (res.ok && res.data && res.data.found && res.data.data && res.data.data.photo) {
+          var m = MEMBERS.find(function(x){ return x.id === t.mid; });
+          if (m) { m.photo = res.data.data.photo; mp[t.mid] = res.data.data.photo; done++; }
+        }
+      } catch(e) {}
+      if (msgEl) msgEl.textContent = '⏳ 사진 복원 중... ' + (i+1) + '/' + targets.length;
+    }
+
+    saveToStorage();
+    renderMG();
+    if (msgEl) msgEl.textContent = '✅ 사진 ' + done + '건 복원 완료!';
+  } catch(e) {
+    if (msgEl) msgEl.textContent = '❌ 오류: ' + e.message;
+  }
 }

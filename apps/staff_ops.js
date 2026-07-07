@@ -6,7 +6,7 @@
 function renderOpStaff(){
   var STAFF_OP=JSON.parse(localStorage.getItem('staff_data')||'[]');
   var e=document.getElementById('op-staff-total');if(e)e.textContent=STAFF_OP.length;
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var exp=0,soon=0;
   STAFF_OP.forEach(function(s){
     (s.certs||[]).forEach(function(c){

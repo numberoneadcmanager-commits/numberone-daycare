@@ -98,7 +98,7 @@ function renderTrSessionList(){
 }
 
 function openTrModal(){
-  document.getElementById('tr-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('tr-date').value = new Date().toLocaleDateString('sv-SE');
   document.getElementById('tr-hours').value = '';
   document.getElementById('tr-rn-name').value = '';
   document.getElementById('tr-rn-lic').value = '';
@@ -278,7 +278,7 @@ function renderTrStaffView(){
     });
   });
 
-  var today = new Date().toISOString().slice(0,10);
+  var today = new Date().toLocaleDateString('sv-SE');
   var html = '<div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:10px">👤 '+sName+' 트레이닝 현황</div>';
 
   // 토픽별 이수 현황
@@ -467,7 +467,7 @@ function showPCSPSelectPopup(pcspRows, member, mid){
   pcspRows.forEach(function(p){
     var date = String(p['작성일']||'').slice(0,10);
     var exp  = String(p['갱신예정일']||'').slice(0,10);
-    var expired = exp && exp < new Date().toISOString().slice(0,10);
+    var expired = exp && exp < new Date().toLocaleDateString('sv-SE');
     html += '<div onclick="closeOv(\'ov-doc-viewer\');loadPCSPFromSheets().then(function(){openPCSPForm(\''+p['ID']+'\');})" '
       + 'style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
       + '<div style="font-size:13px;font-weight:600">작성일: ' + date + '</div>'

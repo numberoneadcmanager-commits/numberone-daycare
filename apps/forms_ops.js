@@ -73,6 +73,7 @@ function renderFormsList(member){
     {key:'Nutrition',   label:'Nutrition Screening', icon:'🥗', color:'#EEEDFE', tc:'#534AB7'},
     {key:'MemberRights',label:'Member Rights',       icon:'⚖️', color:'#FFF3EE', tc:'#D85A30'},
     {key:'HIPAA',       label:'HIPAA Authorization', icon:'🔐', color:'#FBEAF0', tc:'#72243E'},
+    {key:'Incident',label:'Incident Log',icon:'🚨'}
   ];
   var html='';
   officialForms.forEach(function(f){
@@ -93,6 +94,7 @@ function renderFormsList(member){
         else if(key==='Nutrition')     openNutritionForMember(mid,mName);
         else if(key==='MemberRights')  openMemberRightsForMember(mid,mName);
         else if(key==='HIPAA')         openHIPAAForMember(mid,mName);
+        else if(key==='Incident')      openIncidentForMember(mid,mName);
       });
     });
   }
@@ -128,13 +130,13 @@ function clearFormsSelection(){
   var rd=document.getElementById('forms-member-result');if(rd)rd.style.display='none';
   var sd=document.getElementById('forms-selected');if(sd)sd.style.display='none';
   var em=document.getElementById('forms-empty-msg');if(em)em.style.display='block';
-  ['frm-assessment','frm-nutrition','frm-member-rights'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+  ['frm-assessment','frm-nutrition','frm-member-rights','frm-incident'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';
 }
 
 
 function closeFrmBack(){
-  ['frm-assessment','frm-nutrition','frm-member-rights'].forEach(function(id){
+  ['frm-assessment','frm-nutrition','frm-member-rights','frm-incident'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.style.display='none';
   });
   var pv=document.getElementById('pcsp-member-select');if(pv)pv.style.display='none';
@@ -179,7 +181,7 @@ function openAssessmentForMember(mid,mName){
   var phn=document.getElementById('as-phone');if(phn)phn.value=member['전화']||'';
   var adr=document.getElementById('as-addr');if(adr)adr.value=member['주소']||'';
   var pcp=document.getElementById('as-pcp');if(pcp)pcp.value=member['주치의']||'';
-  var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toISOString().slice(0,10);
+  var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toLocaleDateString('sv-SE');
   _asExistingCreatedBy = ''; _asExistingCreatedByEmail = ''; _asExistingCreatedAt = '';
   loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){
     if(res&&res.ok&&res.data&&res.data.found&&res.data.data){
@@ -260,7 +262,7 @@ function openNutritionForMember(mid,mName){
   var nd=document.getElementById('ns-dob');
   if(nd) nd.textContent = member ? (member['생년월일']||'').slice(0,10) : '';
   var ndate=document.getElementById('ns-date');
-  if(ndate) ndate.value = new Date().toISOString().slice(0,10);
+  if(ndate) ndate.value = new Date().toLocaleDateString('sv-SE');
 
   // 서명 캔버스 초기화
   _nsMemberSig=null; _nsStaffSig=null;
@@ -448,7 +450,7 @@ function openMemberRightsForMember(mid,mName){
   var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
   var mn=document.getElementById('mr-name');if(mn)mn.textContent=member['한글이름']+' ('+member['영문이름']+')';
   var md=document.getElementById('mr-dob');if(md)md.textContent=(member['생년월일']||'').slice(0,10);
-  var mdate=document.getElementById('mr-date');if(mdate)mdate.value=new Date().toISOString().slice(0,10);
+  var mdate=document.getElementById('mr-date');if(mdate)mdate.value=new Date().toLocaleDateString('sv-SE');
   _mrSig=null;initSigCanvas('mr-sig-canvas','mr-sig-empty',function(d){_mrSig=d;});
 }
 function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null;}
@@ -456,7 +458,7 @@ function generateMemberRightsPDF(){
   if(!_mrMid){alert('멤버가 선택되지 않았습니다');return;}
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_mrMid);});
   var mName=member?(member['영문이름']||''):'';
-  var date=(document.getElementById('mr-date')||{}).value||new Date().toISOString().slice(0,10);
+  var date=(document.getElementById('mr-date')||{}).value||new Date().toLocaleDateString('sv-SE');
   var rep=(document.getElementById('mr-rep')||{}).value||'';
   var repRel=(document.getElementById('mr-rep-rel')||{}).value||'';
 
@@ -581,7 +583,7 @@ function openHIPAAForMember(mid, mName){
   document.getElementById('hipaa-name').value = (member['영문이름']||'').toUpperCase();
   document.getElementById('hipaa-dob').value = (member['생년월일']||'').slice(0,10);
   document.getElementById('hipaa-addr').value = member['주소']||'';
-  document.getElementById('hipaa-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('hipaa-date').value = new Date().toLocaleDateString('sv-SE');
   document.getElementById('hipaa-ssn').value = '';
   document.getElementById('hipaa-extra').value = '';
   document.getElementById('hipaa-rep').value = '';
@@ -782,3 +784,60 @@ document.addEventListener('DOMContentLoaded', function(){
   var pmq = document.getElementById('pcsp-member-q');
   if(pmq) pmq.addEventListener('input', renderPCSPMemberList);
 });
+
+// ══════════════════════════════════════════════════════════════
+// Incident Log 폼 (operations.html forms 탭)
+// ══════════════════════════════════════════════════════════════
+var _incFormMid = null;
+
+function openIncidentForMember(mid, mName){
+  _incFormMid = mid;
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  var hub = document.getElementById('forms-hub'); if(hub) hub.style.display='none';
+  var el = document.getElementById('frm-incident'); if(el) el.style.display='block';
+  var nm = document.getElementById('inc-member-name'); if(nm) nm.textContent = mName || '';
+  var info = document.getElementById('inc-member-info');
+  if(info && member) info.textContent = (member['Medicaid']||'') + ' · ' + (member['생년월일']||'').slice(0,10);
+  var d = document.getElementById('inc-date'); if(d) d.value = new Date().toLocaleDateString('sv-SE');
+  var t = document.getElementById('inc-time'); if(t) t.value = new Date().toTimeString().slice(0,5);
+  ['inc-location','inc-desc','inc-action','inc-witness'].forEach(function(id){
+    var e = document.getElementById(id); if(e) e.value='';
+  });
+  var st = document.getElementById('inc-save-status'); if(st) st.textContent='';
+}
+
+async function saveIncidentLog(){
+  if(!_incFormMid){ alert('멤버를 선택해주세요'); return; }
+  function gv2(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(_incFormMid);});
+  var mName = member ? (member['한글이름']||'') : '';
+
+  if(!gv2('inc-date') || !gv2('inc-desc')){ alert('날짜와 설명을 입력해주세요'); return; }
+
+  var st = document.getElementById('inc-save-status');
+  if(st) st.textContent = '⏳ 저장 중...';
+
+  var data = {
+    'ID': 'INC' + Date.now(),
+    '날짜': gv2('inc-date'), '시간': gv2('inc-time'),
+    '멤버ID': _incFormMid, '한글이름': mName,
+    '심각도': gv2('inc-severity'), '유형': gv2('inc-type'),
+    '장소': gv2('inc-location'), '설명': gv2('inc-desc'),
+    '조치': gv2('inc-action'), '목격자': gv2('inc-witness'),
+    'DOH보고': gv2('inc-doh'),
+    '작성자': _currentUser?(_currentUser.name||''):'',
+    '작성시각': new Date().toLocaleString('ko-KR')
+  };
+
+  try {
+    var res = await apiCall({ action:'append', sheet:'incident', data:data });
+    if(res && res.ok){
+      if(st) st.textContent = '✅ 저장 완료!';
+      setTimeout(function(){ closeFrmBack(); }, 800);
+    } else {
+      if(st) st.textContent = '❌ 저장 실패';
+    }
+  } catch(e){
+    if(st) st.textContent = '❌ 오류: ' + e.message;
+  }
+}

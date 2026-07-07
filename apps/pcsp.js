@@ -55,7 +55,7 @@ function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-for
 
 function renderPCSPList(){
   var q=(document.getElementById('pcsp-search')||{}).value||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var list=PCSP_LIST.filter(function(p){
     var match=!q||(p.nameKr||'').includes(q)||(p.nameLast||'').includes(q);
     var due=p.nextdate&&p.nextdate<=today;
@@ -133,7 +133,7 @@ function selectPCSPMember(m){
   document.getElementById('pcsp-edit-id').value='';
 
   // 기본값 설정
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var nextYear=new Date();nextYear.setFullYear(nextYear.getFullYear()+1);
   document.getElementById('p-wdate').value=today;
   document.getElementById('p-sigdate').value=today;
@@ -178,7 +178,7 @@ function openPCSPForm(id){
   document.getElementById('pcsp-form-view').style.display='block';
   _pcspDays=new Set();_pcspContacts=[];_pcspRisks=[];_pcspGoals=[];_pcspCommunity=[];
   document.getElementById('pcsp-edit-id').value=id||'';
-  var today=new Date().toISOString().slice(0,10);
+  var today=new Date().toLocaleDateString('sv-SE');
   var nextYear=new Date();nextYear.setFullYear(nextYear.getFullYear()+1);
   document.getElementById('p-wdate').value=today;
   document.getElementById('p-sigdate').value=today;
@@ -913,7 +913,7 @@ Participant info:
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
 - Keywords/hints: ${hint || 'typical Korean senior goals'}
-- Current date: ${new Date().toISOString().slice(0,10)}
+- Current date: ${new Date().toLocaleDateString('sv-SE')}
 
 Requirements:
 - Write in English only

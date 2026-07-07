@@ -128,8 +128,10 @@ function renderAuthList() {
       + (dayStr ? '<div style="margin-top:4px">' + dayStr + dayWarn + '</div>' : '')
       + (a.careManager ? '<div style="font-size:11px;color:#8E8E93;margin-top:3px">케어매니저: ' + a.careManager + '</div>' : '')
       + (a.note ? '<div style="font-size:11px;color:#D85A30;margin-top:3px">📝 ' + a.note + '</div>' : '')
+      + '<div id="auth-usage-' + a.id + '" style="display:none"></div>'
       + '<div class="log-actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
       + '<button class="btn-sm" onclick="editAuth(\'' + a.id + '\')">✏️ 수정</button>'
+      + '<button class="btn-sm" onclick="calcAuthUsage(\'' + a.id + '\',this)" style="background:#E1F5EE;color:#0F6E56">📊 사용량</button>'
       + '<button class="btn-sm" onclick="changeAuthStatus(\'' + a.id + '\')" style="background:#EDE9FE;color:#5856D6">● 상태</button>'
       + (a.pdfLink ? '<button class="btn-sm" onclick="window.open(\'' + a.pdfLink + '\',\'_blank\')" style="background:#E1F5EE;color:#0F6E56">📄 PDF</button>' : '')
       + '<button class="btn-danger" onclick="deleteAuth(\'' + a.id + '\')">삭제</button>'
@@ -517,5 +519,62 @@ function autoFillAuthDays(mode) {
     }
     var freqEl = document.getElementById('auth-freq');
     if (freqEl && total > 0) freqEl.value = total;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Auth 사용량 계산 — 승인 수량 vs 실제 출석
+// ══════════════════════════════════════════════════════════════
+async function calcAuthUsage(authId, btn) {
+  var a = AUTH_LIST.find(function(x){ return x.id === authId; });
+  if (!a || !a.startDate || !a.endDate) { alert('Auth 기간 정보가 없어요'); return; }
+
+  if (btn) { btn.textContent = '⏳ 계산 중...'; btn.disabled = true; }
+
+  try {
+    // Auth 기간의 출결 데이터 로드 (오늘까지만)
+    var today = new Date().toLocaleDateString('sv-SE');
+    var rangeEnd = a.endDate < today ? a.endDate : today;
+    var attData = await SheetsAPI.loadAttendanceRange(a.startDate, rangeEnd);
+
+    // 실제 출석일 카운트 (in/late만)
+    var usedDays = 0;
+    Object.keys(attData).forEach(function(dt){
+      var rec = (attData[dt]||{})[a.memberId];
+      if (rec && (rec.status === 'in' || rec.status === 'late')) usedDays++;
+    });
+
+    // 교통은 왕복 기준 (출석일 × 2)
+    var used = a.serviceType === 'Transportation' ? usedDays * 2 : usedDays;
+    var total = parseInt(a.totalQty) || 0;
+    var remaining = total - used;
+    var pct = total > 0 ? Math.round(used / total * 100) : 0;
+
+    // 남은 기간 계산
+    var daysLeft = Math.max(0, Math.floor((new Date(a.endDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000));
+
+    var color = pct >= 90 ? '#FF3B30' : pct >= 70 ? '#FF9500' : '#34C759';
+    var unit = a.qtyUnit || (a.serviceType === 'Transportation' ? 'Trip' : 'Day');
+
+    var el = document.getElementById('auth-usage-' + authId);
+    if (el) {
+      el.style.display = 'block';
+      el.innerHTML = '<div style="background:#F2F2F7;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:11px">'
+        + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+        + '<span>사용: <b>' + used + '</b>/' + total + ' ' + unit + ' (' + pct + '%)</span>'
+        + '<span style="color:' + color + ';font-weight:700">남음: ' + remaining + ' ' + unit + '</span>'
+        + '</div>'
+        + '<div style="background:#E5E5EA;border-radius:4px;height:6px;overflow:hidden">'
+        + '<div style="background:' + color + ';height:100%;width:' + Math.min(100,pct) + '%"></div>'
+        + '</div>'
+        + '<div style="color:#8E8E93;margin-top:4px">만료까지 ' + daysLeft + '일 남음'
+        + (remaining <= 0 ? ' · <b style="color:#FF3B30">⚠️ 승인수량 소진!</b>' : '')
+        + '</div>'
+        + '</div>';
+    }
+    if (btn) { btn.textContent = '📊 사용량'; btn.disabled = false; }
+  } catch(e) {
+    alert('출결 데이터 로드 실패: ' + e.message);
+    if (btn) { btn.textContent = '📊 사용량'; btn.disabled = false; }
   }
 }
