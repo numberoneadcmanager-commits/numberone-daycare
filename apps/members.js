@@ -452,7 +452,7 @@ var _meEditDays = new Set();
 function openAddMember() {
   window._meditMid = null;
   document.getElementById('medit-title').textContent = '새 멤버 추가';
-  ['me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
+  ['me-chartno','me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('me-dob').value = '';
@@ -498,12 +498,19 @@ async function saveMemberEdit() {
   const isNew = !window._meditMid;
   let m;
   if (isNew) {
-    const newId = document.getElementById('me-medicaid').value.trim().toUpperCase();
-    if (!newId) { alert('Medicaid ID를 입력해주세요.'); return; }
-    if (MEMBERS.find(x => x.id === newId)) { alert('이미 존재하는 Medicaid ID입니다.'); return; }
+    // ★ 내부 차트번호를 ID로 사용 (Medicaid는 나중에 입력 가능)
+    const cnoEl = document.getElementById('me-chartno');
+    let newId = cnoEl ? cnoEl.value.trim() : '';
+    if (!newId) {
+      // 차트번호 미입력 시 자동 생성: 기존 숫자 ID 최대값 + 1
+      const nums = MEMBERS.map(x => parseInt(x.id)).filter(n => !isNaN(n));
+      newId = String(nums.length ? Math.max.apply(null, nums) + 1 : 1001);
+      if (cnoEl) cnoEl.value = newId;
+    }
+    if (MEMBERS.find(x => x.id === newId)) { alert('이미 존재하는 차트번호입니다: ' + newId); return; }
     const COLORS = [{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'}];
     const clr = COLORS[MEMBERS.length % COLORS.length];
-    m = { id: newId, status: 'active', disenrollDate: '', disenrollNote: '', memo: '', avBg: clr.bg, avColor: clr.color };
+    m = { id: newId, chartNo: newId, status: 'active', disenrollDate: '', disenrollNote: '', memo: '', avBg: clr.bg, avColor: clr.color };
     MEMBERS.push(m);
   } else {
     m = MEMBERS.find(x => x.id === window._meditMid); if (!m) return;
