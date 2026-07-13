@@ -281,8 +281,27 @@ async function clearAttModal() {
 }
 
 // ── 부재 탭 ───────────────────────────────────────────────────
-function renderAbsence() {
+async function renderAbsence() {
   const iso = todayISO;
+
+  // 오늘 날짜 출결이 캐시에 없으면 Sheets에서 로드 (출결 탭을 안 거쳐도 보이도록)
+  if (!_attCache[iso]) {
+    try {
+      const res = await SheetsAPI.readByDate('출결', iso);
+      if (res && res.ok && res.data) {
+        _attCache[iso] = {};
+        res.data.forEach(r => {
+          const mid = String(r['멤버ID'] || '');
+          if (!mid) return;
+          _attCache[iso][mid] = {
+            status: r['상태'] || '', signIn: r['Sign-in'] || '', signOut: r['Sign-out'] || '',
+            memo: r['메모'] || '', start: r['시작일'] || '', end: r['종료일'] || '', writer: r['작성자'] || '',
+          };
+        });
+      }
+    } catch (e) { console.log('부재 탭 출결 로드 실패:', e); }
+  }
+
   ['travel', 'hospital', 'leave'].forEach((type, i) => {
     const id   = ['tr-list', 'ho-list', 'lv-list'][i];
     const rows = MEMBERS.filter(m => (getRec(iso)[m.id] || {}).status === type);
@@ -301,6 +320,55 @@ function renderAbsence() {
         }).join('')
       : '<div class="empty-msg">해당 없음</div>';
   });
+}
+
+// ── 부재 직접 등록 (출결 탭을 거치지 않고 바로 등록) ────────────
+function openAbsenceModal() {
+  document.getElementById('ab-member-search').value = '';
+  document.getElementById('ab-type').value = 'travel';
+  document.getElementById('ab-start').value = todayISO;
+  document.getElementById('ab-end').value = '';
+  document.getElementById('ab-memo').value = '';
+  filterAbsenceMemberList();
+  openOv('ov-absence');
+}
+
+function filterAbsenceMemberList() {
+  const q = (document.getElementById('ab-member-search').value || '').toLowerCase();
+  const sel = document.getElementById('ab-member-sel');
+  if (!sel) return;
+  sel.innerHTML = '';
+  MEMBERS.filter(m => m.status !== 'disenrolled' && (!q || (m.kr||'').includes(q) || (m.en||'').toLowerCase().includes(q)))
+    .forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = (m.kr||'') + ' ' + (m.en||'');
+      sel.appendChild(opt);
+    });
+}
+
+async function saveAbsence() {
+  const sel = document.getElementById('ab-member-sel');
+  const mid = sel && sel.value;
+  if (!mid) { alert('멤버를 선택해주세요'); return; }
+  const type  = document.getElementById('ab-type').value;
+  const start = document.getElementById('ab-start').value;
+  const end   = document.getElementById('ab-end').value;
+  const memo  = document.getElementById('ab-memo').value.trim();
+  if (!start) { alert('시작일을 입력해주세요'); return; }
+
+  const m = MEMBERS.find(x => x.id === mid);
+  const nameKr = m ? m.kr : '';
+  const rec = { status: type, signIn: '', signOut: '', memo, start, end, writer: (_currentUser && _currentUser.name) || '' };
+  setRec(start, mid, rec);
+
+  try {
+    await SheetsAPI.syncSingleAttendance(start, mid, rec, MEMBERS);
+  } catch (e) { console.log('부재 등록 저장 실패:', e); }
+
+  closeOv('ov-absence');
+  renderAbsence();
+  alert('✅ ' + nameKr + ' 부재 등록 완료!');
 }
 
 // ── 저장소 (출결은 localStorage 미사용) ───────────────────────

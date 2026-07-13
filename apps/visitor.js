@@ -107,8 +107,11 @@ function renderCouncilList() {
       <div style="font-size:11px;color:#8E8E93;margin-bottom:3px">참석자: ${c.attendees || '—'}</div>
       ${c.minutes ? `<div style="font-size:11px;color:#3C3C43;background:#F2F2F7;border-radius:8px;padding:6px;margin-bottom:4px">${c.minutes}</div>` : ''}
       ${c.next ? `<div style="font-size:11px;color:#FF9500">📅 다음 회의: ${c.next}</div>` : ''}
-      <div class="log-actions" style="margin-top:6px">
+      ${c.pdfLink ? `<div style="font-size:11px;color:#0F6E56;margin-top:3px">📎 서명지 PDF 첨부됨</div>` : ''}
+      <div class="log-actions" style="margin-top:6px;flex-wrap:wrap">
         <button class="btn-sm" onclick="editCouncil('${c.id}')">✏️ 수정</button>
+        <button class="btn-sm" onclick="printCouncilSignSheet('${c.id}')" style="background:#EDE9FE;color:#5856D6">🖨️ 서명지</button>
+        ${c.pdfLink ? `<button class="btn-sm" onclick="window.open('${c.pdfLink}','_blank')" style="background:#E1F5EE;color:#0F6E56">📄 PDF보기</button>` : ''}
         <button class="btn-danger" onclick="deleteCouncil('${c.id}')">삭제</button>
       </div>
     </div>`;
@@ -130,6 +133,8 @@ function openCouncilModal(id) {
       document.getElementById('council-agenda').value    = c.agenda    || '';
       document.getElementById('council-minutes').value   = c.minutes   || '';
       document.getElementById('council-next').value      = c.next      || '';
+      document.getElementById('council-pdf-link').value  = c.pdfLink   || '';
+      document.getElementById('council-pdf-status').textContent = c.pdfLink ? '✅ PDF 첨부됨' : '';
     }
   } else {
     ['council-time','council-attendees','council-agenda','council-minutes'].forEach(id2 => {
@@ -137,6 +142,8 @@ function openCouncilModal(id) {
     });
     document.getElementById('council-date').value = today;
     document.getElementById('council-next').value = '';
+    document.getElementById('council-pdf-link').value = '';
+    document.getElementById('council-pdf-status').textContent = '';
   }
   openOv('ov-council');
 }
@@ -153,6 +160,7 @@ async function saveCouncil() {
     agenda:    document.getElementById('council-agenda').value.trim(),
     minutes:   document.getElementById('council-minutes').value.trim(),
     next:      document.getElementById('council-next').value,
+    pdfLink:   document.getElementById('council-pdf-link').value || '',
   };
   if (editId2) { const idx = COUNCIL_LIST.findIndex(x => x.id === editId2); if (idx >= 0) COUNCIL_LIST[idx] = entry; else COUNCIL_LIST.push(entry); }
   else COUNCIL_LIST.push(entry);
@@ -162,7 +170,7 @@ async function saveCouncil() {
       action: editId2 ? 'update' : 'append',
       sheet: 'council',
       id: editId2 || null,
-      data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '유형': entry.type, '참석자': entry.attendees, '안건': entry.agenda, '내용': entry.minutes, '다음회의': entry.next },
+      data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '유형': entry.type, '참석자': entry.attendees, '안건': entry.agenda, '내용': entry.minutes, '다음회의': entry.next, 'PDF링크': entry.pdfLink },
     });
   } catch (e) { console.log('Council Sheets sync:', e); }
 
@@ -175,4 +183,67 @@ async function deleteCouncil(id) {
   COUNCIL_LIST = COUNCIL_LIST.filter(x => x.id !== id);
   try { await SheetsAPI.post({ action: 'delete', sheet: 'council', id }); } catch (e) {}
   renderCouncilList();
+}
+
+// ── Council 회의 참석 서명지 인쇄 ────────────────────────────
+function printCouncilSignSheet(id){
+  var c = id ? COUNCIL_LIST.find(function(x){return x.id===id;}) : null;
+  var date = c ? c.date : (document.getElementById('council-date').value || todayISO);
+  var time = c ? c.time : (document.getElementById('council-time').value || '');
+  var type = c ? c.type : (document.getElementById('council-type').value || 'Participant Council Meeting');
+  var agenda = c ? c.agenda : (document.getElementById('council-agenda').value || '');
+
+  var rows = '';
+  for (var i=0;i<20;i++){
+    rows += '<tr><td style="border:1px solid #999;padding:10px;width:30px;text-align:center">'+(i+1)+'</td>'
+      + '<td style="border:1px solid #999;padding:10px;width:200px"></td>'
+      + '<td style="border:1px solid #999;padding:10px"></td></tr>';
+  }
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>회의 참석 서명지</title>'
+    + '<style>@page{size:letter;margin:0.6in}body{font-family:Arial,sans-serif}'
+    + 'h1{font-size:20px;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:16px}'
+    + 'th{background:#e0e0e0;border:1px solid #999;padding:10px;font-size:13px}</style></head><body>'
+    + '<h1>NUMBER ONE ADULT DAYCARE</h1>'
+    + '<div style="font-size:14px;margin-bottom:4px">📋 ' + type + ' — 참석 확인 서명지</div>'
+    + '<div style="font-size:13px;color:#333">날짜: ' + date + ' &nbsp;&nbsp; 시간: ' + (time||'—') + '</div>'
+    + (agenda ? '<div style="font-size:12px;color:#555;margin-top:4px">안건: ' + agenda + '</div>' : '')
+    + '<table><thead><tr><th>#</th><th>이름 (인쇄체)</th><th>서명</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table>'
+    + '<script>window.onload=function(){window.print();}<\/script></body></html>';
+
+  var w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) { alert('팝업 차단을 해제해주세요'); return; }
+  w.document.write(html); w.document.close();
+}
+
+// ── Council 서명지 PDF 업로드 ────────────────────────────────
+async function uploadCouncilSignedPDF(input){
+  var file = input.files[0];
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) { alert('PDF 파일만 업로드 가능해요'); return; }
+  var statusEl = document.getElementById('council-pdf-status');
+  statusEl.textContent = '⏳ 업로드 중...';
+  try {
+    var base64 = await new Promise(function(resolve,reject){
+      var reader = new FileReader();
+      reader.onload = function(e){ resolve(e.target.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    var date = document.getElementById('council-date').value || todayISO;
+    var res = await SheetsAPI.post({
+      action:'savePDF', memberId:'council', memberName:'Council',
+      fileType:'Council_' + date, base64Data:base64,
+      author:(_currentUser&&_currentUser.name)||'Staff'
+    });
+    if (res && res.ok && res.data && res.data.url) {
+      document.getElementById('council-pdf-link').value = res.data.url;
+      statusEl.textContent = '✅ PDF 업로드 완료!';
+    } else {
+      statusEl.textContent = '❌ 업로드 실패';
+    }
+  } catch(e){
+    statusEl.textContent = '❌ 오류: ' + e.message;
+  }
 }

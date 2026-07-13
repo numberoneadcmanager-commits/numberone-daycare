@@ -104,7 +104,7 @@ function _attSheetStyles() {
     + '.att-pg{'
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;max-height:11in;overflow:hidden;'
-    +   'padding:0.25in 0.3in 0.2in 0.82in;'
+    +   'padding:0.25in 0.3in 0.15in 0.82in;'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     +   'break-after:page;'
@@ -112,66 +112,78 @@ function _attSheetStyles() {
     +   'display:flex;flex-direction:column;'
     +   'position:relative;'
     + '}'
-    // 헤더 — 이름/보험사 크게
+    // 헤더 — 이름/보험사/ID 더 크고 진하게
     + '.pg-hdr{'
     +   'display:flex;justify-content:space-between;align-items:flex-start;'
-    +   'border-bottom:3px solid #000;padding-bottom:8px;margin-bottom:8px;flex-shrink:0;'
+    +   'border-bottom:4px solid #000;padding-bottom:8px;margin-bottom:8px;flex-shrink:0;'
     + '}'
-    + '.ctr-name{font-size:22px;font-weight:900;letter-spacing:0.5px;}'
-    + '.ctr-addr{font-size:12px;margin-top:3px;}'
-    + '.ctr-month{font-size:14px;font-weight:700;margin-top:5px;}'
+    + '.ctr-name{font-size:23px;font-weight:900;letter-spacing:0.5px;}'
+    + '.ctr-addr{font-size:12px;margin-top:3px;font-weight:600;}'
+    + '.ctr-month{font-size:15px;font-weight:800;margin-top:5px;}'
     + '.hdr-r{text-align:right;}'
-    + '.mbr-name{font-size:22px;font-weight:900;}'   // 이름 크게
-    + '.mbr-ins{font-size:15px;font-weight:700;margin-top:4px;}'
-    + '.mbr-id{font-size:14px;margin-top:3px;}'
-    // 테이블
+    + '.mbr-name{font-size:24px;font-weight:900;}'
+    + '.mbr-id-badge{font-size:16px;font-weight:900;color:#fff;background:#D85A30;border-radius:6px;padding:2px 9px;margin-left:6px;}'
+    + '.mbr-ins{font-size:15px;font-weight:800;margin-top:5px;}'
+    + '.mbr-id{font-size:14px;margin-top:3px;font-weight:700;}'
+    // 테이블 — 전체적으로 글자 크고 진하게
     + '.att-tbl{width:100%;border-collapse:collapse;flex:1 1 auto;table-layout:fixed;min-height:0;}'
     + '.att-tbl th,.att-tbl td{'
-    +   'border:1.5px solid #444;'
-    +   'padding:3px 5px;'
-    +   'font-size:12px;'
+    +   'border:1.5px solid #333;'
+    +   'padding:4px 5px;'
+    +   'font-size:13px;'
+    +   'font-weight:600;'
     +   'overflow:hidden;'
-    +   'line-height:1.25;'
+    +   'line-height:1.3;'
     + '}'
-    + '.att-tbl th{text-align:center;background:#e0e0e0 !important;font-weight:700;font-size:12px;padding:5px 5px;}'
-    + '.c-num{width:32px;text-align:center;font-weight:700;}'
-    + '.c-day{width:42px;text-align:center;}'
-    + '.c-act{width:175px;text-align:center;font-size:10.5px;white-space:nowrap;}'  // SDC 컬럼 좁게
-    + '.c-timein{width:112px;text-align:center;font-size:11px;padding:2px 3px;}'
-    + '.c-timeout{width:84px;text-align:center;font-size:11px;padding:2px 3px;}'
-    + '.c-sign{text-align:center;}'                             // SIGN — 남은 공간 전부
+    + '.att-tbl th{text-align:center;background:#d8d8d8 !important;font-weight:900;font-size:13px;padding:6px 5px;}'
+    + '.c-num{width:34px;text-align:center;font-weight:900;font-size:14px;}'
+    + '.c-day{width:44px;text-align:center;font-weight:800;}'
+    + '.c-act{width:170px;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;}'
+    + '.c-timein{width:114px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
+    + '.c-timeout{width:86px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
+    + '.c-sign{text-align:center;}'
     // 일요일 회색
-    + '.sun-row,.sun-row td{background:#C8C8C8 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
-    // 페이지 번호 푸터
-    + '.pg-footer{text-align:center;font-size:10px;color:#555;padding-top:3px;flex-shrink:0;border-top:1px solid #ccc;margin-top:3px;}'
-    // 목차 페이지 — 여러 장으로 자동 분할
+    + '.sun-row,.sun-row td{background:#C0C0C0 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
+    // 페이지 번호 푸터 — 훨씬 크고 눈에 띄게
+    + '.pg-footer{'
+    +   'text-align:center;padding-top:6px;flex-shrink:0;border-top:2px solid #000;margin-top:4px;'
+    +   'display:flex;align-items:center;justify-content:center;'
+    + '}'
+    + '.pg-footer-num{'
+    +   'font-size:20px;font-weight:900;color:#fff;background:#000;'
+    +   'border-radius:20px;padding:4px 18px;letter-spacing:1px;'
+    + '}'
+    // 목차 페이지 — 2단 레이아웃, 여러 장 자동 분할
     + '.toc-pg{'
     +   'font-family:Arial,sans-serif;'
     +   'width:8.5in;height:11in;max-height:11in;overflow:hidden;'
-    +   'padding:0.3in 0.22in 0.25in 0.75in;'
+    +   'padding:0.3in 0.35in 0.25in 0.75in;'
     +   'page-break-after:always;'
     +   'page-break-inside:avoid;'
     +   'break-after:page;'
     +   'break-inside:avoid;'
     +   'display:flex;flex-direction:column;'
     + '}'
-    + '.toc-title{font-size:20px;font-weight:900;border-bottom:3px solid #000;padding-bottom:6px;margin-bottom:10px;flex-shrink:0;}'
-    + '.toc-ins{font-size:14px;font-weight:700;margin:0 0 6px;color:#333;border-bottom:1.5px solid #999;padding-bottom:4px;flex-shrink:0;}'
-    + '.toc-row{display:flex;justify-content:space-between;align-items:center;'
-    +   'font-size:12.5px;padding:4px 0;border-bottom:0.5px solid #ddd;flex-shrink:0;}'
-    + '.toc-name{font-weight:600;}'
-    + '.toc-pages{color:#555;font-size:12px;}'
-    + '.toc-footer{text-align:center;font-size:10px;color:#555;margin-top:auto;padding-top:6px;border-top:1px solid #ccc;flex-shrink:0;}'
+    + '.toc-title{font-size:21px;font-weight:900;border-bottom:4px solid #000;padding-bottom:6px;margin-bottom:10px;flex-shrink:0;}'
+    + '.toc-ins{font-size:15px;font-weight:800;margin:0 0 8px;color:#222;border-bottom:2px solid #999;padding-bottom:4px;flex-shrink:0;}'
+    + '.toc-cols{display:flex;gap:0.3in;flex:1;min-height:0;}'
+    + '.toc-col{flex:1;display:flex;flex-direction:column;min-width:0;}'
+    + '.toc-row{display:flex;justify-content:space-between;align-items:baseline;'
+    +   'font-size:13px;padding:5px 0;border-bottom:0.75px solid #ccc;flex-shrink:0;gap:6px;}'
+    + '.toc-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.toc-pages{color:#333;font-size:12px;font-weight:800;white-space:nowrap;flex-shrink:0;}'
+    + '.toc-footer{text-align:center;margin-top:auto;padding-top:8px;border-top:2px solid #000;flex-shrink:0;}'
+    + '.toc-footer-num{font-size:18px;font-weight:900;color:#fff;background:#000;border-radius:20px;padding:3px 16px;}'
     + '</style>';
 }
 
-// 목차를 여러 페이지로 자동 분할 (한 페이지당 최대 줄 수 제한)
+// 목차를 여러 페이지로 자동 분할, 2단 레이아웃 (한 페이지당 최대 줄 수 제한)
 function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
   var MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
                      'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
   var insLabel = _attSheetInsLabel(ins);
 
-  // ID순 배열에서 각 멤버의 페이지 번호 계산
+  // idOrderMembers는 이제 실제 인쇄 순서(가나다순)와 동일 — 그 순서대로 페이지 번호 부여
   var pageMap = {};
   for (var pi = 0; pi < idOrderMembers.length; pi++) {
     pageMap[idOrderMembers[pi].id] = {
@@ -180,29 +192,38 @@ function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
     };
   }
 
-  // 한 목차 페이지에 들어갈 수 있는 최대 행 수 (여유있게 잡음)
-  var ROWS_PER_PAGE = 28;
+  // 2단 레이아웃 — 한 페이지당 훨씬 많이 들어감
+  var ROWS_PER_PAGE = 44; // 페이지당(2단 합산) 최대 행 수
   var totalPages = Math.max(1, Math.ceil(tocMembers.length / ROWS_PER_PAGE));
+
+  function rowHtml(m) {
+    var pg = pageMap[m.id] || {att:'?', trp:'?'};
+    return '<div class="toc-row">'
+      + '<span class="toc-name">' + (m.kr||'') + ' <span style="font-weight:900;color:#D85A30">#' + (m.id||'') + '</span></span>'
+      + '<span class="toc-pages">p.' + pg.att + '·' + pg.trp + '</span>'
+      + '</div>';
+  }
 
   var html = '';
   for (var p = 0; p < totalPages; p++) {
     var slice = tocMembers.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
-    var rows = '';
-    slice.forEach(function(m) {
-      var pg = pageMap[m.id] || {att:'?', trp:'?'};
-      rows += '<div class="toc-row">'
-        + '<span class="toc-name">' + (m.kr||'') + ' &nbsp;<span style="font-weight:400;font-size:12px;color:#555">' + (m.en||'') + '</span></span>'
-        + '<span class="toc-pages">출석부 p.' + pg.att + ' &nbsp;·&nbsp; 교통 p.' + pg.trp + '</span>'
-        + '</div>';
-    });
+    var half = Math.ceil(slice.length / 2);
+    var col1 = slice.slice(0, half);
+    var col2 = slice.slice(half);
+
+    var col1Html = col1.map(rowHtml).join('');
+    var col2Html = col2.map(rowHtml).join('');
 
     html += '<div class="toc-pg">'
       + '<div class="toc-title">NUMBER ONE ADULT DAYCARE<br>'
-      + '<span style="font-size:14px;font-weight:700;">'
+      + '<span style="font-size:14px;font-weight:800;">'
       + MONTH_NAMES[month-1] + ' ' + year + ' — ' + insLabel + ' 출석부 목차</span></div>'
-      + '<div class="toc-ins">📋 ' + insLabel + ' (' + idOrderMembers.length + '명)' + (totalPages > 1 ? ' — 목차 ' + (p+1) + '/' + totalPages : '') + '</div>'
-      + rows
-      + '<div class="toc-footer">p. ' + (p+1) + '</div>'
+      + '<div class="toc-ins">📋 ' + insLabel + ' (' + idOrderMembers.length + '명, 가나다순)' + (totalPages > 1 ? ' — 목차 ' + (p+1) + '/' + totalPages : '') + '</div>'
+      + '<div class="toc-cols">'
+      +   '<div class="toc-col">' + col1Html + '</div>'
+      +   '<div class="toc-col">' + col2Html + '</div>'
+      + '</div>'
+      + '<div class="toc-footer"><span class="toc-footer-num">p. ' + (p+1) + '</span></div>'
       + '</div>';
   }
 
@@ -245,7 +266,7 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
     +     '<div class="ctr-month">' + MONTH_NAMES[month-1] + ' &nbsp;YEAR ' + year + ' &nbsp;&nbsp; ' + type + '</div>'
     +   '</div>'
     +   '<div class="hdr-r">'
-    +     '<div class="mbr-name">' + (m.kr||'') + ' &nbsp;<span style="font-size:14px;font-weight:600;color:#666">#' + (m.id||'') + '</span></div>'
+    +     '<div class="mbr-name">' + (m.kr||'') + '<span class="mbr-id-badge">#' + (m.id||'') + '</span></div>'
     +     '<div class="mbr-ins">' + insLabel + ' &nbsp;' + enName + '</div>'
     +     '<div class="mbr-id">' + m.medicaid + ' &nbsp;(' + daysStr + ')</div>'
     +   '</div>'
@@ -265,7 +286,7 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
     +   '</tr></thead>'
     +   '<tbody>' + rows + '</tbody>'
     + '</table>'
-    + '<div class="pg-footer">p. ' + pageNum + '</div>'
+    + '<div class="pg-footer"><span class="pg-footer-num">p. ' + pageNum + '</span></div>'
     + '</div>';
 }
 
@@ -307,7 +328,7 @@ async function generateAttSheets(insFilter) {
   if (!allMembers.length) { alert('Active 멤버 데이터 없음'); return; }
 
   // 목차 페이지 수에 따라 멤버 페이지 시작점을 정확히 계산하기 위해 미리 산출
-  var TOC_ROWS_PER_PAGE = 28;
+  var TOC_ROWS_PER_PAGE = 44; // _attSheetTOC의 ROWS_PER_PAGE와 반드시 일치해야 함
 
   var insGroups = insFilter === 'ALL' ? ['Anthem_MLTC','CLP','SWH'] : [insFilter];
     // Anthem_MAP은 Anthem_MLTC 버튼으로 함께 처리
@@ -320,10 +341,9 @@ async function generateAttSheets(insFilter) {
       if (ins === 'Anthem_MLTC') return m.ins === 'Anthem_MLTC' || m.ins === 'Anthem_MAP';
       return m.ins === ins;
     });
-    // 출석부 순서: 멤버 ID 순
-    members.sort(function(a,b){ return String(a.id).localeCompare(String(b.id), undefined, {numeric:true}); });
-    // 목차용: 가나다 순 (별도 배열)
-    var tocMembers = members.slice().sort(function(a,b){ return (a.kr||'').localeCompare(b.kr||'', 'ko'); });
+    // 출석부 순서: 가나다순 (목차와 실제 페이지 순서 일치)
+    members.sort(function(a,b){ return (a.kr||'').localeCompare(b.kr||'', 'ko'); });
+    var tocMembers = members; // 이제 동일 순서
     if (!members.length) continue;
 
     if (statusEl) statusEl.textContent = '⏳ ' + _attSheetInsLabel(ins) + ' (' + members.length + '명) 출석부 열기 중...';
