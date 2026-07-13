@@ -410,7 +410,8 @@ const SheetsAPI = {
       councilList: coR.ok ? (coR.data || []).map(function(r){
         return { id:String(r['ID']||''), date:String(r['날짜']||'').slice(0,10), time:String(r['시간']||''),
                  type:String(r['유형']||''), attendees:String(r['참석자']||''),
-                 agenda:String(r['안건']||''), minutes:String(r['내용']||''), next:String(r['다음회의']||'') };
+                 agenda:String(r['안건']||''), minutes:String(r['내용']||''), next:String(r['다음회의']||''),
+                 pdfLink:String(r['PDF링크']||'') };
       }) : [],
     };
   },
