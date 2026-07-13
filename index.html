@@ -474,6 +474,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 
     <!-- Absence -->
     <div class="panel" id="panel-absence">
+      <button class="btn-full btn-primary" style="margin-bottom:12px" onclick="openAbsenceModal()">➕ 부재 등록 (여행/입원/휴가)</button>
       <div class="section-lbl">✈️ 여행 중</div>
       <div class="card" id="tr-list"></div>
       <div class="section-lbl">🏥 입원 / 병원</div>
@@ -1103,6 +1104,118 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-btns">
     <button class="mbt mbt-cancel" onclick="closeOv('ov-auth')">취소</button>
     <button class="mbt mbt-save" onclick="saveAuth()">저장</button>
+  </div>
+</div>
+
+<!-- Visitor Log Modal -->
+<div class="ov" id="ov-visitor" onclick="closeOv('ov-visitor')"></div>
+<div class="modal" id="modal-ov-visitor" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="vis-modal-title">👥 방문자 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-visitor')">✕</button>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>방문 날짜 *</label><input class="m-input" id="vis-date" type="date"></div>
+    <div class="modal-input-wrap"><label>방문 시간</label><input class="m-input" id="vis-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>방문자 이름 *</label><input class="m-input" id="vis-name" placeholder="이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>소속/관계</label><input class="m-input" id="vis-org" placeholder="소속 또는 관계"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>방문 목적</label>
+    <select class="m-select" id="vis-purpose">
+      <option>Site Visit / Audit</option>
+      <option>Family / Caregiver</option>
+      <option>Vendor</option>
+      <option>Medical Professional</option>
+      <option>Government Inspector</option>
+      <option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><textarea class="m-textarea" id="vis-note" placeholder="참고사항"></textarea></div>
+  <input type="hidden" id="vis-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-visitor')">취소</button>
+    <button class="mbt mbt-save" onclick="saveVisitor()">저장</button>
+  </div>
+</div>
+
+<!-- Council Meeting Modal -->
+<div class="ov" id="ov-council" onclick="closeOv('ov-council')"></div>
+<div class="modal" id="modal-ov-council" style="display:none;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span id="council-modal-title">📋 회의록 추가</span>
+    <button class="modal-close" onclick="closeOv('ov-council')">✕</button>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>회의 날짜 *</label><input class="m-input" id="council-date" type="date"></div>
+    <div class="modal-input-wrap"><label>회의 시간</label><input class="m-input" id="council-time" type="time"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 유형</label>
+    <select class="m-select" id="council-type">
+      <option>Participant Council Meeting</option>
+      <option>Staff Meeting</option>
+      <option>Family Council Meeting</option>
+      <option>기타</option>
+    </select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>참석자 (쉼표로 구분)</label><input class="m-input" id="council-attendees" placeholder="참석자 이름"></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>안건</label><textarea class="m-textarea" id="council-agenda" placeholder="회의 안건"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 내용/결정사항</label><textarea class="m-textarea" id="council-minutes" placeholder="회의록 내용"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>다음 회의 예정일</label><input class="m-input" id="council-next" type="date"></div>
+
+  <!-- 참석 서명지 -->
+  <div style="background:#EDE9FE;border-radius:10px;padding:10px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:#5856D6;margin-bottom:6px">✍️ 참석 확인 서명지</div>
+    <div style="display:flex;gap:6px">
+      <button type="button" onclick="printCouncilSignSheet()" style="flex:1;padding:9px;border-radius:8px;border:none;background:#5856D6;color:#fff;font-size:12px;font-weight:700;cursor:pointer">🖨️ 서명지 인쇄</button>
+      <button type="button" onclick="document.getElementById('council-pdf-file').click()" style="flex:1;padding:9px;border-radius:8px;border:none;background:#0F6E56;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📎 서명지 PDF 첨부</button>
+    </div>
+    <input type="file" id="council-pdf-file" accept=".pdf" style="display:none" onchange="uploadCouncilSignedPDF(this)">
+    <div id="council-pdf-status" style="font-size:11px;color:#5856D6;margin-top:6px;text-align:center"></div>
+    <input type="hidden" id="council-pdf-link">
+  </div>
+
+  <input type="hidden" id="council-edit-id">
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-council')">취소</button>
+    <button class="mbt mbt-save" onclick="saveCouncil()">저장</button>
+  </div>
+</div>
+
+<!-- 부재 등록 모달 -->
+<div class="ov" id="ov-absence" onclick="closeOv('ov-absence')"></div>
+<div class="modal" id="modal-ov-absence" style="display:none" onclick="event.stopPropagation()">
+  <div class="modal-handle"></div>
+  <div class="modal-title">
+    <span>➕ 부재 등록</span>
+    <button class="modal-close" onclick="closeOv('ov-absence')">✕</button>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>멤버 *</label>
+    <input class="m-input" id="ab-member-search" placeholder="이름 검색..." autocomplete="off" style="margin-bottom:6px" oninput="filterAbsenceMemberList()">
+    <select id="ab-member-sel" style="width:100%;border:1.5px solid #E5E5EA;border-radius:10px;padding:8px 12px;font-size:13px;background:#fff;outline:none;height:90px;display:block" size="4"></select>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:10px">
+    <label>유형 *</label>
+    <select class="m-select" id="ab-type">
+      <option value="travel">✈️ 여행</option>
+      <option value="hospital">🏥 입원</option>
+      <option value="leave">🏖️ 휴가/기타</option>
+    </select>
+  </div>
+  <div class="modal-date-row">
+    <div class="modal-input-wrap"><label>시작일 *</label><input class="m-input" type="date" id="ab-start"></div>
+    <div class="modal-input-wrap"><label>종료일</label><input class="m-input" type="date" id="ab-end"></div>
+  </div>
+  <div class="modal-input-wrap" style="margin-bottom:12px">
+    <label>메모</label>
+    <textarea class="m-textarea" id="ab-memo" placeholder="사유, 참고사항"></textarea>
+  </div>
+  <div class="modal-btns">
+    <button class="mbt mbt-cancel" onclick="closeOv('ov-absence')">취소</button>
+    <button class="mbt mbt-save" onclick="saveAbsence()">저장</button>
   </div>
 </div>
 
