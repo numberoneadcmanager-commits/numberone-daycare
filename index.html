@@ -412,15 +412,15 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <!-- Dashboard -->
     <div class="panel active" id="panel-dashboard">
       <div class="stat-grid">
-        <div class="sbox"><div class="sv c-green" id="ds-in">0</div><div class="sl">출석</div></div>
-        <div class="sbox"><div class="sv c-blue" id="ds-travel">0</div><div class="sl">✈️여행</div></div>
-        <div class="sbox"><div class="sv c-red" id="ds-hospital">0</div><div class="sl">🏥입원</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoAttendance('in')"><div class="sv c-green" id="ds-in">0</div><div class="sl">출석</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoAbsence('travel')"><div class="sv c-blue" id="ds-travel">0</div><div class="sl">✈️여행</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoAbsence('hospital')"><div class="sv c-red" id="ds-hospital">0</div><div class="sl">🏥입원</div></div>
       </div>
       <div class="stat-grid">
-        <div class="sbox"><div class="sv c-orange" id="ds-fu">0</div><div class="sl">📅팔로업</div></div>
-        <div class="sbox"><div class="sv c-red" id="ds-inc">0</div><div class="sl">⚠️Incident</div></div>
-        <div class="sbox"><div class="sv" id="ds-total">0</div><div class="sl">전체멤버</div></div>
-        <div class="sbox"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoLogs('caselog')"><div class="sv c-orange" id="ds-fu">0</div><div class="sl">📅팔로업</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoLogs('incident')"><div class="sv c-red" id="ds-inc">0</div><div class="sl">⚠️Incident</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoMembers('all')"><div class="sv" id="ds-total">0</div><div class="sl">전체멤버</div></div>
+        <div class="sbox" style="cursor:pointer" onclick="dashGoMembers('disenrolled')"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
       <div id="ds-auth-alert" style="display:none;background:#FFF3E0;border:1.5px solid #FFB347;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600"></div>
       <div id="ds-sig-alert" style="display:none;background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600;cursor:pointer" onclick="goTab('settings',null);setTimeout(showPendingSignatures,300)"></div>
