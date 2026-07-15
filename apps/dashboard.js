@@ -8,6 +8,10 @@ function updateDashNow() {
   const dc = MEMBERS.filter(m => !isActive(m)).length;
   const el = document.getElementById('ds-dis'); if (el) el.textContent = dc;
 
+  // 전체 멤버 수 (Active만) — 실시간 반영
+  const totalEl = document.getElementById('ds-total');
+  if (totalEl) totalEl.textContent = MEMBERS.filter(m => isActive(m)).length;
+
   const iso  = todayISO, dow = dowKey(iso);
   const list = MEMBERS.filter(m => m.days.includes(dow));
   const recs = getRec(iso);
