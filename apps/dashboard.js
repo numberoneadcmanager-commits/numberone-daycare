@@ -10,7 +10,7 @@ function updateDashNow() {
 
   // 전체 멤버 수 (Active만) — 실시간 반영
   const totalEl = document.getElementById('ds-total');
-  if (totalEl) totalEl.textContent = MEMBERS.filter(m => isActive(m)).length;
+  if (totalEl) totalEl.textContent = MEMBERS.length; // Active + Disenrolled 전체
 
   const iso  = todayISO, dow = dowKey(iso);
   const list = MEMBERS.filter(m => m.days.includes(dow));
@@ -136,3 +136,51 @@ function renderReport() {
 }
 
 function printReport() { window.print(); }
+
+// ══════════════════════════════════════════════════════════════
+// 대시보드 카드 클릭 → 관련 페이지로 이동 + 필터 적용
+// ══════════════════════════════════════════════════════════════
+
+// 출석 → 출결 탭 (오늘 날짜, 이미 오늘 날짜로 열려있음)
+function dashGoAttendance(status) {
+  const tabEl = document.querySelector('.tab[onclick*="attendance"]');
+  goTab('attendance', tabEl);
+  // 검색창 비우고 전체 보이게 (오늘 출석자는 att-list에 이미 상태별로 표시됨)
+  const search = document.getElementById('asearch');
+  if (search) search.value = '';
+  if (typeof renderAtt === 'function') renderAtt();
+}
+
+// 여행/입원 → 부재 탭
+function dashGoAbsence(type) {
+  const tabEl = document.querySelector('.tab[onclick*="absence"]');
+  goTab('absence', tabEl);
+  // 부재 탭은 이미 여행/입원/휴가 섹션이 나뉘어 있으니 해당 섹션으로 스크롤
+  setTimeout(() => {
+    const targetId = type === 'travel' ? 'tr-list' : type === 'hospital' ? 'ho-list' : 'lv-list';
+    const el = document.getElementById(targetId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 150);
+}
+
+// 팔로업/Incident → 로그 탭 + 해당 서브탭
+function dashGoLogs(subtab) {
+  const tabEl = document.querySelector('.tab[onclick*="logs"]');
+  goTab('logs', tabEl);
+  setTimeout(() => {
+    if (typeof showLog === 'function') showLog(subtab);
+  }, 100);
+}
+
+// 전체멤버/Disenrolled → 멤버 탭 + 상태 필터
+function dashGoMembers(statusFilter) {
+  const tabEl = document.querySelector('.tab[onclick*="members"]');
+  goTab('members', tabEl);
+  setTimeout(() => {
+    const sel = document.getElementById('status-filter');
+    if (sel) sel.value = statusFilter;
+    const search = document.getElementById('msearch');
+    if (search) search.value = '';
+    if (typeof filterM === 'function') filterM();
+  }, 100);
+}
