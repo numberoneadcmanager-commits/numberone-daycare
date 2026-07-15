@@ -10,7 +10,7 @@ function updateDashNow() {
 
   // 전체 멤버 수 (Active만) — 실시간 반영
   const totalEl = document.getElementById('ds-total');
-  if (totalEl) totalEl.textContent = MEMBERS.length; // Active + Disenrolled 전체
+  if (totalEl) totalEl.textContent = MEMBERS.filter(m => isActive(m)).length; // Disenrolled 제외
 
   const iso  = todayISO, dow = dowKey(iso);
   const list = MEMBERS.filter(m => m.days.includes(dow));
