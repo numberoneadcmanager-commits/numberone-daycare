@@ -30,6 +30,8 @@ function now2() {
 
 // Auth 날짜 포맷 변환 (MM/DD/YYYY ↔ YYYY-MM-DD)
 function toDisplayDate(str) {
+  if (!str) return '';
+  str = String(str).slice(0, 10); // 타임스탬프(YYYY-MM-DDTHH:mm:ss.sssZ) 등에서 날짜 부분만 추출
   const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return m[2] + '/' + m[3] + '/' + m[1];
   return str;
@@ -37,9 +39,12 @@ function toDisplayDate(str) {
 
 function parseDate(str) {
   if (!str) return '';
+  str = String(str).trim();
   const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m1) return m1[3] + '-' + m1[1].padStart(2, '0') + '-' + m1[2].padStart(2, '0');
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // 타임스탬프(YYYY-MM-DDTHH:mm:ss.sssZ) 등에서 날짜 부분만 추출
+  const m2 = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m2) return m2[1];
   const v = str.replace(/\D/g, '');
   if (v.length === 8) return v.slice(4, 8) + '-' + v.slice(0, 2) + '-' + v.slice(2, 4);
   return '';
