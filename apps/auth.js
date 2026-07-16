@@ -4,8 +4,15 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 상태 계산 ────────────────────────────────────────────────
+function _cleanAuthDate(d) {
+  if (!d) return '';
+  var m = String(d).match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : String(d).slice(0, 10);
+}
+
 function authStatus(endDate, manualStatus) {
   if (manualStatus && manualStatus !== 'Active') return manualStatus.toLowerCase();
+  endDate = _cleanAuthDate(endDate);
   if (!endDate) return 'active';
   var today = new Date(); today.setHours(0,0,0,0);
   var diff  = Math.floor((new Date(endDate + 'T00:00:00') - today) / 86400000);
@@ -16,7 +23,8 @@ function authStatus(endDate, manualStatus) {
 
 function authStatusBadge(a) {
   var s    = authStatus(a.endDate, a.status);
-  var diff = Math.floor((new Date((a.endDate||'')+'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
+  var cleanEnd = _cleanAuthDate(a.endDate);
+  var diff = Math.floor((new Date(cleanEnd+'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
   if (s === 'hold')     return '<span class="badge b-warn">⏸️ Hold</span>';
   if (s === 'modified') return '<span class="badge b-warn">🔄 Modified</span>';
   if (s === 'expired')  return '<span class="badge b-red">❌ 만료됨</span>';
@@ -121,7 +129,7 @@ function renderAuthList() {
       + ' &nbsp;·&nbsp; Auth#: <b>' + (a.authNo||'—') + '</b>'
       + ' &nbsp;·&nbsp; ' + (a.serviceCode||'') + '</div>'
       + '<div style="font-size:11px;color:#8E8E93">'
-      + (a.startDate||'') + ' ~ ' + (a.endDate||'')
+      + _cleanAuthDate(a.startDate) + ' ~ ' + _cleanAuthDate(a.endDate)
       + (a.totalQty ? ' &nbsp;·&nbsp; 총 <b>' + a.totalQty + '</b>' + (a.qtyUnit||'') : '')
       + (a.freqPerWeek ? ' &nbsp;·&nbsp; 주 <b>' + a.freqPerWeek + '</b>회' : '')
       + '</div>'
@@ -551,7 +559,7 @@ async function calcAuthUsage(authId, btn) {
     var pct = total > 0 ? Math.round(used / total * 100) : 0;
 
     // 남은 기간 계산
-    var daysLeft = Math.max(0, Math.floor((new Date(a.endDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000));
+    var daysLeft = Math.max(0, Math.floor((new Date(_cleanAuthDate(a.endDate)+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000));
 
     var color = pct >= 90 ? '#FF3B30' : pct >= 70 ? '#FF9500' : '#34C759';
     var unit = a.qtyUnit || (a.serviceType === 'Transportation' ? 'Trip' : 'Day');
