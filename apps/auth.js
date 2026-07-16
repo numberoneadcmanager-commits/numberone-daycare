@@ -255,7 +255,7 @@ async function uploadAuthPDF() {
       reader.readAsDataURL(file);
     });
 
-    var res = await SheetsAPI.call({
+    var res = await SheetsAPI.post({
       action:     'savePDF',
       memberId:   selVal || 'auth',
       memberName: mName,
