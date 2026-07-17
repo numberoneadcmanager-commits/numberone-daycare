@@ -411,6 +411,13 @@ async function saveAuth() {
   if (!authNo)   { alert('Auth# 을 입력해주세요'); return; }
   if (!startRaw || !endRaw) { alert('시작일과 종료일을 입력해주세요'); return; }
 
+  // PDF 파일이 선택되어 있는데 아직 Drive에 업로드 안 됐으면 자동으로 먼저 업로드
+  var pdfFileEl = document.getElementById('auth-pdf-file');
+  var pdfLinkEl = document.getElementById('auth-pdf-link');
+  if (pdfFileEl && pdfFileEl.files && pdfFileEl.files[0] && (!pdfLinkEl || !pdfLinkEl.value)) {
+    await uploadAuthPDF();
+  }
+
   var startDate = parseDate(startRaw);
   var endDate   = parseDate(endRaw);
   if (!startDate || !endDate) { alert('날짜 형식이 맞지 않아요 (MM/DD/YYYY)'); return; }
