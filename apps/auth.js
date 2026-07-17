@@ -104,7 +104,7 @@ function renderAuthList() {
       if (a.dayWed !== '0') authDays.push('Wed');
       if (a.dayThu !== '0') authDays.push('Thu');
       if (a.dayFri !== '0') authDays.push('Fri');
-      var mDays = m.days.filter(function(d){ return ['Mon','Tue','Wed','Thu','Fri'].includes(d); });
+      var mDays = m.days.filter(function(d){ return ['Mon','Tue','Wed','Thu','Fri','Sat'].includes(d); });
       var mismatch = authDays.some(function(d){ return !mDays.includes(d); }) ||
                      mDays.some(function(d){ return !authDays.includes(d); });
       if (mismatch && authDays.length > 0) dayWarn = ' <span style="color:#FF3B30;font-size:10px">⚠️ 출석요일 불일치</span>';
@@ -112,9 +112,9 @@ function renderAuthList() {
 
     // 요일 표시
     var dayStr = '';
-    var hasDays = ['Mon','Tue','Wed','Thu','Fri'].some(function(d){ return (a['day'+d]||'0') !== '0'; });
+    var hasDays = ['Mon','Tue','Wed','Thu','Fri','Sat'].some(function(d){ return (a['day'+d]||'0') !== '0'; });
     if (hasDays) {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d) {
         var val = a['day'+d] || '0';
         if (val !== '0') dayStr += '<span style="background:#E6F1FB;color:#185FA5;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin-right:2px">' + d + (val !== '1' ? '×'+val : '') + '</span>';
       });
@@ -176,7 +176,7 @@ function openAuthModal(id) {
   document.getElementById('auth-note').value       = '';
   document.getElementById('auth-pdf-link').value   = '';
   document.getElementById('auth-pdf-status').textContent = '';
-  ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+  ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
     var el = document.getElementById('auth-day-'+d.toLowerCase()); if(el) el.value = '0';
   });
   filterAuthMemberList();
@@ -198,7 +198,7 @@ function openAuthModal(id) {
       document.getElementById('auth-note').value          = a.note || '';
       document.getElementById('auth-pdf-link').value      = a.pdfLink || '';
       if (a.pdfLink) document.getElementById('auth-pdf-status').textContent = '✅ PDF 첨부됨';
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if(el) el.value = a['day'+d] || '0';
       });
@@ -230,7 +230,7 @@ function filterAuthMemberList() {
     // 멤버 출석요일 자동 반영
     var m = MEMBERS.find(function(x){ return x.id===sel.value; });
     if (m && m.days) {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if (el) el.value = m.days.includes(d) ? '1' : '0';
       });
@@ -352,14 +352,14 @@ async function aiReadAuthPDF() {
 
     // 요일 — 미지정이면 0으로, 지정이면 해당값
     var daysSpecified = data.daysSpecified !== false; // 기본 true
-    ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+    ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d) {
       var el = document.getElementById('auth-day-'+d.toLowerCase());
       if (el) el.value = daysSpecified && data['day'+d] !== undefined ? String(data['day'+d]) : '0';
     });
 
     // 요일 미지정인 경우 모두 0으로 재설정
     if (data.daysSpecified === false || data.daysSpecified === 'false') {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if (el) el.value = '0';
       });
@@ -494,7 +494,7 @@ function autoFillAuthDays(mode) {
   var m   = mid ? MEMBERS.find(function(x){ return x.id===mid; }) : null;
   var days = m ? (m.days || []) : [];
 
-  ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+  ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d) {
     var el  = document.getElementById('auth-day-'+d.toLowerCase());
     if (!el) return;
     if (mode === 'clear') {
@@ -509,7 +509,7 @@ function autoFillAuthDays(mode) {
 
     // 요일 미지정인 경우 모두 0으로 재설정
     if (data.daysSpecified === false || data.daysSpecified === 'false') {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if (el) el.value = '0';
       });
@@ -519,14 +519,14 @@ function autoFillAuthDays(mode) {
   // freqPerWeek 자동계산
   if (mode !== 'clear') {
     var total = 0;
-    ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d) {
+    ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d) {
       var el = document.getElementById('auth-day-'+d.toLowerCase());
       if (el) total += parseInt(el.value) || 0;
     });
 
     // 요일 미지정인 경우 모두 0으로 재설정
     if (data.daysSpecified === false || data.daysSpecified === 'false') {
-      ['Mon','Tue','Wed','Thu','Fri'].forEach(function(d){
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if (el) el.value = '0';
       });
