@@ -1062,12 +1062,13 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <!-- 승인 요일 -->
   <div class="modal-input-wrap" style="margin-bottom:10px">
     <label>승인 요일 (일수/횟수 입력, 0=미승인)</label>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">
       <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Mon</div><input class="m-input" id="auth-day-mon" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
       <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Tue</div><input class="m-input" id="auth-day-tue" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
       <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Wed</div><input class="m-input" id="auth-day-wed" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
       <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Thu</div><input class="m-input" id="auth-day-thu" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
       <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Fri</div><input class="m-input" id="auth-day-fri" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Sat</div><input class="m-input" id="auth-day-sat" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
       <button type="button" onclick="autoFillAuthDays('sdc')" style="padding:5px 10px;border-radius:7px;border:1.5px solid #34C759;background:#E1F5EE;color:#0F6E56;font-size:11px;font-weight:700;cursor:pointer">✅ SDC 자동채우기</button>
