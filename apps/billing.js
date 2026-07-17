@@ -72,11 +72,32 @@ function renderBillingTable(){
   }
   w.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed"><thead>'+th+'</thead><tbody>'+rows.join('')+'</tbody></table>';
 }
+function _getMemberDiagCode(memberId) {
+  // 1) 해당 멤버의 Auth 중 진단코드가 있는 것 우선 사용
+  if (typeof AUTH_LIST !== 'undefined' && AUTH_LIST && AUTH_LIST.length) {
+    var authMatch = AUTH_LIST.find(function(a){ return a.memberId === memberId && a.diagCode; });
+    if (authMatch) return authMatch.diagCode;
+  }
+  // 2) 멤버 프로필에 저장된 진단코드
+  var m = MEMBERS.find(function(x){ return x.id === memberId; });
+  if (m && m.diagCode) return m.diagCode;
+  // 3) 기본값
+  return 'M150';
+}
+
 function exportBillingCSV(){
   if(!_billData.length){alert('먼저 리포트를 생성해주세요.');return;}
   var p=BILLING_CONFIG.payers[_billIns]||{};
-  var hdrs=['NPI','Provider Name','Provider Address','FED TAX NO','PCN','Patient Last Name','Patient First Name','Date of Birth','Medicaid ID','Insurance ID (MLTC)','Payer Name','Payer ID','Revenue Code','Date of Service From','Date of Service To','HCPCS Code','Description','Units','Unit Charge','Total Charge','Taxonomy'];
-  var rows=_billData.map(function(r){var np=r.member.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();return[BILLING_CONFIG.NPI,'"'+BILLING_CONFIG.providerName+'"','"'+BILLING_CONFIG.providerAddr+'"',BILLING_CONFIG.ein,BILLING_CONFIG.pcn,last,first,r.member.dob||'',r.member.medicaid,r.member.mltc,p.name||'',p.payerId||'','3104',r.date,r.date,r.code,'"'+r.desc+'"',r.units,r.charge,r.total.toFixed(2),BILLING_CONFIG.taxonomy].join(',');});
+  var hdrs=['NPI','Provider Name','Provider Address','FED TAX NO','PCN','Patient Last Name','Patient First Name','Date of Birth','Sex','Patient City','Patient State','Patient Zip','Medicaid ID','Insurance ID (MLTC)','Payer Name','Payer ID','Revenue Code','Date of Service From','Date of Service To','HCPCS Code','Description','Units','Unit Charge','Total Charge','Diagnosis Code','Diagnosis Ref','Taxonomy'];
+  var rows=_billData.map(function(r){
+    var np=r.member.en.split(',');var last=(np[0]||'').trim();var first=(np[1]||'').trim();
+    var diagCode = _getMemberDiagCode(r.member.id);
+    return [BILLING_CONFIG.NPI,'"'+BILLING_CONFIG.providerName+'"','"'+BILLING_CONFIG.providerAddr+'"',BILLING_CONFIG.ein,BILLING_CONFIG.pcn,
+      last,first,r.member.dob||'',r.member.gender||'F',
+      r.member.city||'',r.member.state||'NY',r.member.zip||'',
+      r.member.medicaid,r.member.mltc,p.name||'',p.payerId||'','3104',r.date,r.date,r.code,'"'+r.desc+'"',r.units,r.charge,r.total.toFixed(2),
+      diagCode,'A',BILLING_CONFIG.taxonomy].join(',');
+  });
   var csv='\uFEFF'+[hdrs.join(',')].concat(rows).join('\n');
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='billing_'+_billIns+'_'+_billFrom+'_'+_billTo+'.csv';a.click();URL.revokeObjectURL(url);

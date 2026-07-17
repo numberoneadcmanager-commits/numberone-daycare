@@ -173,6 +173,7 @@ function openAuthModal(id) {
   document.getElementById('auth-total-qty').value  = '';
   document.getElementById('auth-freq').value       = '';
   document.getElementById('auth-care-mgr').value   = '';
+  document.getElementById('auth-diag-code').value  = '';
   document.getElementById('auth-note').value       = '';
   document.getElementById('auth-pdf-link').value   = '';
   document.getElementById('auth-pdf-status').textContent = '';
@@ -195,6 +196,7 @@ function openAuthModal(id) {
       document.getElementById('auth-total-qty').value     = a.totalQty || '';
       document.getElementById('auth-freq').value          = a.freqPerWeek || '';
       document.getElementById('auth-care-mgr').value      = a.careManager || '';
+      document.getElementById('auth-diag-code').value     = a.diagCode || '';
       document.getElementById('auth-note').value          = a.note || '';
       document.getElementById('auth-pdf-link').value      = a.pdfLink || '';
       if (a.pdfLink) document.getElementById('auth-pdf-status').textContent = '✅ PDF 첨부됨';
@@ -321,7 +323,8 @@ async function aiReadAuthPDF() {
       + '  "dayThu": "same as dayMon",\n'
       + '  "dayFri": "same as dayMon",\n'
       + '  "status": "Active or Hold",\n'
-      + '  "careManager": "care manager name or empty string"\n'
+      + '  "careManager": "care manager name or empty string",\n'
+      + '  "diagCode": "primary diagnosis ICD-10 code only, e.g. M150 (no description text, no dots)"\n'
       + '}\n'
       + 'IMPORTANT: If only total weekly frequency is given (e.g. "8 per week") without specific day breakdown, set daysSpecified=false and all day values to 0.\n'
       + 'Return only JSON, no explanation.';
@@ -345,6 +348,7 @@ async function aiReadAuthPDF() {
     if (data.totalQty)    document.getElementById('auth-total-qty').value = data.totalQty;
     if (data.freqPerWeek) document.getElementById('auth-freq').value      = data.freqPerWeek;
     if (data.careManager) document.getElementById('auth-care-mgr').value  = data.careManager;
+    if (data.diagCode)     document.getElementById('auth-diag-code').value = data.diagCode;
     if (data.serviceType) document.getElementById('auth-service-type').value = data.serviceType;
     if (data.serviceCode) document.getElementById('auth-service-code').value = data.serviceCode;
     if (data.qtyUnit)     document.getElementById('auth-qty-unit').value  = data.qtyUnit;
@@ -445,6 +449,7 @@ async function saveAuth() {
     dayFri:      gv('auth-day-fri'),
     status:      gv('auth-status-sel'),
     careManager: gv('auth-care-mgr'),
+    diagCode:    gv('auth-diag-code').toUpperCase(),
     pdfLink:     gv('auth-pdf-link'),
     note:        gv('auth-note'),
     updatedAt:   new Date().toISOString(),

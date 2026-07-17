@@ -452,11 +452,13 @@ var _meEditDays = new Set();
 function openAddMember() {
   window._meditMid = null;
   document.getElementById('medit-title').textContent = '새 멤버 추가';
-  ['me-chartno','me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
+  ['me-chartno','me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-city','me-zip','me-diagcode','me-medicaid','me-mltc','me-pcp','me-memo'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('me-dob').value = '';
   document.getElementById('me-ins').value = 'Anthem_MLTC';
+  document.getElementById('me-state').value = 'NY';
+  document.getElementById('me-gender').value = 'F';
   _meEditDays = new Set();
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
     const b = document.getElementById('me-' + d); if (b) b.className = 'dsbtn';
@@ -477,6 +479,11 @@ function openMemberEdit(mid) {
   document.getElementById('me-dob').value     = m.dob      || '';
   document.getElementById('me-phone').value   = m.phone    || '';
   document.getElementById('me-addr').value    = m.addr     || '';
+  document.getElementById('me-city').value    = m.city     || '';
+  document.getElementById('me-state').value   = m.state    || 'NY';
+  document.getElementById('me-zip').value     = m.zip      || '';
+  document.getElementById('me-gender').value  = m.gender   || 'F';
+  document.getElementById('me-diagcode').value = m.diagCode || '';
   document.getElementById('me-medicaid').value = m.medicaid || '';
   document.getElementById('me-mltc').value    = m.mltc     || '';
   document.getElementById('me-pcp').value     = m.pcp      || '';
@@ -524,6 +531,11 @@ async function saveMemberEdit() {
   m.dob      = document.getElementById('me-dob').value;
   m.phone    = document.getElementById('me-phone').value.trim();
   m.addr     = document.getElementById('me-addr').value.trim();
+  m.city     = document.getElementById('me-city').value.trim();
+  m.state    = document.getElementById('me-state').value.trim().toUpperCase() || 'NY';
+  m.zip      = document.getElementById('me-zip').value.trim();
+  m.gender   = document.getElementById('me-gender').value;
+  m.diagCode = document.getElementById('me-diagcode').value.trim().toUpperCase();
   m.medicaid = document.getElementById('me-medicaid').value.trim().toUpperCase();
   m.mltc     = document.getElementById('me-mltc').value.trim();
   m.pcp      = document.getElementById('me-pcp').value.trim();
@@ -825,4 +837,75 @@ async function restorePhotosFromDrive() {
   } catch(e) {
     if (msgEl) msgEl.textContent = '❌ 오류: ' + e.message;
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 주소 City/State/Zip 자동 분리 (일회성 도구)
+// ══════════════════════════════════════════════════════════════
+function _parseAddress(addr) {
+  addr = (addr || '').trim();
+  if (!addr) return { city:'', state:'NY', zip:'' };
+
+  // 우편번호 추출 (마지막 5자리 숫자, 뒤에 -XXXX 있어도 무시)
+  var zipMatch = addr.match(/(\d{5})(?:-\d{4})?\s*$/);
+  var zip = zipMatch ? zipMatch[1] : '';
+  var rest = zip ? addr.slice(0, zipMatch.index).trim() : addr;
+
+  // 주(State) 추출 — 우편번호 바로 앞의 2글자 대문자 약어
+  var stateMatch = rest.match(/,?\s*([A-Z]{2})\s*$/);
+  var state = stateMatch ? stateMatch[1] : 'NY';
+  rest = stateMatch ? rest.slice(0, stateMatch.index).trim() : rest;
+  rest = rest.replace(/,\s*$/, '').trim();
+
+  // City 추출 — 쉼표가 있으면 마지막 쉼표 뒤, 없으면 마지막 단어들(도시명은 보통 1~2단어)
+  var city = '';
+  if (rest.includes(',')) {
+    var parts = rest.split(',');
+    city = parts[parts.length - 1].trim();
+  } else {
+    // 쉼표 없는 경우: 마지막 1~2단어를 도시로 추정 (예: "BAYSIDE", "FRESH MEADOWS")
+    var words = rest.split(/\s+/);
+    // 흔한 뉴욕 지역명 몇 개는 2단어
+    var twoWordCities = ['FRESH MEADOWS','JACKSON HEIGHTS','FOREST HILLS','RICHMOND HILL','LITTLE NECK','FLORAL PARK','MOUNT VERNON','WHITE PLAINS','MOTT HAVEN'];
+    var lastTwo = words.slice(-2).join(' ').toUpperCase();
+    if (twoWordCities.includes(lastTwo)) {
+      city = words.slice(-2).join(' ');
+    } else {
+      city = words[words.length - 1] || '';
+    }
+  }
+
+  return { city: city, state: state, zip: zip };
+}
+
+async function splitMemberAddresses() {
+  if (!MEMBERS || !MEMBERS.length) { alert('멤버 데이터가 로드되지 않았어요'); return; }
+  if (!confirm('전체 ' + MEMBERS.length + '명의 주소를 City/State/Zip으로 자동 분리합니다.\n이미 입력된 값이 있으면 덮어쓰지 않아요. 계속하시겠어요?')) return;
+
+  var msgEl = document.getElementById('api-msg');
+  var done = 0, skipped = 0, failed = 0;
+
+  for (var i = 0; i < MEMBERS.length; i++) {
+    var m = MEMBERS[i];
+
+    if (m.city || m.zip) { skipped++; continue; }
+    if (!m.addr) { skipped++; continue; }
+
+    var parsed = _parseAddress(m.addr);
+    m.city  = parsed.city;
+    m.state = parsed.state;
+    m.zip   = parsed.zip;
+
+    try {
+      await SheetsAPI.saveMember(m);
+      done++;
+    } catch(e) {
+      failed++;
+    }
+
+    if (msgEl) msgEl.textContent = '⏳ 주소 분리 중... ' + (i+1) + '/' + MEMBERS.length + ' (완료:' + done + ' 스킵:' + skipped + ' 실패:' + failed + ')';
+  }
+
+  if (msgEl) msgEl.textContent = '✅ 완료! 분리:' + done + '건, 스킵:' + skipped + '건, 실패:' + failed + '건';
+  alert('주소 분리 완료!\n분리: ' + done + '건\n스킵(이미 입력됨/주소없음): ' + skipped + '건\n실패: ' + failed + '건\n\n잘못 나뉜 항목은 멤버 수정에서 직접 고쳐주세요.');
 }
