@@ -814,6 +814,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         </div>
         <button id="btn-upload-members" style="width:100%;margin-top:10px;padding:12px;border-radius:11px;background:#E6F1FB;color:#0C447C;border:1.5px solid #85B7EB;font-size:14px;font-weight:700;cursor:pointer" onclick="uploadMembersToSheets()">👥 멤버 166명 Sheets 업로드</button>
         <button id="btn-restore-photos" style="width:100%;margin-top:8px;padding:12px;border-radius:11px;background:#E1F5EE;color:#0F6E56;border:1.5px solid #A0D9C4;font-size:14px;font-weight:700;cursor:pointer" onclick="restorePhotosFromDrive()">📸 멤버 사진 Drive에서 복원</button>
+        <button id="btn-split-address" style="width:100%;margin-top:8px;padding:12px;border-radius:11px;background:#FFF3E0;color:#B35900;border:1.5px solid #FFCC80;font-size:14px;font-weight:700;cursor:pointer" onclick="splitMemberAddresses()">🏠 주소 City/State/Zip 자동분리</button>
         <button id="btn-split-names" style="width:100%;margin-top:8px;padding:12px;border-radius:11px;background:#EDE9FE;color:#4C1D95;border:1.5px solid #C4B5FD;font-size:14px;font-weight:700;cursor:pointer" onclick="splitMemberNames()">✂️ 영문이름 Last/First/Middle 자동분리</button>
         <div style="font-size:12px;color:#8E8E93;margin-top:8px" id="api-msg"></div>
       </div>
@@ -945,7 +946,9 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">한글 이름</div><input class="m-input" id="me-kr"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">영문 이름 (전체)</div><input class="m-input" id="me-en"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px"><div><div class="fl" style="font-size:10px;margin-bottom:4px">Last Name</div><input class="m-input" id="me-lastname" style="font-size:13px"></div><div><div class="fl" style="font-size:10px;margin-bottom:4px">First Name</div><input class="m-input" id="me-firstname" style="font-size:13px"></div><div><div class="fl" style="font-size:10px;margin-bottom:4px">Middle Name</div><input class="m-input" id="me-middlename" style="font-size:13px"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">생년월일</div><input class="m-input" type="date" id="me-dob"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">전화번호</div><input class="m-input" type="tel" id="me-phone"></div></div>
-  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr"></div>
+  <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">주소</div><input class="m-input" id="me-addr" placeholder="123 Main St Apt 2B"></div>
+  <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:10px"><div><div class="fl" style="font-size:10px;margin-bottom:4px">City</div><input class="m-input" id="me-city" style="font-size:13px"></div><div><div class="fl" style="font-size:10px;margin-bottom:4px">State</div><input class="m-input" id="me-state" style="font-size:13px" value="NY"></div><div><div class="fl" style="font-size:10px;margin-bottom:4px">Zip</div><input class="m-input" id="me-zip" style="font-size:13px"></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">성별</div><select class="m-select" id="me-gender"><option value="F">Female</option><option value="M">Male</option></select></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">진단코드 (ICD-10)</div><input class="m-input" id="me-diagcode" placeholder="M150"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div><select class="m-select" id="me-ins"><option value="Anthem_MLTC">Anthem MLTC</option><option value="Anthem_MAP">Anthem MAP</option><option value="CLP">Centerlight PACE</option><option value="SWH">Senior Whole Health</option></select></div></div>
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
@@ -1093,6 +1096,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       <label>케어매니저</label>
       <input class="m-input" id="auth-care-mgr" placeholder="Care manager 이름">
     </div>
+  </div>
+
+  <div class="modal-input-wrap" style="margin-bottom:12px">
+    <label>진단코드 (ICD-10, 빌링용)</label>
+    <input class="m-input" id="auth-diag-code" placeholder="M150">
   </div>
 
   <!-- 메모 -->
