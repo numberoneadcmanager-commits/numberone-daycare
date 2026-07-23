@@ -371,14 +371,16 @@ function _absenceBadgeHTML(mid) {
   const map = (typeof ABSENCE_MAP !== 'undefined') ? ABSENCE_MAP : {};
   const r = map[mid];
   if (!r) return '';
+  if (r.state === 'past') return ''; // 이미 종료된 부재는 멤버 카드에 표시 안 함
   const info = {
-    travel:   { icon: '✈️', label: '여행중',  bg: '#E3F2FD', color: '#004D99' },
-    hospital: { icon: '🏥', label: '입원중',  bg: '#FFEBEE', color: '#900'    },
-    leave:    { icon: '🏖️', label: '휴가중',  bg: '#EDE9FE', color: '#4C1D95' },
+    travel:   { icon: '✈️', label: '여행',  bg: '#E3F2FD', color: '#004D99' },
+    hospital: { icon: '🏥', label: '입원',  bg: '#FFEBEE', color: '#900'    },
+    leave:    { icon: '🏖️', label: '휴가',  bg: '#EDE9FE', color: '#4C1D95' },
   }[r.status];
   if (!info) return '';
+  const stateLabel = r.state === 'upcoming' ? '예정' : '중';
   const period = r.start + (r.end ? ' ~ ' + r.end : ' ~ 미정');
-  return `<div onclick="event.stopPropagation();openAbsenceModal('${mid}')" style="font-size:11px;font-weight:700;color:${info.color};background:${info.bg};border-radius:8px;padding:5px 9px;margin-top:6px;cursor:pointer">${info.icon} ${info.label} (${period}) · 수정</div>`;
+  return `<div onclick="event.stopPropagation();openAbsenceModal('${mid}')" style="font-size:11px;font-weight:700;color:${info.color};background:${info.bg};border-radius:8px;padding:5px 9px;margin-top:6px;cursor:pointer">${info.icon} ${info.label}${stateLabel} (${period}) · 수정</div>`;
 }
 
 function renderMG() {

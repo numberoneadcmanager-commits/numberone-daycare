@@ -289,8 +289,9 @@ async function loadAbsenceMap() {
   const iso = todayISO;
   const map = {};
   try {
-    const from = _addDaysISO(iso, -180);
-    const to   = _addDaysISO(iso, 180);
+    // 오늘 기준 앞뒤 3개월(약 90일) 범위로 조회
+    const from = _addDaysISO(iso, -90);
+    const to   = _addDaysISO(iso, 90);
     const res  = await SheetsAPI.readByRange('출결', from, to);
     if (res && res.ok && res.data) {
       res.data
@@ -298,11 +299,27 @@ async function loadAbsenceMap() {
         .forEach(r => {
           const mid   = String(r['멤버ID'] || '');
           const start = String(r['시작일'] || '').slice(0, 10);
-          const end   = String(r['종료일'] || '').slice(0, 10);
+          let   end   = String(r['종료일'] || '').slice(0, 10);
           if (!mid || !start) return;
-          if (start > iso || (end && end < iso)) return; // 오늘 기준 아직 시작 전이거나 이미 종료됨
-          if (!map[mid] || start > map[mid].start) {
-            map[mid] = { status: r['상태'] || '', start, end, memo: r['메모'] || '' };
+          if (end && end < start) end = ''; // 종료일이 시작일보다 빠르면 잘못 입력된 것 → 미정 처리
+
+          // 진행중 / 예정 / 종료 상태 계산
+          let state;
+          if (start <= iso && (!end || end >= iso)) state = 'ongoing';
+          else if (start > iso) state = 'upcoming';
+          else state = 'past'; // end < iso
+
+          const entry = { status: r['상태'] || '', start, end, memo: r['메모'] || '', state };
+
+          // 멤버당 하나만 표시: 진행중 > 예정(가장 가까운) > 종료(가장 최근) 우선순위
+          const cur = map[mid];
+          if (!cur) { map[mid] = entry; return; }
+          const priority = { ongoing: 0, upcoming: 1, past: 2 };
+          if (priority[entry.state] < priority[cur.state]) { map[mid] = entry; return; }
+          if (priority[entry.state] === priority[cur.state]) {
+            if (entry.state === 'upcoming' && entry.start < cur.start) map[mid] = entry;
+            if (entry.state === 'past' && entry.start > cur.start) map[mid] = entry;
+            if (entry.state === 'ongoing' && entry.start > cur.start) map[mid] = entry;
           }
         });
     }
@@ -322,10 +339,15 @@ async function renderAbsence() {
     document.getElementById(id).innerHTML = rows.length
       ? rows.map(({ m, r }) => {
           const ds = (r.start || '') + (r.end ? ' ~ ' + r.end : ' ~ 미정');
+          const stateInfo = {
+            ongoing:  { label: '🟢 진행중', color: '#1A7A3C' },
+            upcoming: { label: '🔵 예정',   color: '#0C447C' },
+            past:     { label: '⚪ 종료',   color: '#8E8E93' },
+          }[r.state] || { label: '', color: '#8E8E93' };
           return `<div class="att-row" style="flex-direction:row;gap:9px;padding:10px 14px;align-items:center">
             <div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
             <div style="flex:1">
-              <div class="att-name">${m.kr}</div>
+              <div class="att-name">${m.kr} <span style="font-size:11px;font-weight:700;color:${stateInfo.color}">${stateInfo.label}</span></div>
               <div class="att-id">${ds}</div>
               <div style="font-size:12px;color:#3C3C43">${r.memo || ''}</div>
             </div>
