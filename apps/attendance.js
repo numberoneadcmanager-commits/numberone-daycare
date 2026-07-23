@@ -322,12 +322,16 @@ async function renderAbsence() {
     document.getElementById(id).innerHTML = rows.length
       ? rows.map(({ m, r }) => {
           const ds = (r.start || '') + (r.end ? ' ~ ' + r.end : ' ~ 미정');
-          return `<div class="att-row" style="flex-direction:row;gap:9px;padding:10px 14px">
+          return `<div class="att-row" style="flex-direction:row;gap:9px;padding:10px 14px;align-items:center">
             <div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
             <div style="flex:1">
               <div class="att-name">${m.kr}</div>
               <div class="att-id">${ds}</div>
               <div style="font-size:12px;color:#3C3C43">${r.memo || ''}</div>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0">
+              <button class="btn-sm" onclick="editAbsence('${m.id}')">✏️</button>
+              <button class="btn-danger" onclick="deleteAbsence('${m.id}')">🗑️</button>
             </div>
           </div>`;
         }).join('')
@@ -342,13 +346,27 @@ function _addDaysISO(iso, days) {
 }
 
 // ── 부재 직접 등록 (출결 탭을 거치지 않고 바로 등록) ────────────
-function openAbsenceModal() {
+function openAbsenceModal(mid) {
+  window._abEditOriginal = null;
   document.getElementById('ab-member-search').value = '';
-  document.getElementById('ab-type').value = 'travel';
-  document.getElementById('ab-start').value = todayISO;
-  document.getElementById('ab-end').value = '';
-  document.getElementById('ab-memo').value = '';
   filterAbsenceMemberList();
+
+  if (mid && ABSENCE_MAP[mid]) {
+    // 수정 모드: 기존 값 채우기 + 원래 시작일 기억(변경 시 옛 행 정리용)
+    const r = ABSENCE_MAP[mid];
+    window._abEditOriginal = { mid, start: r.start };
+    document.getElementById('ab-type').value  = r.status || 'travel';
+    document.getElementById('ab-start').value = r.start  || todayISO;
+    document.getElementById('ab-end').value    = r.end    || '';
+    document.getElementById('ab-memo').value   = r.memo   || '';
+    const sel = document.getElementById('ab-member-sel');
+    if (sel) sel.value = mid;
+  } else {
+    document.getElementById('ab-type').value = 'travel';
+    document.getElementById('ab-start').value = todayISO;
+    document.getElementById('ab-end').value = '';
+    document.getElementById('ab-memo').value = '';
+  }
   openOv('ov-absence');
 }
 
@@ -378,6 +396,14 @@ async function saveAbsence() {
 
   const m = MEMBERS.find(x => x.id === mid);
   const nameKr = m ? m.kr : '';
+
+  // 수정 중 시작일을 바꾼 경우, 예전 행은 상태를 비워서 부재 목록에서 사라지게 함
+  const orig = window._abEditOriginal;
+  if (orig && orig.mid === mid && orig.start && orig.start !== start) {
+    const clearRec = { status: '', signIn: '', signOut: '', memo: '', start: '', end: '', writer: (_currentUser && _currentUser.name) || '' };
+    try { await SheetsAPI.syncSingleAttendance(orig.start, mid, clearRec, MEMBERS); } catch (e) { console.log('이전 부재 행 정리 실패:', e); }
+  }
+
   const rec = { status: type, signIn: '', signOut: '', memo, start, end, writer: (_currentUser && _currentUser.name) || '' };
   setRec(start, mid, rec);
 
@@ -385,10 +411,31 @@ async function saveAbsence() {
     await SheetsAPI.syncSingleAttendance(start, mid, rec, MEMBERS);
   } catch (e) { console.log('부재 등록 저장 실패:', e); }
 
+  window._abEditOriginal = null;
   closeOv('ov-absence');
   renderAbsence();
   if (typeof filterM === 'function') filterM(); // 멤버 목록 배지도 즉시 갱신
   alert('✅ ' + nameKr + ' 부재 등록 완료!');
+}
+
+async function editAbsence(mid) {
+  openAbsenceModal(mid);
+}
+
+async function deleteAbsence(mid) {
+  const r = ABSENCE_MAP[mid];
+  if (!r) return;
+  const m = MEMBERS.find(x => x.id === mid);
+  if (!confirm((m ? m.kr : '') + '의 부재 기록을 삭제할까요?')) return;
+
+  const clearRec = { status: '', signIn: '', signOut: '', memo: '', start: '', end: '', writer: (_currentUser && _currentUser.name) || '' };
+  try {
+    await SheetsAPI.syncSingleAttendance(r.start, mid, clearRec, MEMBERS);
+  } catch (e) { console.log('부재 삭제 실패:', e); alert('❌ 삭제 실패: ' + e.message); return; }
+
+  delete ABSENCE_MAP[mid];
+  renderAbsence();
+  if (typeof filterM === 'function') filterM();
 }
 
 // ── 저장소 (출결은 localStorage 미사용) ───────────────────────

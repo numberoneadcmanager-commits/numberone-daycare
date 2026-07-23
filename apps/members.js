@@ -378,7 +378,7 @@ function _absenceBadgeHTML(mid) {
   }[r.status];
   if (!info) return '';
   const period = r.start + (r.end ? ' ~ ' + r.end : ' ~ 미정');
-  return `<div style="font-size:11px;font-weight:700;color:${info.color};background:${info.bg};border-radius:8px;padding:5px 9px;margin-top:6px">${info.icon} ${info.label} (${period})</div>`;
+  return `<div onclick="event.stopPropagation();openAbsenceModal('${mid}')" style="font-size:11px;font-weight:700;color:${info.color};background:${info.bg};border-radius:8px;padding:5px 9px;margin-top:6px;cursor:pointer">${info.icon} ${info.label} (${period}) · 수정</div>`;
 }
 
 function renderMG() {
