@@ -284,31 +284,43 @@ async function clearAttModal() {
 async function renderAbsence() {
   const iso = todayISO;
 
-  // 오늘 날짜 출결이 캐시에 없으면 Sheets에서 로드 (출결 탭을 안 거쳐도 보이도록)
-  if (!_attCache[iso]) {
-    try {
-      const res = await SheetsAPI.readByDate('출결', iso);
-      if (res && res.ok && res.data) {
-        _attCache[iso] = {};
-        res.data.forEach(r => {
-          const mid = String(r['멤버ID'] || '');
-          if (!mid) return;
-          _attCache[iso][mid] = {
-            status: r['상태'] || '', signIn: r['Sign-in'] || '', signOut: r['Sign-out'] || '',
-            memo: r['메모'] || '', start: r['시작일'] || '', end: r['종료일'] || '', writer: r['작성자'] || '',
-          };
-        });
-      }
-    } catch (e) { console.log('부재 탭 출결 로드 실패:', e); }
-  }
+  // ★ 부재는 "시작일에만 기록"되므로, 오늘 하루만 정확히 조회하면
+  //   시작일이 오늘이 아닌(과거/미래 포함) 부재는 절대 안 보이는 버그가 있었음.
+  //   넉넉한 범위(전후 180일)로 조회해서, 시작일~종료일 범위에 오늘이 포함되는 기록을 찾음.
+  let absenceRecords = [];
+  try {
+    const from = _addDaysISO(iso, -180);
+    const to   = _addDaysISO(iso, 180);
+    const res  = await SheetsAPI.readByRange('출결', from, to);
+    if (res && res.ok && res.data) {
+      absenceRecords = res.data
+        .filter(r => ['travel', 'hospital', 'leave'].includes(r['상태']))
+        .map(r => ({
+          mid:   String(r['멤버ID'] || ''),
+          status: r['상태'] || '',
+          memo:  r['메모'] || '',
+          start: String(r['시작일'] || '').slice(0, 10),
+          end:   String(r['종료일'] || '').slice(0, 10),
+        }))
+        // 시작일~종료일(종료일 없으면 시작일과 동일 취급) 범위에 오늘 포함
+        .filter(r => r.start && r.start <= iso && (!r.end || r.end >= iso));
+    }
+  } catch (e) { console.log('부재 탭 출결 로드 실패:', e); }
+
+  // 멤버별로 최신(시작일 기준) 1건만 사용
+  const byMember = {};
+  absenceRecords.forEach(r => {
+    if (!byMember[r.mid] || r.start > byMember[r.mid].start) byMember[r.mid] = r;
+  });
 
   ['travel', 'hospital', 'leave'].forEach((type, i) => {
     const id   = ['tr-list', 'ho-list', 'lv-list'][i];
-    const rows = MEMBERS.filter(m => (getRec(iso)[m.id] || {}).status === type);
+    const rows = MEMBERS
+      .map(m => ({ m, r: byMember[m.id] }))
+      .filter(x => x.r && x.r.status === type);
     document.getElementById(id).innerHTML = rows.length
-      ? rows.map(m => {
-          const r  = getRec(iso)[m.id];
-          const ds = (r.start || '') + (r.end ? ' ~ ' + r.end : r.start ? ' ~ 미정' : '—');
+      ? rows.map(({ m, r }) => {
+          const ds = (r.start || '') + (r.end ? ' ~ ' + r.end : ' ~ 미정');
           return `<div class="att-row" style="flex-direction:row;gap:9px;padding:10px 14px">
             <div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
             <div style="flex:1">
@@ -320,6 +332,12 @@ async function renderAbsence() {
         }).join('')
       : '<div class="empty-msg">해당 없음</div>';
   });
+}
+
+function _addDaysISO(iso, days) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString('sv-SE');
 }
 
 // ── 부재 직접 등록 (출결 탭을 거치지 않고 바로 등록) ────────────
