@@ -72,6 +72,7 @@ function selectApp(type) {
             renderDash(); filterM(); renderStaff();
             renderIncidents(); renderActivities(); renderCases();
             renderAuthList(); renderVisitorList(); renderCouncilList();
+            if (typeof loadAbsenceMap === 'function') loadAbsenceMap().then(function(){ filterM(); });
             ['inc','act','case'].forEach(function(px){
               var sel = document.getElementById(px+'-msel');
               if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
@@ -134,6 +135,7 @@ function goTab(tab, el) {
   }
   if (tab === 'dashboard'     && typeof renderDash         === 'function') renderDash();
   if (tab === 'members'       && typeof filterM            === 'function') filterM();
+  if (tab === 'members'       && typeof loadAbsenceMap      === 'function') loadAbsenceMap().then(function(){ filterM(); });
   if (tab === 'absence'       && typeof renderAbsence      === 'function') renderAbsence();
   if (tab === 'logs'          && typeof renderIncidents    === 'function') renderIncidents();
   if (tab === 'report'        && typeof renderReport       === 'function') renderReport();
@@ -142,7 +144,6 @@ function goTab(tab, el) {
   if (tab === 'visitor'       && typeof renderVisitorList  === 'function') renderVisitorList();
   if (tab === 'council'       && typeof renderCouncilList  === 'function') renderCouncilList();
   if (tab === 'settings'      && typeof updatePendingSigCount === 'function') updatePendingSigCount();
-  if (tab === 'dashboard'     && typeof updatePendingSigCount === 'function') updatePendingSigCount();
 }
 
 // ── API 관련 ──────────────────────────────────────────────────
@@ -551,6 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ok2) {
           renderDash(); filterM(); renderStaff();
           renderIncidents(); renderActivities(); renderCases();
+          if (typeof loadAbsenceMap === 'function') loadAbsenceMap().then(function(){ filterM(); });
           renderAuthList(); renderVisitorList(); renderCouncilList();
           // 멤버 select 업데이트
           ['inc','act','case'].forEach(function(px){
@@ -615,7 +617,7 @@ function openAssessment(mid) {
   const med = document.getElementById('as-medicaid');if (med) med.value = m.medicaid||'';
   const phn = document.getElementById('as-phone');   if (phn) phn.value = m.phone||'';
   const adr = document.getElementById('as-addr');    if (adr) adr.value = m.addr||'';
-  const adate = document.getElementById('as-date');  if (adate) adate.value = new Date().toLocaleDateString('sv-SE');
+  const adate = document.getElementById('as-date');  if (adate) adate.value = new Date().toISOString().slice(0,10);
   goAssessStep(0);
   if (typeof initSigCanvas === 'function') initSigCanvas('as-sig-canvas', function(d){ _asSig = d; });
 }
@@ -627,7 +629,7 @@ function openNutritionScreening(mid) {
   document.getElementById('frm-nutrition').style.display = 'block';
   const nn = document.getElementById('ns-name'); if (nn) nn.textContent = m.kr+' ('+m.en+')';
   const nd = document.getElementById('ns-dob');  if (nd) nd.textContent = m.dob||'';
-  const ndate = document.getElementById('ns-date'); if (ndate) ndate.value = new Date().toLocaleDateString('sv-SE');
+  const ndate = document.getElementById('ns-date'); if (ndate) ndate.value = new Date().toISOString().slice(0,10);
   if (typeof initSigCanvas === 'function') {
     initSigCanvas('ns-member-canvas', function(d){ _nsMemberSig = d; });
     initSigCanvas('ns-staff-canvas',  function(d){ _nsStaffSig  = d; });
@@ -641,7 +643,7 @@ function openMemberRights(mid) {
   document.getElementById('frm-member-rights').style.display = 'block';
   const mn = document.getElementById('mr-name'); if (mn) mn.textContent = m.kr+' ('+m.en+')';
   const md = document.getElementById('mr-dob');  if (md) md.textContent = m.dob||'';
-  const mdate = document.getElementById('mr-date'); if (mdate) mdate.value = new Date().toLocaleDateString('sv-SE');
+  const mdate = document.getElementById('mr-date'); if (mdate) mdate.value = new Date().toISOString().slice(0,10);
   if (typeof initSigCanvas === 'function') initSigCanvas('mr-sig-canvas', function(d){ _mrSig = d; });
 }
 

@@ -281,42 +281,43 @@ async function clearAttModal() {
 }
 
 // ── 부재 탭 ───────────────────────────────────────────────────
-async function renderAbsence() {
-  const iso = todayISO;
+// ── 부재(여행/입원/휴가) 공유 캐시 ──────────────────────────────
+// memberId -> { status, start, end, memo } (오늘 기준 "현재 부재중"인 것만)
+var ABSENCE_MAP = {};
 
-  // ★ 부재는 "시작일에만 기록"되므로, 오늘 하루만 정확히 조회하면
-  //   시작일이 오늘이 아닌(과거/미래 포함) 부재는 절대 안 보이는 버그가 있었음.
-  //   넉넉한 범위(전후 180일)로 조회해서, 시작일~종료일 범위에 오늘이 포함되는 기록을 찾음.
-  let absenceRecords = [];
+async function loadAbsenceMap() {
+  const iso = todayISO;
+  const map = {};
   try {
     const from = _addDaysISO(iso, -180);
     const to   = _addDaysISO(iso, 180);
     const res  = await SheetsAPI.readByRange('출결', from, to);
     if (res && res.ok && res.data) {
-      absenceRecords = res.data
+      res.data
         .filter(r => ['travel', 'hospital', 'leave'].includes(r['상태']))
-        .map(r => ({
-          mid:   String(r['멤버ID'] || ''),
-          status: r['상태'] || '',
-          memo:  r['메모'] || '',
-          start: String(r['시작일'] || '').slice(0, 10),
-          end:   String(r['종료일'] || '').slice(0, 10),
-        }))
-        // 시작일~종료일(종료일 없으면 시작일과 동일 취급) 범위에 오늘 포함
-        .filter(r => r.start && r.start <= iso && (!r.end || r.end >= iso));
+        .forEach(r => {
+          const mid   = String(r['멤버ID'] || '');
+          const start = String(r['시작일'] || '').slice(0, 10);
+          const end   = String(r['종료일'] || '').slice(0, 10);
+          if (!mid || !start) return;
+          if (start > iso || (end && end < iso)) return; // 오늘 기준 아직 시작 전이거나 이미 종료됨
+          if (!map[mid] || start > map[mid].start) {
+            map[mid] = { status: r['상태'] || '', start, end, memo: r['메모'] || '' };
+          }
+        });
     }
-  } catch (e) { console.log('부재 탭 출결 로드 실패:', e); }
+  } catch (e) { console.log('부재 맵 로드 실패:', e); }
+  ABSENCE_MAP = map;
+  return ABSENCE_MAP;
+}
 
-  // 멤버별로 최신(시작일 기준) 1건만 사용
-  const byMember = {};
-  absenceRecords.forEach(r => {
-    if (!byMember[r.mid] || r.start > byMember[r.mid].start) byMember[r.mid] = r;
-  });
+async function renderAbsence() {
+  await loadAbsenceMap();
 
   ['travel', 'hospital', 'leave'].forEach((type, i) => {
     const id   = ['tr-list', 'ho-list', 'lv-list'][i];
     const rows = MEMBERS
-      .map(m => ({ m, r: byMember[m.id] }))
+      .map(m => ({ m, r: ABSENCE_MAP[m.id] }))
       .filter(x => x.r && x.r.status === type);
     document.getElementById(id).innerHTML = rows.length
       ? rows.map(({ m, r }) => {
@@ -386,6 +387,7 @@ async function saveAbsence() {
 
   closeOv('ov-absence');
   renderAbsence();
+  if (typeof filterM === 'function') filterM(); // 멤버 목록 배지도 즉시 갱신
   alert('✅ ' + nameKr + ' 부재 등록 완료!');
 }
 

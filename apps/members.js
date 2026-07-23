@@ -366,6 +366,21 @@ function setMDay(f, btn) {
   mPage = 0; renderMG();
 }
 
+// 부재(여행/입원/휴가) 배지 — ABSENCE_MAP은 apps/attendance.js에서 관리
+function _absenceBadgeHTML(mid) {
+  const map = (typeof ABSENCE_MAP !== 'undefined') ? ABSENCE_MAP : {};
+  const r = map[mid];
+  if (!r) return '';
+  const info = {
+    travel:   { icon: '✈️', label: '여행중',  bg: '#E3F2FD', color: '#004D99' },
+    hospital: { icon: '🏥', label: '입원중',  bg: '#FFEBEE', color: '#900'    },
+    leave:    { icon: '🏖️', label: '휴가중',  bg: '#EDE9FE', color: '#4C1D95' },
+  }[r.status];
+  if (!info) return '';
+  const period = r.start + (r.end ? ' ~ ' + r.end : ' ~ 미정');
+  return `<div style="font-size:11px;font-weight:700;color:${info.color};background:${info.bg};border-radius:8px;padding:5px 9px;margin-top:6px">${info.icon} ${info.label} (${period})</div>`;
+}
+
 function renderMG() {
   document.getElementById('m-cnt').textContent = '검색 결과: ' + mFilt.length + '명';
   const sl = mFilt.slice(mPage * PER, (mPage + 1) * PER);
@@ -385,6 +400,7 @@ function renderMG() {
       <span class="mc-lbl">주치의</span><span class="mc-val">${m.pcp || '—'}</span>
     </div>
     <div class="mc-days" style="margin-top:7px">${m.days.map(d => `<span class="mc-day">${DKR[d]}</span>`).join('')}</div>
+    ${_absenceBadgeHTML(m.id)}
     ${m.memo ? `<div style="font-size:11px;color:#D85A30;background:#FFF3EE;border-radius:8px;padding:5px 9px;margin-top:6px">📝 ${m.memo}</div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
       <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="openMemberEdit('${m.id}')">✏️ 정보 수정</button>
