@@ -763,6 +763,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox"><div class="sv c-orange" id="auth-soon">0</div><div class="sl">⚠️ 30일내</div></div>
         <div class="sbox"><div class="sv c-red" id="auth-exp">0</div><div class="sl">❌ 만료</div></div>
       </div>
+      <button class="btn-full btn-primary" style="margin-bottom:10px" onclick="openAuthModal()">➕ Auth 추가</button>
       <div class="search-wrap"><span>🔍</span><input id="auth-search" placeholder="멤버 이름 / Auth# 검색"></div>
       <div class="f-row">
         <div class="fpill active" onclick="setAuthFilter('all',this)">전체</div>
@@ -771,7 +772,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="fpill" onclick="setAuthFilter('expired',this)">❌ 만료</div>
       </div>
       <div id="auth-list"></div>
-      <button class="btn-full btn-primary" style="margin-top:8px" onclick="openAuthModal()">➕ Auth 추가</button>
     </div>
 
     <div class="panel" id="panel-settings">
