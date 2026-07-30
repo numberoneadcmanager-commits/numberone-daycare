@@ -1490,6 +1490,17 @@ function showApp(user){
   initData();
 }
 
+// ── 앱 시작 시 전체 데이터 로드 (이 함수가 없어서 아무것도 안 불러와졌던 버그) ──
+function initData(){
+  renderAudit();
+  loadOpStaffFromSheets();
+  loadGRfromSheets();
+  loadFDfromSheets();
+  loadTempfromSheets();
+  loadDocsfromSheets();
+  loadActfromSheets();
+}
+
 // ── Tab 전환 ─────────────────────────────────────────────
 function goTab(tab,el){
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
@@ -1499,12 +1510,12 @@ function goTab(tab,el){
   if(el)el.classList.add('active');
   if(tab==='audit')renderAudit();
   if(tab==='forms'){loadFormsMemberDropdown();renderPCSPList();loadPCSPFromSheets();}
-  if(tab==='staff')renderOpStaff();
-  if(tab==='grievance')renderGrievanceList();
-  if(tab==='firedrill')renderFDList();
-  if(tab==='templog')renderTempList();
-  if(tab==='docs')renderDocsList();
-  if(tab==='activity')renderActivityList();
+  if(tab==='staff')loadOpStaffFromSheets();
+  if(tab==='grievance')loadGRfromSheets();
+  if(tab==='firedrill')loadFDfromSheets();
+  if(tab==='templog')loadTempfromSheets();
+  if(tab==='docs')loadDocsfromSheets();
+  if(tab==='activity')loadActfromSheets();
   if(tab==='training'){renderTrSessionList();loadTrFromSheets();}
 }
 
@@ -1621,9 +1632,10 @@ function loadGRfromSheets(){
         member:String(r['멤버']||''),content:String(r['내용']||''),action:String(r['조치']||''),
         staff:String(r['담당자']||''),status:String(r['상태']||'open'),result:String(r['결과']||'')
       };}).filter(function(g){return g.id;});
-      saveGRStorage();renderGrievanceList();
+      saveGRStorage();
     }
-  }).catch(function(){});
+    renderGrievanceList();
+  }).catch(function(){ renderGrievanceList(); });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1933,9 +1945,10 @@ function loadFDfromSheets(){
         type:String(r['유형']||'실제 대피 훈련'),staff:String(r['담당자']||''),note:String(r['메모']||''),
         pdfLink:String(r['PDF링크']||'')
       };}).filter(function(f){return f.id;});
-      saveFDStorage();renderFDList();
+      saveFDStorage();
     }
-  }).catch(function(){});
+    renderFDList();
+  }).catch(function(){ renderFDList(); });
 }
 
 function renderFDList(){
@@ -2069,9 +2082,10 @@ function loadTempfromSheets(){
         type:String(r['유형']||''),value:String(r['측정값']||''),
         unit:String(r['단위']||'°F'),staff:String(r['기록자']||''),note:String(r['메모']||'')
       };}).filter(function(t){return t.id;});
-      saveTempStorage();renderTempList();
+      saveTempStorage();
     }
-  }).catch(function(){});
+    renderTempList();
+  }).catch(function(){ renderTempList(); });
 }
 var _tempFilter='fridge';
 function setTempFilter(f,el){_tempFilter=f;document.querySelectorAll('#panel-templog .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderTempList();}
@@ -2163,9 +2177,10 @@ function loadDocsfromSheets(){
         issued:String(r['발급일']||''),expiry:String(r['만료일']||''),
         link:String(r['Drive링크']||''),note:String(r['메모']||'')
       };}).filter(function(d){return d.id&&d.name;});
-      saveDocsStorage();renderDocsList();
+      saveDocsStorage();
     }
-  }).catch(function(){});
+    renderDocsList();
+  }).catch(function(){ renderDocsList(); });
 }
 
 function docStatus(expiry){
@@ -2246,9 +2261,10 @@ function loadActfromSheets(){
         name:String(r['활동명']||''),cat:String(r['카테고리']||'신체활동'),
         staff:String(r['담당자']||''),note:String(r['메모']||'')
       };}).filter(function(a){return a.id&&a.name;});
-      saveActStorage();renderActivityList();
+      saveActStorage();
     }
-  }).catch(function(){});
+    renderActivityList();
+  }).catch(function(){ renderActivityList(); });
 }
 var _actFilter='all';
 function setActFilter(f,el){_actFilter=f;document.querySelectorAll('#panel-activity .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderActivityList();}
