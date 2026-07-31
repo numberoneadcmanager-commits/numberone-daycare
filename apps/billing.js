@@ -221,7 +221,7 @@ function _attSheetTOC(tocMembers, ins, year, month, startPage, idOrderMembers) {
     var pg = pageMap[m.id] || {att:'?', trp:'?'};
     return '<div class="toc-row">'
       + '<span class="toc-name">' + (m.kr||'') + ' <span style="font-weight:900;color:#D85A30">#' + (m.id||'') + '</span></span>'
-      + '<span class="toc-pages">p.' + pg.att + '·' + pg.trp + '</span>'
+      + '<span class="toc-pages">p.' + pg.att + '</span>'
       + '</div>';
   }
 
