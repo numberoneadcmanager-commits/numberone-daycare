@@ -319,8 +319,9 @@ async function savePCSPFull(){
   });
 
   // 서명 캔버스에서 서명 이미지 가져오기
-  var sigCanvas = document.getElementById('pcsp-sig-canvas');
-  var sigData = _pcspSig || (sigCanvas ? sigCanvas.toDataURL('image/png') : null);
+  // ★ _pcspSig는 실제로 서명을 그렸을 때만 채워짐 — 빈 캔버스에서 강제로 toDataURL()을
+  //   뽑으면 빈 이미지도 100자 넘는 base64가 나와서 "서명 있음"으로 오판되는 버그 있었음
+  var sigData = _pcspSig || null;
 
   var editId=document.getElementById('pcsp-edit-id').value;
   var entry={
