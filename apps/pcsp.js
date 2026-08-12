@@ -127,6 +127,7 @@ function renderPCSPMemberList(){
 }
 
 function selectPCSPMember(m){
+  document.getElementById('pcsp-list-view').style.display='none';
   document.getElementById('pcsp-member-select').style.display='none';
   document.getElementById('pcsp-form-view').style.display='block';
   _pcspDays=new Set();_pcspContacts=[];_pcspRisks=[];_pcspGoals=[];_pcspCommunity=[];
@@ -456,7 +457,13 @@ function editPCSP(id){
     }
   }).catch(function(){openPCSPForm(id);});
 }
-function deletePCSP(id){if(!confirm('삭제?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});savePCSPStorage();renderPCSPList();}
+async function deletePCSP(id){
+  if(!confirm('삭제?'))return;
+  PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});
+  savePCSPStorage();
+  renderPCSPList();
+  try{ await apiCall({action:'delete',sheet:'PCSP',id:id}); }catch(e){ console.log('PCSP Sheets 삭제 실패:', e); }
+}
 
 function printPCSP(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});
@@ -974,4 +981,63 @@ Requirements:
   } finally {
     if(btn){ btn.textContent='✨ AI 작성'; btn.disabled=false; }
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 케어 관리(index.html)에서 멤버 선택 후 넘어온 경우 처리
+// ══════════════════════════════════════════════════════════════
+function prefillPCSPFromMember(mid){
+  var member = (typeof _formsMemberCache !== 'undefined' ? _formsMemberCache : []).find(function(m){
+    return String(m['ID']) === String(mid);
+  });
+
+  if (!member) {
+    // 멤버 캐시에 없으면(로드 지연 등) 신규 작성 화면만 열기
+    document.getElementById('pcsp-list-view').style.display='none';
+    document.getElementById('pcsp-member-select').style.display='none';
+    document.getElementById('pcsp-form-view').style.display='block';
+    return;
+  }
+
+  var medicaid = String(member['Medicaid']||'').toUpperCase();
+  var nameKr   = String(member['한글이름']||'');
+  var matches = PCSP_LIST.filter(function(p){
+    return (medicaid && String(p.medicaid||'').toUpperCase() === medicaid)
+        || (nameKr && p.nameKr === nameKr);
+  });
+
+  if (matches.length === 0) {
+    selectPCSPMember(member);
+  } else if (matches.length === 1) {
+    editPCSP(matches[0].id);
+  } else {
+    showPCSPSelectPopup(matches, member);
+  }
+}
+
+// 같은 멤버 이름으로 PCSP가 여러 건일 때 선택 팝업
+function showPCSPSelectPopup(matches, member){
+  matches.sort(function(a,b){ return (b.wdate||'').localeCompare(a.wdate||''); });
+  var mName = member ? (member['한글이름']||'') : '';
+  window._pcspPopupMember = member; // 새 PCSP 작성 버튼에서 사용
+  var html = '<div style="padding:4px 0">';
+  html += '<div style="font-size:13px;font-weight:700;margin-bottom:10px">' + mName + ' — 저장된 PCSP ' + matches.length + '건</div>';
+  matches.forEach(function(p){
+    var due = p.nextdate && p.nextdate <= new Date().toLocaleDateString('sv-SE');
+    html += '<div onclick="closeOv(\'ov-doc-viewer\');editPCSP(\''+p.id+'\')" '
+      + 'style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
+      + '<div style="font-size:13px;font-weight:600">작성일: ' + (p.wdate||'—') + '</div>'
+      + '<div style="font-size:12px;color:' + (due?'#FF3B30':'#34C759') + ';margin-top:3px">갱신예정일: ' + (p.nextdate||'—') + (due?' (임박/만료)':'') + '</div>'
+      + '<div style="font-size:11px;color:#8E8E93;margin-top:3px">작성자: ' + (p.writer||'—') + '</div>'
+      + '</div>';
+  });
+  html += '<button onclick="closeOv(\'ov-doc-viewer\');selectPCSPMember(window._pcspPopupMember)" '
+    + 'style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #D85A30;background:#FFF3EE;color:#D85A30;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px">➕ 새 PCSP 작성</button>';
+  html += '</div>';
+
+  var titleEl = document.getElementById('doc-viewer-title');
+  var bodyEl  = document.getElementById('doc-viewer-body');
+  if (titleEl) titleEl.textContent = 'PCSP 선택';
+  if (bodyEl)  bodyEl.innerHTML = html;
+  openOv('ov-doc-viewer');
 }
