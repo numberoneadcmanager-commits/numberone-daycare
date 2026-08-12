@@ -1499,6 +1499,29 @@ function initData(){
   loadTempfromSheets();
   loadDocsfromSheets();
   loadActfromSheets();
+
+  // ── 케어 관리(index.html)에서 "PCSP 입력 →" 클릭 시 넘어온 경우 자동 처리 ──
+  var params = new URLSearchParams(window.location.search);
+  var tab = params.get('tab');
+  var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
+  if (tab === 'pcsp' || tab === 'forms') {
+    localStorage.removeItem('pcsp_prefill_mid');
+    var formsTabEl = document.querySelector('.tab[onclick*="\'forms\'"]');
+    goTab('forms', formsTabEl);
+    if (mid) {
+      // 멤버 캐시(loadFormsMemberDropdown)가 채워질 때까지 대기 후 PCSP 오픈
+      var tries = 0;
+      var waitForCache = setInterval(function(){
+        tries++;
+        if ((_formsMemberCache && _formsMemberCache.length) || tries > 40) {
+          clearInterval(waitForCache);
+          var member = (_formsMemberCache||[]).find(function(m){ return String(m['ID']) === String(mid); });
+          var mName = member ? (member['한글이름']||'') : '';
+          openPCSPForMember(mid, mName);
+        }
+      }, 150);
+    }
+  }
 }
 
 // ── Tab 전환 ─────────────────────────────────────────────
