@@ -403,7 +403,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="tab" onclick="goTab('authorization',this)">Auth</div>
     <div class="tab" onclick="goTab('visitor',this)">방문자</div>
     <div class="tab" onclick="goTab('council',this)">회의록</div>
-    <div class="tab" id="tab-settings" onclick="goTab('settings',this)">설정</div>
+    <div class="tab" id="tab-settings" onclick="goTab('settings',this);loadDaycareHoursDisplay()">설정</div>
   </div>
 
   <!-- Content -->
@@ -775,6 +775,15 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     </div>
 
     <div class="panel" id="panel-settings">
+      <div class="settings-card" style="background:#E6F1FB;border:1.5px solid #A8C8F0">
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px">🏠 홈케어 겹침 체크 기준</div>
+        <div style="font-size:12px;color:#8E8E93;margin-bottom:10px">데이케어 운영시간과 겹치는 홈케어 시간대가 있으면 자동으로 경고해드려요.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <div><div class="fl" style="font-size:11px;margin-bottom:4px">운영 시작</div><input class="m-input" type="time" id="settings-daycare-start" value="09:00" onchange="saveDaycareHours()"></div>
+          <div><div class="fl" style="font-size:11px;margin-bottom:4px">운영 종료</div><input class="m-input" type="time" id="settings-daycare-end" value="13:00" onchange="saveDaycareHours()"></div>
+        </div>
+        <div style="font-size:11px;color:#185FA5">현재 기준: <span id="settings-daycare-display">09:00 ~ 13:00</span></div>
+      </div>
       <div class="settings-card" style="background:#FFF3E0;border:1.5px solid #FFB347">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="font-size:14px;font-weight:700">📝 서명대기 폼 전체보기</div>
@@ -952,6 +961,37 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">Medicaid ID</div><input class="m-input" id="me-medicaid"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">MLTC ID</div><input class="m-input" id="me-mltc"></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><div class="fl" style="font-size:11px;margin-bottom:4px">주치의</div><input class="m-input" id="me-pcp"></div><div><div class="fl" style="font-size:11px;margin-bottom:4px">보험사</div><select class="m-select" id="me-ins"><option value="Anthem_MLTC">Anthem MLTC</option><option value="Anthem_MAP">Anthem MAP</option><option value="CLP">Centerlight PACE</option><option value="SWH">Senior Whole Health</option></select></div></div>
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
+  <div style="background:#F2F2F7;border-radius:12px;padding:12px;margin-bottom:10px">
+    <div class="fl" style="font-size:12px;margin-bottom:8px">🏠 홈케어 정보</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+      <div>
+        <div class="fl" style="font-size:10px;margin-bottom:4px">홈케어 회사</div>
+        <select class="m-select" id="me-hc-agency" onchange="toggleHcAgencyOther()" style="font-size:13px">
+          <option value="">— 선택 안 함 —</option>
+          <option value="Nu">Nu</option>
+          <option value="Elim">Elim</option>
+          <option value="Evergreen">Evergreen</option>
+          <option value="Extreme">Extreme</option>
+          <option value="PPL">PPL</option>
+          <option value="__other__">직접 입력</option>
+        </select>
+      </div>
+      <div id="me-hc-agency-other-wrap" style="display:none">
+        <div class="fl" style="font-size:10px;margin-bottom:4px">회사명 입력</div>
+        <input class="m-input" id="me-hc-agency-other" style="font-size:13px" placeholder="회사명">
+      </div>
+    </div>
+    <div class="fl" style="font-size:10px;margin-bottom:6px">홈케어 요일</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="dsbtn" id="hc-Sun" onclick="toggleHCDay(this,'Sun')">S</button><button class="dsbtn" id="hc-Mon" onclick="toggleHCDay(this,'Mon')">M</button><button class="dsbtn" id="hc-Tue" onclick="toggleHCDay(this,'Tue')">T</button><button class="dsbtn" id="hc-Wed" onclick="toggleHCDay(this,'Wed')">W</button><button class="dsbtn" id="hc-Thu" onclick="toggleHCDay(this,'Thu')">TH</button><button class="dsbtn" id="hc-Fri" onclick="toggleHCDay(this,'Fri')">F</button><button class="dsbtn" id="hc-Sat" onclick="toggleHCDay(this,'Sat')">S</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+      <div><div class="fl" style="font-size:10px;margin-bottom:4px">시작 시간</div><input class="m-input" type="time" id="me-hc-start" style="font-size:13px" oninput="updateHcWeeklyTotal()"></div>
+      <div><div class="fl" style="font-size:10px;margin-bottom:4px">종료 시간</div><input class="m-input" type="time" id="me-hc-end" style="font-size:13px" oninput="updateHcWeeklyTotal()"></div>
+    </div>
+    <div id="me-hc-total" style="font-size:12px;color:#3C3C43;font-weight:600;margin-bottom:6px">주간 총 시간: —</div>
+    <div id="me-hc-overlap-warn" style="display:none;font-size:11px;color:#FF3B30;background:#FFEBEE;border-radius:8px;padding:8px 10px;font-weight:600">⚠️ SADC 출석요일과 겹침</div>
+  </div>
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div><textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea></div>
   <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button><button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button></div>
 </div>
