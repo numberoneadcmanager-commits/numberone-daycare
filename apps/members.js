@@ -471,7 +471,7 @@ var _meEditDays = new Set();
 function openAddMember() {
   window._meditMid = null;
   document.getElementById('medit-title').textContent = '새 멤버 추가';
-  ['me-chartno','me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-city','me-zip','me-diagcode','me-medicaid','me-mltc','me-pcp','me-memo','me-hc-agency-other','me-hc-start','me-hc-end'].forEach(id => {
+  ['me-chartno','me-kr','me-en','me-lastname','me-firstname','me-middlename','me-phone','me-addr','me-city','me-zip','me-diagcode','me-medicaid','me-mltc','me-pcp','me-memo','me-hc-agency-other'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('me-dob').value = '';
@@ -481,11 +481,11 @@ function openAddMember() {
   document.getElementById('me-hc-agency').value = '';
   document.getElementById('me-hc-agency-other-wrap').style.display = 'none';
   _meEditDays = new Set();
-  _hcEditDays = new Set();
   ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
     const b = document.getElementById('me-' + d); if (b) b.className = 'dsbtn';
-    const hb = document.getElementById('hc-' + d); if (hb) hb.className = 'dsbtn';
   });
+  _hcEditSchedule = {};
+  renderHcScheduleRows();
   updateHcWeeklyTotal();
   openOv('ov-medit');
 }
@@ -532,12 +532,8 @@ function openMemberEdit(mid) {
     otherWrap.style.display = 'none';
     otherInput.value = '';
   }
-  document.getElementById('me-hc-start').value = m.hcStart || '';
-  document.getElementById('me-hc-end').value   = m.hcEnd   || '';
-  _hcEditDays = new Set(m.hcDays || []);
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
-    const b = document.getElementById('hc-' + d); if (b) b.className = 'dsbtn' + (_hcEditDays.has(d) ? ' sel' : '');
-  });
+  _hcEditSchedule = JSON.parse(JSON.stringify(m.hcSchedule || {}));
+  renderHcScheduleRows();
   updateHcWeeklyTotal();
 
   openOv('ov-medit');
@@ -596,9 +592,8 @@ async function saveMemberEdit() {
   m.hcAgency = agencySelVal === '__other__'
     ? document.getElementById('me-hc-agency-other').value.trim()
     : agencySelVal;
-  m.hcStart = document.getElementById('me-hc-start').value;
-  m.hcEnd   = document.getElementById('me-hc-end').value;
-  m.hcDays  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].filter(d => _hcEditDays.has(d));
+  onHcTimeChange(); // 최신 입력값으로 _hcEditSchedule 갱신
+  m.hcSchedule = JSON.parse(JSON.stringify(_hcEditSchedule));
 
   // ★ SheetsAPI.saveMember()로 통일 — 전체 필드를 한번에 정확히 저장
   try {
@@ -968,15 +963,13 @@ async function splitMemberAddresses() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 🏠 홈케어 정보 관리 (요일/시간/회사 + SADC 겹침 체크)
+// 🏠 홈케어 정보 관리 (요일마다 다른 시간 + SADC 겹침 체크)
 // ══════════════════════════════════════════════════════════════
-var _hcEditDays = new Set();
+var DAY_LABELS = { Sun:'일', Mon:'월', Tue:'화', Wed:'수', Thu:'목', Fri:'금', Sat:'토' };
+var HC_DAY_ORDER = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function toggleHCDay(btn, day) {
-  if (_hcEditDays.has(day)) { _hcEditDays.delete(day); btn.className = 'dsbtn'; }
-  else                      { _hcEditDays.add(day);    btn.className = 'dsbtn sel'; }
-  updateHcWeeklyTotal();
-}
+// 요일별 편집 상태: { Mon: {start:'08:00', end:'11:00'}, ... } (시간 없으면 그 요일은 미사용)
+var _hcEditSchedule = {};
 
 function toggleHcAgencyOther() {
   var sel = document.getElementById('me-hc-agency');
@@ -984,7 +977,31 @@ function toggleHcAgencyOther() {
   if (wrap) wrap.style.display = (sel.value === '__other__') ? 'block' : 'none';
 }
 
-// 데이케어 운영시간 (설정에서 변경 가능, localStorage에 저장)
+// 요일별 시간 입력 행 렌더링
+function renderHcScheduleRows() {
+  var wrap = document.getElementById('me-hc-schedule-rows');
+  if (!wrap) return;
+  wrap.innerHTML = HC_DAY_ORDER.map(function(d) {
+    var sched = _hcEditSchedule[d] || {};
+    return '<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;align-items:center;margin-bottom:6px">'
+      + '<div style="font-size:12px;font-weight:700;color:#3C3C43;text-align:center">' + DAY_LABELS[d] + '</div>'
+      + '<input class="m-input" type="time" id="hc-start-' + d + '" value="' + (sched.start||'') + '" style="font-size:12px;padding:7px" oninput="onHcTimeChange()">'
+      + '<input class="m-input" type="time" id="hc-end-' + d + '" value="' + (sched.end||'') + '" style="font-size:12px;padding:7px" oninput="onHcTimeChange()">'
+      + '</div>';
+  }).join('');
+}
+
+// 입력값 변경 시 _hcEditSchedule 갱신 + 총시간/겹침 재계산
+function onHcTimeChange() {
+  _hcEditSchedule = {};
+  HC_DAY_ORDER.forEach(function(d) {
+    var s = document.getElementById('hc-start-' + d).value;
+    var e = document.getElementById('hc-end-' + d).value;
+    if (s && e) _hcEditSchedule[d] = { start: s, end: e };
+  });
+  updateHcWeeklyTotal();
+}
+
 function getDaycareHours() {
   var saved = localStorage.getItem('daycare_hours');
   if (saved) { try { return JSON.parse(saved); } catch(e) {} }
@@ -997,7 +1014,7 @@ function saveDaycareHours() {
   localStorage.setItem('daycare_hours', JSON.stringify({ start, end }));
   var disp = document.getElementById('settings-daycare-display');
   if (disp) disp.textContent = start + ' ~ ' + end;
-  filterM(); // 멤버 카드 겹침 경고 재계산
+  filterM();
 }
 
 function _timeToMin(t) {
@@ -1011,50 +1028,73 @@ function _rangesOverlap(s1, e1, s2, e2) {
   return s1 < e2 && s2 < e1;
 }
 
-// 시작~종료 시간 사이 주간 총 시간(시간 단위) 계산해서 표시
+// 특정 요일의 홈케어 시간이 데이케어 운영시간과 겹치는지
+function _hcDayOverlapsDaycare(sched) {
+  var dc = getDaycareHours();
+  return _rangesOverlap(_timeToMin(sched.start), _timeToMin(sched.end), _timeToMin(dc.start), _timeToMin(dc.end));
+}
+
+// 주간 총 시간 계산 + 요일별 SADC 겹침 경고
 function updateHcWeeklyTotal() {
-  var start = document.getElementById('me-hc-start').value;
-  var end   = document.getElementById('me-hc-end').value;
   var totalEl = document.getElementById('me-hc-total');
   var warnEl  = document.getElementById('me-hc-overlap-warn');
-  if (!start || !end || !_hcEditDays.size) {
+  var days = Object.keys(_hcEditSchedule);
+
+  if (!days.length) {
     if (totalEl) totalEl.textContent = '주간 총 시간: —';
     if (warnEl) warnEl.style.display = 'none';
     return;
   }
-  var sMin = _timeToMin(start), eMin = _timeToMin(end);
-  var dailyHours = (eMin - sMin) / 60;
-  if (dailyHours < 0) dailyHours += 24; // 자정 넘김 방어
-  var weeklyTotal = (dailyHours * _hcEditDays.size).toFixed(1);
-  if (totalEl) totalEl.textContent = '주간 총 시간: ' + weeklyTotal + '시간 (' + _hcEditDays.size + '일 × ' + dailyHours.toFixed(1) + '시간)';
 
-  // SADC 출석요일과 겹치는지 + 데이케어 운영시간과 겹치는지 체크
-  var dc = getDaycareHours();
-  var dcStart = _timeToMin(dc.start), dcEnd = _timeToMin(dc.end);
-  var overlapDay = Array.from(_hcEditDays).some(function(d) { return _meEditDays.has(d); });
-  var overlapTime = _rangesOverlap(sMin, eMin, dcStart, dcEnd);
-  if (warnEl) warnEl.style.display = (overlapDay && overlapTime) ? 'block' : 'none';
+  var totalMin = 0;
+  var overlapDays = [];
+  days.forEach(function(d) {
+    var sched = _hcEditSchedule[d];
+    var sMin = _timeToMin(sched.start), eMin = _timeToMin(sched.end);
+    var diff = eMin - sMin; if (diff < 0) diff += 24 * 60;
+    totalMin += diff;
+    // SADC 출석요일이면서 데이케어 시간과 겹치면 경고 대상
+    if (_meEditDays.has(d) && _hcDayOverlapsDaycare(sched)) overlapDays.push(d);
+  });
+
+  var totalHours = (totalMin / 60).toFixed(1);
+  if (totalEl) totalEl.textContent = '주간 총 시간: ' + totalHours + '시간 (' + days.length + '일)';
+
+  if (warnEl) {
+    if (overlapDays.length) {
+      warnEl.style.display = 'block';
+      warnEl.textContent = '⚠️ ' + overlapDays.map(function(d){ return DAY_LABELS[d]; }).join(',') + '요일 홈케어 시간이 SADC 출석시간과 겹쳐요';
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
 }
 
-// 멤버 카드에 표시할 홈케어 배지 (겹침 있으면 경고, 없으면 정보만)
+// 멤버 카드에 표시할 홈케어 배지
 function _hcBadgeHTML(m) {
-  if (!m.hcAgency || !m.hcDays || !m.hcDays.length) return '';
+  if (!m.hcAgency || !m.hcSchedule || !Object.keys(m.hcSchedule).length) return '';
+
   var dc = getDaycareHours();
-  var dcStart = _timeToMin(dc.start), dcEnd = _timeToMin(dc.end);
-  var hcStart = _timeToMin(m.hcStart), hcEnd = _timeToMin(m.hcEnd);
-  var overlapDay  = (m.hcDays || []).some(function(d) { return (m.days || []).includes(d); });
-  var overlapTime = _rangesOverlap(hcStart, hcEnd, dcStart, dcEnd);
-  var hasOverlap  = overlapDay && overlapTime && m.hcStart && m.hcEnd;
+  var overlapDays = [];
+  var summaryParts = [];
 
-  var daysStr = (m.hcDays || []).map(function(d) { return DKR[d]; }).join(',');
-  var timeStr = (m.hcStart && m.hcEnd) ? (m.hcStart + '~' + m.hcEnd) : '';
+  HC_DAY_ORDER.forEach(function(d) {
+    var sched = m.hcSchedule[d];
+    if (!sched) return;
+    summaryParts.push(DAY_LABELS[d] + ' ' + sched.start + '~' + sched.end);
+    var isAttendDay = (m.days || []).includes(d);
+    var overlapsHours = _rangesOverlap(_timeToMin(sched.start), _timeToMin(sched.end), _timeToMin(dc.start), _timeToMin(dc.end));
+    if (isAttendDay && overlapsHours) overlapDays.push(d);
+  });
 
-  if (hasOverlap) {
+  var summaryStr = summaryParts.join(', ');
+
+  if (overlapDays.length) {
     return '<div style="font-size:11px;font-weight:700;color:#FF3B30;background:#FFEBEE;border-radius:8px;padding:5px 9px;margin-top:6px">'
-      + '⚠️ 홈케어 겹침: ' + m.hcAgency + ' (' + daysStr + ' ' + timeStr + ')</div>';
+      + '⚠️ 홈케어 겹침(' + overlapDays.map(function(d){return DAY_LABELS[d];}).join(',') + '): ' + m.hcAgency + ' — ' + summaryStr + '</div>';
   }
   return '<div style="font-size:11px;font-weight:600;color:#0F6E56;background:#E1F5EE;border-radius:8px;padding:5px 9px;margin-top:6px">'
-    + '🏠 ' + m.hcAgency + ' (' + daysStr + (timeStr ? ' ' + timeStr : '') + ')</div>';
+    + '🏠 ' + m.hcAgency + ' — ' + summaryStr + '</div>';
 }
 
 // 설정 탭 진입 시 저장된 운영시간 표시
