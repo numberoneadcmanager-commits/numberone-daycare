@@ -1128,6 +1128,12 @@ async function openMemberDetail(mid) {
       + '<span style="font-size:11px;color:#8E8E93;min-width:88px;flex-shrink:0">' + label + '</span>'
       + '<span style="font-size:12px;color:#1C1C1E;flex:1">' + val + '</span></div>';
   }
+  // 값이 없어도 "—"로 항상 표시 (해당 정보가 있는지 없는지 구분되도록)
+  function rowAlways(label, val) {
+    return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:.5px solid #F2F2F7">'
+      + '<span style="font-size:11px;color:#8E8E93;min-width:88px;flex-shrink:0">' + label + '</span>'
+      + '<span style="font-size:12px;color:' + (val ? '#1C1C1E' : '#C7C7CC') + ';flex:1">' + (val || '—') + '</span></div>';
+  }
   function section(title) {
     return '<div style="font-size:12px;font-weight:700;color:#D85A30;margin:14px 0 4px">' + title + '</div>';
   }
@@ -1156,26 +1162,31 @@ async function openMemberDetail(mid) {
   html += row('주치의', m.pcp);
   html += row('출석요일', (m.days||[]).map(function(d){ return DKR[d]; }).join(', '));
 
-  // 홈케어
+  // 홈케어 (항상 표시)
+  html += section('🏠 홈케어');
   if (m.hcAgency && m.hcSchedule && Object.keys(m.hcSchedule).length) {
-    html += section('🏠 홈케어');
-    html += row('회사', m.hcAgency);
+    html += rowAlways('회사', m.hcAgency);
     var hcLines = HC_DAY_ORDER.filter(function(d){ return m.hcSchedule[d]; }).map(function(d){
       var s = m.hcSchedule[d];
       return DAY_LABELS[d] + ' ' + s.start + '~' + s.end;
     }).join('<br>');
-    html += row('스케줄', hcLines);
+    html += rowAlways('스케줄', hcLines);
+  } else {
+    html += rowAlways('회사', '');
+    html += rowAlways('스케줄', '');
   }
 
-  // 부재 정보 (진행중/예정)
+  // 부재 정보 (항상 표시)
+  html += section('📅 부재 정보');
   if (typeof ABSENCE_MAP !== 'undefined' && ABSENCE_MAP[mid]) {
     var ab = ABSENCE_MAP[mid];
     var abLabel = { travel:'✈️ 여행', hospital:'🏥 입원', leave:'🏖️ 휴가' }[ab.status] || ab.status;
     var abState = ab.state === 'ongoing' ? '진행중' : ab.state === 'upcoming' ? '예정' : '';
-    html += section('📅 부재 정보');
-    html += row('상태', abLabel + (abState ? ' (' + abState + ')' : ''));
-    html += row('기간', (ab.start||'') + (ab.end ? ' ~ ' + ab.end : ''));
-    if (ab.memo) html += row('메모', ab.memo);
+    html += rowAlways('상태', abLabel + (abState ? ' (' + abState + ')' : ''));
+    html += rowAlways('기간', (ab.start||'') + (ab.end ? ' ~ ' + ab.end : ''));
+    html += rowAlways('메모', ab.memo);
+  } else {
+    html += rowAlways('상태', '');
   }
 
   // 운영 메모
@@ -1184,18 +1195,57 @@ async function openMemberDetail(mid) {
     html += '<div style="font-size:12px;color:#D85A30;background:#FFF3EE;border-radius:8px;padding:8px 10px;margin-top:4px">' + m.memo + '</div>';
   }
 
-  // Authorization (활성만)
+  // Authorization (항상 표시)
+  html += section('🔑 Authorization');
   if (typeof AUTH_LIST !== 'undefined' && AUTH_LIST.length) {
     var todayIso = new Date().toLocaleDateString('sv-SE');
     var memberAuths = AUTH_LIST.filter(function(a){ return a.memberId === mid; });
     var activeAuths = memberAuths.filter(function(a){ return !a.endDate || a.endDate >= todayIso; });
     if (activeAuths.length) {
-      html += section('🔑 Authorization');
       activeAuths.forEach(function(a){
         var statusColor = a.status === 'Active' ? '#0F6E56' : '#B35900';
-        html += row(a.serviceType || 'Auth', (a.startDate||'') + ' ~ ' + (a.endDate||'') + ' <span style="color:'+statusColor+';font-weight:700">(' + (a.status||'') + ')</span>');
+        html += rowAlways(a.serviceType || 'Auth', (a.startDate||'') + ' ~ ' + (a.endDate||'') + ' <span style="color:'+statusColor+';font-weight:700">(' + (a.status||'') + ')</span>');
       });
+    } else {
+      html += rowAlways('활성 Auth', '');
     }
+  } else {
+    html += rowAlways('활성 Auth', '');
+  }
+
+  // 최근 Activity (최신 3건)
+  html += section('🎨 최근 Activity');
+  if (typeof activities !== 'undefined' && activities.length) {
+    var memberActs = activities.filter(function(a){ return a['멤버ID'] === mid; })
+      .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
+      .slice(0, 3);
+    if (memberActs.length) {
+      memberActs.forEach(function(a){
+        html += rowAlways((a['날짜']||'').slice(0,10), (a['활동명']||'') + (a['참여도'] ? ' · ' + a['참여도'] : ''));
+      });
+    } else {
+      html += rowAlways('기록', '');
+    }
+  } else {
+    html += rowAlways('기록', '');
+  }
+
+  // Incident 이력 (최신 3건)
+  html += section('🚨 Incident 이력');
+  if (typeof incidents !== 'undefined' && incidents.length) {
+    var memberIncs = incidents.filter(function(a){ return a['멤버ID'] === mid; })
+      .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
+      .slice(0, 3);
+    if (memberIncs.length) {
+      memberIncs.forEach(function(inc){
+        var sevColor = inc['심각도'] === 'Serious' ? '#FF3B30' : inc['심각도'] === 'Moderate' ? '#FF9500' : '#34C759';
+        html += rowAlways((inc['날짜']||'').slice(0,10), (inc['유형']||'') + ' <span style="color:'+sevColor+';font-weight:700">(' + (inc['심각도']||'') + ')</span>');
+      });
+    } else {
+      html += rowAlways('기록', '');
+    }
+  } else {
+    html += rowAlways('기록', '');
   }
 
   html += '<div id="detail-pcsp-section">'
@@ -1208,22 +1258,27 @@ async function openMemberDetail(mid) {
   // PCSP에서 비상연락처/케어매니저/갱신예정일 비동기 로드
   try {
     var res = await SheetsAPI.loadJSON(mid, m.kr, 'PCSP');
-    var pcspHtml = '';
+    var pcspHtml = section('📋 PCSP 정보');
     if (res && res.ok && res.data && res.data.found && res.data.data) {
       var p = res.data.data;
-      pcspHtml += section('📋 PCSP 정보');
-      if (p.nextdate) pcspHtml += row('갱신예정일', p.nextdate);
-      if (p.cm1name) pcspHtml += row('케어매니저', p.cm1name + (p.cm1phone ? ' · ' + p.cm1phone : ''));
+      pcspHtml += rowAlways('갱신예정일', p.nextdate);
+      pcspHtml += rowAlways('케어매니저', p.cm1name ? (p.cm1name + (p.cm1phone ? ' · ' + p.cm1phone : '')) : '');
       if (p.contacts && p.contacts.length) {
+        var shown = 0;
         p.contacts.forEach(function(c, i){
-          if (c && c.name) pcspHtml += row('비상연락처' + (i+1), c.name + (c.rel ? ' (' + c.rel + ')' : '') + (c.phone ? ' · ' + c.phone : ''));
+          if (c && c.name) { pcspHtml += rowAlways('비상연락처' + (i+1), c.name + (c.rel ? ' (' + c.rel + ')' : '') + (c.phone ? ' · ' + c.phone : '')); shown++; }
         });
+        if (!shown) { pcspHtml += rowAlways('비상연락처1', ''); pcspHtml += rowAlways('비상연락처2', ''); }
       } else {
-        if (p.ec1 && p.ec1.name) pcspHtml += row('비상연락처1', p.ec1.name + (p.ec1.rel ? ' (' + p.ec1.rel + ')' : '') + (p.ec1.phone ? ' · ' + p.ec1.phone : ''));
-        if (p.ec2 && p.ec2.name) pcspHtml += row('비상연락처2', p.ec2.name + (p.ec2.rel ? ' (' + p.ec2.rel + ')' : '') + (p.ec2.phone ? ' · ' + p.ec2.phone : ''));
+        pcspHtml += rowAlways('비상연락처1', (p.ec1 && p.ec1.name) ? (p.ec1.name + (p.ec1.rel ? ' (' + p.ec1.rel + ')' : '') + (p.ec1.phone ? ' · ' + p.ec1.phone : '')) : '');
+        pcspHtml += rowAlways('비상연락처2', (p.ec2 && p.ec2.name) ? (p.ec2.name + (p.ec2.rel ? ' (' + p.ec2.rel + ')' : '') + (p.ec2.phone ? ' · ' + p.ec2.phone : '')) : '');
       }
     } else {
-      pcspHtml = '<div style="font-size:12px;color:#C7C7CC;margin-top:10px;text-align:center">저장된 PCSP 없음</div>';
+      pcspHtml += rowAlways('갱신예정일', '');
+      pcspHtml += rowAlways('케어매니저', '');
+      pcspHtml += rowAlways('비상연락처1', '');
+      pcspHtml += rowAlways('비상연락처2', '');
+      pcspHtml += '<div style="font-size:11px;color:#C7C7CC;margin-top:6px;text-align:center">저장된 PCSP 없음</div>';
     }
     var pcspSection = document.getElementById('detail-pcsp-section');
     if (pcspSection) pcspSection.innerHTML = pcspHtml;
