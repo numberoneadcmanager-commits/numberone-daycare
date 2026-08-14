@@ -1248,6 +1248,24 @@ async function openMemberDetail(mid) {
     html += rowAlways('기록', '');
   }
 
+  // Case Log (최신 3건)
+  html += section('📁 Case Log');
+  if (typeof cases !== 'undefined' && cases.length) {
+    var memberCases = cases.filter(function(c){ return c['멤버ID'] === mid; })
+      .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
+      .slice(0, 3);
+    if (memberCases.length) {
+      memberCases.forEach(function(c){
+        var stColor = c['상태'] === '완료' ? '#0F6E56' : c['상태'] === '진행중' ? '#B35900' : '#8E8E93';
+        html += rowAlways((c['날짜']||'').slice(0,10), (c['제목'] || c['유형'] || '') + ' <span style="color:'+stColor+';font-weight:700">(' + (c['상태']||'') + ')</span>');
+      });
+    } else {
+      html += rowAlways('기록', '');
+    }
+  } else {
+    html += rowAlways('기록', '');
+  }
+
   html += '<div id="detail-pcsp-section">'
     + '<div style="font-size:12px;color:#8E8E93;margin-top:14px;text-align:center">PCSP 정보 불러오는 중...</div>'
     + '</div>';
