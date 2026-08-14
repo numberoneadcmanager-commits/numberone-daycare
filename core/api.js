@@ -138,9 +138,18 @@ const SheetsAPI = {
         memo:          String(r['메모'] || ''),
         chartNo:       String(r['차트번호'] || r['ID'] || ''),
         hcAgency:      String(r['홈케어회사'] || ''),
-        hcDays:        r['홈케어요일'] ? String(r['홈케어요일']).split(',').map(d => d.trim()).filter(Boolean) : [],
-        hcStart:       String(r['홈케어시작'] || ''),
-        hcEnd:         String(r['홈케어종료'] || ''),
+        hcSchedule:    (function(){
+          var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+          var sched = {};
+          days.forEach(function(d){
+            var raw = String(r['홈케어'+d] || '').trim();
+            if (raw && raw.includes('-')) {
+              var parts = raw.split('-');
+              sched[d] = { start: parts[0]||'', end: parts[1]||'' };
+            }
+          });
+          return sched;
+        })(),
         avBg:          r['avBg']   || clr.bg,
         avColor:       r['avColor'] || clr.color,
       };
@@ -172,9 +181,13 @@ const SheetsAPI = {
       'Disenroll날짜': m.disenrollDate || '',
       '메모':          m.memo || '',
       '홈케어회사':    m.hcAgency || '',
-      '홈케어요일':    (m.hcDays || []).join(','),
-      '홈케어시작':    m.hcStart || '',
-      '홈케어종료':    m.hcEnd || '',
+      '홈케어Sun':    (m.hcSchedule && m.hcSchedule.Sun) ? (m.hcSchedule.Sun.start+'-'+m.hcSchedule.Sun.end) : '',
+      '홈케어Mon':    (m.hcSchedule && m.hcSchedule.Mon) ? (m.hcSchedule.Mon.start+'-'+m.hcSchedule.Mon.end) : '',
+      '홈케어Tue':    (m.hcSchedule && m.hcSchedule.Tue) ? (m.hcSchedule.Tue.start+'-'+m.hcSchedule.Tue.end) : '',
+      '홈케어Wed':    (m.hcSchedule && m.hcSchedule.Wed) ? (m.hcSchedule.Wed.start+'-'+m.hcSchedule.Wed.end) : '',
+      '홈케어Thu':    (m.hcSchedule && m.hcSchedule.Thu) ? (m.hcSchedule.Thu.start+'-'+m.hcSchedule.Thu.end) : '',
+      '홈케어Fri':    (m.hcSchedule && m.hcSchedule.Fri) ? (m.hcSchedule.Fri.start+'-'+m.hcSchedule.Fri.end) : '',
+      '홈케어Sat':    (m.hcSchedule && m.hcSchedule.Sat) ? (m.hcSchedule.Sat.start+'-'+m.hcSchedule.Sat.end) : '',
       'avBg':         m.avBg   || '#E6F1FB',
       'avColor':      m.avColor || '#185FA5',
     });
