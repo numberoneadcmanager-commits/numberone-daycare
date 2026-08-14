@@ -204,18 +204,22 @@ async function loadAllData() {
 async function loadFromSheets() {
   try {
     showLoadingOverlay('Google Sheets에서 데이터 로드 중...');
-    const members = await SheetsAPI.loadMembers();
+
+    // ★ 서로 의존관계 없는 요청들을 병렬로 실행 (순차 실행하면 각 왕복시간이 그대로 쌓여서 느려짐)
+    const [members, staff, all] = await Promise.all([
+      SheetsAPI.loadMembers(),
+      SheetsAPI.loadStaff(),
+      SheetsAPI.loadAll(),
+    ]);
+
     if (members && members.length > 0) {
       MEMBERS.length = 0;
       members.forEach(m => MEMBERS.push(m));
       mFilt = [...MEMBERS];
     }
-    const staff = await SheetsAPI.loadStaff();
     if (staff && staff.length > 0) { STAFF = staff; }
     else { STAFF = DEFAULT_STAFF.slice(); uploadDefaultStaff(); }
 
-    // Incident / Activity / Case / Auth / Visitor / Council 로드
-    const all = await SheetsAPI.loadAll();
     incidents  = all.incidents;
     activities = all.activities;
     cases      = all.cases;
@@ -542,26 +546,29 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('rpt-to').value   = todayISO;
 
   // Sheets 연결 후 데이터 로드 + 출결 로드 (앱 화면 진입 시에도 selectApp에서 한번 더 보장)
-  SheetsAPI.ping().then(ok => {
-    SheetsAPI.setStatusPill(ok);
-    if (ok && !window._sheetsLoadedOnce) {
-      window._sheetsLoadedOnce = true;
-      loadFromSheets().then(ok2 => {
-        if (ok2) {
-          renderDash(); filterM(); renderStaff();
-          renderIncidents(); renderActivities(); renderCases();
-          renderAuthList(); renderVisitorList(); renderCouncilList();
-          // 멤버 select 업데이트
-          ['inc','act','case'].forEach(function(px){
-            var sel = document.getElementById(px+'-msel');
-            if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
-          });
-          // 출결은 Sheets에서 직접 로드
-          loadAttFromSheets(toISO(curDate));
-        }
-      });
-    }
-  });
+  // ★ selectApp()에서 이미 ping+load를 실행했다면 여기서 또 요청 보내지 않음 (중복 요청 방지)
+  if (!window._sheetsLoadedOnce) {
+    SheetsAPI.ping().then(ok => {
+      SheetsAPI.setStatusPill(ok);
+      if (ok && !window._sheetsLoadedOnce) {
+        window._sheetsLoadedOnce = true;
+        loadFromSheets().then(ok2 => {
+          if (ok2) {
+            renderDash(); filterM(); renderStaff();
+            renderIncidents(); renderActivities(); renderCases();
+            renderAuthList(); renderVisitorList(); renderCouncilList();
+            // 멤버 select 업데이트
+            ['inc','act','case'].forEach(function(px){
+              var sel = document.getElementById(px+'-msel');
+              if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
+            });
+            // 출결은 Sheets에서 직접 로드
+            loadAttFromSheets(toISO(curDate));
+          }
+        });
+      }
+    });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
