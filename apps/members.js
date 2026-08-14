@@ -1216,7 +1216,7 @@ async function openMemberDetail(mid) {
   // 최근 Activity (최신 3건)
   html += section('🎨 최근 Activity');
   if (typeof activities !== 'undefined' && activities.length) {
-    var memberActs = activities.filter(function(a){ return a['멤버ID'] === mid; })
+    var memberActs = activities.filter(function(a){ return String(a['멤버ID']) === String(mid); })
       .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
       .slice(0, 3);
     if (memberActs.length) {
@@ -1233,7 +1233,7 @@ async function openMemberDetail(mid) {
   // Incident 이력 (최신 3건)
   html += section('🚨 Incident 이력');
   if (typeof incidents !== 'undefined' && incidents.length) {
-    var memberIncs = incidents.filter(function(a){ return a['멤버ID'] === mid; })
+    var memberIncs = incidents.filter(function(a){ return String(a['멤버ID']) === String(mid); })
       .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
       .slice(0, 3);
     if (memberIncs.length) {
@@ -1251,7 +1251,7 @@ async function openMemberDetail(mid) {
   // Case Log (최신 3건)
   html += section('📁 Case Log');
   if (typeof cases !== 'undefined' && cases.length) {
-    var memberCases = cases.filter(function(c){ return c['멤버ID'] === mid; })
+    var memberCases = cases.filter(function(c){ return String(c['멤버ID']) === String(mid); })
       .sort(function(a,b){ return (b['날짜']||'').localeCompare(a['날짜']||''); })
       .slice(0, 3);
     if (memberCases.length) {
