@@ -1199,12 +1199,14 @@ async function openMemberDetail(mid) {
   html += section('🔑 Authorization');
   if (typeof AUTH_LIST !== 'undefined' && AUTH_LIST.length) {
     var todayIso = new Date().toLocaleDateString('sv-SE');
-    var memberAuths = AUTH_LIST.filter(function(a){ return a.memberId === mid; });
-    var activeAuths = memberAuths.filter(function(a){ return !a.endDate || a.endDate >= todayIso; });
+    var memberAuths = AUTH_LIST.filter(function(a){ return String(a.memberId) === String(mid); });
+    var activeAuths = memberAuths.filter(function(a){ return !a.endDate || String(a.endDate).slice(0,10) >= todayIso; });
     if (activeAuths.length) {
       activeAuths.forEach(function(a){
         var statusColor = a.status === 'Active' ? '#0F6E56' : '#B35900';
-        html += rowAlways(a.serviceType || 'Auth', (a.startDate||'') + ' ~ ' + (a.endDate||'') + ' <span style="color:'+statusColor+';font-weight:700">(' + (a.status||'') + ')</span>');
+        var startD = String(a.startDate||'').slice(0,10);
+        var endD   = String(a.endDate||'').slice(0,10);
+        html += rowAlways(a.serviceType || 'Auth', startD + ' ~ ' + endD + ' <span style="color:'+statusColor+';font-weight:700">(' + (a.status||'') + ')</span>');
       });
     } else {
       html += rowAlways('활성 Auth', '');
