@@ -963,7 +963,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:6px">출석 요일</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="dsbtn" id="me-Sun" onclick="toggleMEDay(this,'Sun')">S</button><button class="dsbtn" id="me-Mon" onclick="toggleMEDay(this,'Mon')">M</button><button class="dsbtn" id="me-Tue" onclick="toggleMEDay(this,'Tue')">T</button><button class="dsbtn" id="me-Wed" onclick="toggleMEDay(this,'Wed')">W</button><button class="dsbtn" id="me-Thu" onclick="toggleMEDay(this,'Thu')">TH</button><button class="dsbtn" id="me-Fri" onclick="toggleMEDay(this,'Fri')">F</button><button class="dsbtn" id="me-Sat" onclick="toggleMEDay(this,'Sat')">S</button></div></div>
   <div style="background:#F2F2F7;border-radius:12px;padding:12px;margin-bottom:10px">
     <div class="fl" style="font-size:12px;margin-bottom:8px">🏠 홈케어 정보</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div>
         <div class="fl" style="font-size:10px;margin-bottom:4px">홈케어 회사</div>
         <select class="m-select" id="me-hc-agency" onchange="toggleHcAgencyOther()" style="font-size:13px">
@@ -981,16 +981,10 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <input class="m-input" id="me-hc-agency-other" style="font-size:13px" placeholder="회사명">
       </div>
     </div>
-    <div class="fl" style="font-size:10px;margin-bottom:6px">홈케어 요일</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      <button class="dsbtn" id="hc-Sun" onclick="toggleHCDay(this,'Sun')">S</button><button class="dsbtn" id="hc-Mon" onclick="toggleHCDay(this,'Mon')">M</button><button class="dsbtn" id="hc-Tue" onclick="toggleHCDay(this,'Tue')">T</button><button class="dsbtn" id="hc-Wed" onclick="toggleHCDay(this,'Wed')">W</button><button class="dsbtn" id="hc-Thu" onclick="toggleHCDay(this,'Thu')">TH</button><button class="dsbtn" id="hc-Fri" onclick="toggleHCDay(this,'Fri')">F</button><button class="dsbtn" id="hc-Sat" onclick="toggleHCDay(this,'Sat')">S</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-      <div><div class="fl" style="font-size:10px;margin-bottom:4px">시작 시간</div><input class="m-input" type="time" id="me-hc-start" style="font-size:13px" oninput="updateHcWeeklyTotal()"></div>
-      <div><div class="fl" style="font-size:10px;margin-bottom:4px">종료 시간</div><input class="m-input" type="time" id="me-hc-end" style="font-size:13px" oninput="updateHcWeeklyTotal()"></div>
-    </div>
-    <div id="me-hc-total" style="font-size:12px;color:#3C3C43;font-weight:600;margin-bottom:6px">주간 총 시간: —</div>
-    <div id="me-hc-overlap-warn" style="display:none;font-size:11px;color:#FF3B30;background:#FFEBEE;border-radius:8px;padding:8px 10px;font-weight:600">⚠️ SADC 출석요일과 겹침</div>
+    <div class="fl" style="font-size:10px;margin-bottom:6px">요일별 홈케어 시간 (요일마다 다를 수 있어요)</div>
+    <div id="me-hc-schedule-rows"></div>
+    <div id="me-hc-total" style="font-size:12px;color:#3C3C43;font-weight:600;margin-top:6px;margin-bottom:6px">주간 총 시간: —</div>
+    <div id="me-hc-overlap-warn" style="display:none;font-size:11px;color:#FF3B30;background:#FFEBEE;border-radius:8px;padding:8px 10px;font-weight:600"></div>
   </div>
   <div style="margin-bottom:10px"><div class="fl" style="font-size:11px;margin-bottom:4px">📝 운영 메모</div><textarea class="m-input" id="me-memo" rows="3" placeholder="예: 6월 이사 예정, 보험 변경 예정..." style="min-height:60px;resize:none;font-family:inherit"></textarea></div>
   <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-medit')">취소</button><button class="mbt mbt-save" onclick="saveMemberEdit()">저장</button></div>
