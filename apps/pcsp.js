@@ -731,27 +731,56 @@ var MED_LIBRARY = [
   {name:'Albuterol inhaler', reason:'Asthma / COPD'},
 ];
 
-// localStorage에서 커스텀 약 로드
+// ── 공유 약물 라이브러리 (Sheets 'medlib' 시트 — 모든 기기에서 동일하게 자동완성) ──
+var _medLibraryCache = null;   // 로드 완료 전엔 null, 로드 후엔 [{name,reason}, ...]
+var _medLibraryLoading = false;
+
+function loadMedLibraryFromSheets(){
+  if (_medLibraryLoading || _medLibraryCache !== null) return;
+  _medLibraryLoading = true;
+  apiGet({action:'read', sheet:'medlib'}).then(function(res){
+    if (res && res.ok && res.data) {
+      _medLibraryCache = res.data.map(function(r){
+        return { name: String(r['이름']||''), reason: String(r['이유']||'') };
+      }).filter(function(m){ return m.name; });
+    } else {
+      _medLibraryCache = [];
+    }
+  }).catch(function(){
+    _medLibraryCache = [];
+  }).finally(function(){
+    _medLibraryLoading = false;
+  });
+}
+
+// 자동완성 목록: 기본 제공 목록 + Sheets에서 불러온 공유 목록
+// (Sheets 로드가 아직 안 끝났으면 기본 목록만이라도 즉시 사용 가능하게)
 function getMedLibrary(){
-  var custom = [];
-  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
-  return MED_LIBRARY.concat(custom);
+  if (_medLibraryCache === null && !_medLibraryLoading) loadMedLibraryFromSheets();
+  return MED_LIBRARY.concat(_medLibraryCache || []);
 }
 
 function saveMedToLibrary(name, reason){
-  var custom = [];
-  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
-  var exists = custom.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); });
-  if(!exists && !MED_LIBRARY.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); })){
-    custom.push({name:name, reason:reason||''});
-    localStorage.setItem('med_custom', JSON.stringify(custom));
-  }
+  var exists = MED_LIBRARY.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); })
+    || (_medLibraryCache||[]).find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); });
+  if (exists) return;
+
+  // 즉시 캐시에 반영 (같은 기기에서 바로 자동완성 되도록)
+  if (_medLibraryCache === null) _medLibraryCache = [];
+  _medLibraryCache.push({ name: name, reason: reason || '' });
+
+  // Sheets에 공유 저장 (다른 기기에서도 동일하게 보이도록)
+  apiCall({
+    action:'append', sheet:'medlib',
+    data:{ 'ID':'med_'+Date.now(), '이름':name, '이유':reason||'' }
+  }).catch(function(e){ console.log('약물 라이브러리 Sheets 저장 실패:', e); });
 }
 
 function initMedAutocomplete(){
   var input = document.getElementById('p-med-input');
   if(!input || input._medInit) return;
   input._medInit = true;
+  loadMedLibraryFromSheets(); // 최초 진입 시 공유 라이브러리 미리 불러오기
 
   input.addEventListener('input', function(){
     var q = this.value.trim().toLowerCase();
