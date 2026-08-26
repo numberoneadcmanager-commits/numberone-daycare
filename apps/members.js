@@ -1377,6 +1377,51 @@ async function loadDocStatusMaps(forceReload) {
 }
 
 // 멤버 카드용 상태 배지 HTML (PCSP / Nutrition / Assessment / Auth)
+// Auth를 서비스유형(SDC/Transportation)별로 나눠서, 각각 남은 일수를 색상으로 표시
+// 🟢 30일 초과 남음 / 🟡 30일 이내 / 🔴 7일 이내 또는 이미 만료 / ⚠️ 해당 유형 Auth 자체가 한번도 없음
+function _authTypeBadges(mid) {
+  var today = new Date().toLocaleDateString('sv-SE');
+  var allAuths = (typeof AUTH_LIST !== 'undefined' ? AUTH_LIST : []).filter(function(a){
+    return String(a.memberId) === String(mid);
+  });
+
+  if (!allAuths.length) {
+    return '<span onclick="event.stopPropagation();openAuthModalForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Auth 없음</span>';
+  }
+
+  // 이 멤버가 실제로 쓰는 서비스유형만 묶기 (SDC / Transportation / 기타)
+  var byType = {};
+  allAuths.forEach(function(a){
+    var t = a.serviceType || '기타';
+    if (!byType[t]) byType[t] = [];
+    byType[t].push(a);
+  });
+
+  var html = '';
+  Object.keys(byType).forEach(function(t){
+    var label = t === 'Transportation' ? 'Trans' : t;
+    // 오늘 기준 유효한 것 중 종료일이 가장 늦은 걸 대표로 표시
+    var active = byType[t].filter(function(a){ return !a.endDate || String(a.endDate).slice(0,10) >= today; });
+    active.sort(function(a,b){ return String(b.endDate||'').localeCompare(String(a.endDate||'')); });
+
+    var icon, bg, color, text;
+    if (!active.length) {
+      icon = '🔴'; bg = '#FFEBEE'; color = '#FF3B30'; text = label + ' 만료';
+    } else {
+      var endDate = String(active[0].endDate||'').slice(0,10);
+      var daysLeft = endDate ? Math.floor((new Date(endDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000) : null;
+      if (daysLeft === null) { icon = '🟢'; bg = '#E1F5EE'; color = '#0F6E56'; text = label + ' 유효'; }
+      else if (daysLeft <= 7)  { icon = '🔴'; bg = '#FFEBEE'; color = '#FF3B30'; text = label + ' ' + daysLeft + '일'; }
+      else if (daysLeft <= 30) { icon = '🟡'; bg = '#FFF3E0'; color = '#B35900'; text = label + ' ' + daysLeft + '일'; }
+      else { icon = '🟢'; bg = '#E1F5EE'; color = '#0F6E56'; text = label + ' ' + daysLeft + '일'; }
+    }
+
+    html += '<span onclick="event.stopPropagation();openMemberDetail(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:'+bg+';color:'+color+';border-radius:6px;padding:3px 8px">'+icon+' '+text+'</span>';
+  });
+
+  return html;
+}
+
 function _docStatusBadgeHTML(m) {
   var mid = m.id;
   var html = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">';
@@ -1411,16 +1456,8 @@ function _docStatusBadgeHTML(m) {
     _checkSignedBadgeInline(mid, 'Assessment');
   }
 
-  // Auth (이미 전역 AUTH_LIST 있음)
-  var today = new Date().toLocaleDateString('sv-SE');
-  var activeAuths = (typeof AUTH_LIST !== 'undefined' ? AUTH_LIST : []).filter(function(a){
-    return String(a.memberId) === String(mid) && (!a.endDate || String(a.endDate).slice(0,10) >= today);
-  });
-  if (!activeAuths.length) {
-    html += '<span onclick="event.stopPropagation();openAuthModalForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Auth 없음</span>';
-  } else {
-    html += '<span onclick="event.stopPropagation();openMemberDetail(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px">✅ Auth ' + activeAuths.length + '건</span>';
-  }
+  // Auth — 서비스유형(SDC/Transportation)별로 나눠서 남은 일수 표시
+  html += _authTypeBadges(mid);
 
   html += '</div>';
   return html;
