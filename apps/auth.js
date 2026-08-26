@@ -213,6 +213,25 @@ function openAuthModal(id) {
   openOv('ov-auth');
 }
 
+// 멤버 카드에서 "Auth 추가"를 누르면 그 멤버가 미리 선택된 채로 새 Auth 모달을 엶
+function openAuthModalForMember(mid) {
+  openAuthModal(); // 새 Auth 모달 초기화(빈 값)
+  var sel = document.getElementById('auth-member-sel');
+  if (sel) {
+    sel.value = mid;
+    var m = MEMBERS.find(function(x){ return x.id === mid; });
+    var selEl = document.getElementById('auth-member-selected');
+    if (selEl && m) { selEl.style.display = 'block'; selEl.textContent = '✅ ' + m.kr + ' ' + m.en; }
+    // 멤버 출석요일 자동 반영
+    if (m && m.days) {
+      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
+        var el = document.getElementById('auth-day-'+d.toLowerCase());
+        if (el) el.value = m.days.includes(d) ? '1' : '0';
+      });
+    }
+  }
+}
+
 function filterAuthMemberList() {
   var q   = ((document.getElementById('auth-member-search') || {}).value || '').toLowerCase();
   var sel = document.getElementById('auth-member-sel');

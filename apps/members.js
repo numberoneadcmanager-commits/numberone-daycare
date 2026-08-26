@@ -292,6 +292,11 @@ function viewLogList(mid, type) {
 function filterM() {
   if (!MEMBERS || !MEMBERS.length) return;
 
+  // 문서 상태(PCSP/Nutrition/Assessment) 최초 1회 백그라운드 로드 → 끝나면 자동 재렌더링
+  if (!_docStatusLoaded) {
+    loadDocStatusMaps().then(function(){ renderMG(); });
+  }
+
   var raw = ((document.getElementById('msearch') || {}).value || '').toLowerCase().trim();
   var sf  = ((document.getElementById('status-filter') || {}).value) || 'all';
 
@@ -403,6 +408,7 @@ function renderMG() {
       <span class="mc-lbl">주치의</span><span class="mc-val">${m.pcp || '—'}</span>
     </div>
     <div class="mc-days" style="margin-top:7px">${m.days.map(d => `<span class="mc-day">${DKR[d]}</span>`).join('')}</div>
+    ${_docStatusBadgeHTML(m)}
     ${_absenceBadgeHTML(m.id)}
     ${_hcBadgeHTML(m)}
     ${m.memo ? `<div style="font-size:11px;color:#D85A30;background:#FFF3EE;border-radius:8px;padding:5px 9px;margin-top:6px">📝 ${m.memo}</div>` : ''}
@@ -1306,4 +1312,145 @@ async function openMemberDetail(mid) {
     var pcspSection2 = document.getElementById('detail-pcsp-section');
     if (pcspSection2) pcspSection2.innerHTML = '<div style="font-size:11px;color:#FF3B30;margin-top:10px;text-align:center">PCSP 로드 실패</div>';
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 멤버 카드 상태 요약 (PCSP/Auth/Nutrition/Assessment) — 한번에 로드해서 캐시
+// 매 카드마다 개별 API 호출하면 느려지므로, 시트 전체를 한 번씩만 불러와 매핑
+// ══════════════════════════════════════════════════════════════
+var _docStatusLoaded = false;
+var PCSP_STATUS_MAP = {};       // mid -> {wdate, nextdate, status, expired}
+var NUTRITION_STATUS_MAP = {};  // mid -> {date, signed}
+var ASSESSMENT_STATUS_MAP = {}; // mid -> {date, signed}
+
+async function loadDocStatusMaps(forceReload) {
+  if (_docStatusLoaded && !forceReload) return;
+  try {
+    var [pcspRes, logRes] = await Promise.all([
+      SheetsAPI.read('PCSP'),
+      SheetsAPI.read('JSONLog'),
+    ]);
+    var today = new Date().toLocaleDateString('sv-SE');
+
+    PCSP_STATUS_MAP = {};
+    if (pcspRes && pcspRes.ok && pcspRes.data) {
+      pcspRes.data.forEach(function(p) {
+        var mid = String(p['멤버ID']||'');
+        if (!mid) return;
+        var wdate = String(p['작성일']||'').slice(0,10);
+        // 멤버당 최신(작성일 기준) 1건만
+        if (!PCSP_STATUS_MAP[mid] || wdate > PCSP_STATUS_MAP[mid].wdate) {
+          var nextdate = String(p['갱신예정일']||'').slice(0,10);
+          PCSP_STATUS_MAP[mid] = {
+            wdate: wdate,
+            nextdate: nextdate,
+            status: String(p['상태']||''),
+            expired: nextdate && nextdate < today,
+          };
+        }
+      });
+    }
+
+    NUTRITION_STATUS_MAP = {};
+    ASSESSMENT_STATUS_MAP = {};
+    if (logRes && logRes.ok && logRes.data) {
+      logRes.data.forEach(function(l) {
+        var mid  = String(l['멤버ID']||'');
+        var type = String(l['파일종류']||'');
+        var date = String(l['저장일시']||'').slice(0,10);
+        if (!mid || !date) return;
+        if (type === 'Nutrition') {
+          if (!NUTRITION_STATUS_MAP[mid] || date > NUTRITION_STATUS_MAP[mid].date) {
+            NUTRITION_STATUS_MAP[mid] = { date: date, signed: null }; // signed는 아래에서 비동기 보강
+          }
+        } else if (type === 'Assessment') {
+          if (!ASSESSMENT_STATUS_MAP[mid] || date > ASSESSMENT_STATUS_MAP[mid].date) {
+            ASSESSMENT_STATUS_MAP[mid] = { date: date, signed: null };
+          }
+        }
+      });
+    }
+    _docStatusLoaded = true;
+  } catch(e) {
+    console.log('문서 상태 로드 실패:', e);
+  }
+}
+
+// 멤버 카드용 상태 배지 HTML (PCSP / Nutrition / Assessment / Auth)
+function _docStatusBadgeHTML(m) {
+  var mid = m.id;
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">';
+
+  // PCSP
+  var pcsp = PCSP_STATUS_MAP[mid];
+  if (!pcsp) {
+    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ PCSP 작성필요</span>';
+  } else if (pcsp.status === '서명대기') {
+    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFF3E0;color:#B35900;border-radius:6px;padding:3px 8px">📝 PCSP 서명대기</span>';
+  } else if (pcsp.expired) {
+    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ PCSP 갱신필요(' + pcsp.nextdate + ')</span>';
+  } else {
+    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px">✅ PCSP(' + (pcsp.nextdate||'—') + ')</span>';
+  }
+
+  // Nutrition
+  var nut = NUTRITION_STATUS_MAP[mid];
+  if (!nut) {
+    html += '<span onclick="event.stopPropagation();goToFormForMember(\''+mid+'\',\'Nutrition\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Nutrition 필요</span>';
+  } else {
+    html += '<span onclick="event.stopPropagation();viewDriveDoc(\''+mid+'\',\'Nutrition\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px" id="_ns_badge_'+mid+'">✅ Nutrition</span>';
+    _checkSignedBadgeInline(mid, 'Nutrition');
+  }
+
+  // Assessment
+  var asmt = ASSESSMENT_STATUS_MAP[mid];
+  if (!asmt) {
+    html += '<span onclick="event.stopPropagation();goToFormForMember(\''+mid+'\',\'Assessment\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Assessment 필요</span>';
+  } else {
+    html += '<span onclick="event.stopPropagation();viewDriveDoc(\''+mid+'\',\'Assessment\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px" id="_as_badge_'+mid+'">✅ Assessment</span>';
+    _checkSignedBadgeInline(mid, 'Assessment');
+  }
+
+  // Auth (이미 전역 AUTH_LIST 있음)
+  var today = new Date().toLocaleDateString('sv-SE');
+  var activeAuths = (typeof AUTH_LIST !== 'undefined' ? AUTH_LIST : []).filter(function(a){
+    return String(a.memberId) === String(mid) && (!a.endDate || String(a.endDate).slice(0,10) >= today);
+  });
+  if (!activeAuths.length) {
+    html += '<span onclick="event.stopPropagation();openAuthModalForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Auth 없음</span>';
+  } else {
+    html += '<span onclick="event.stopPropagation();openMemberDetail(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px">✅ Auth ' + activeAuths.length + '건</span>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// Nutrition/Assessment 배지에 서명완료 여부를 비동기로 보강 표시
+async function _checkSignedBadgeInline(mid, fileType) {
+  try {
+    var m = MEMBERS.find(function(x){ return x.id === mid; });
+    var res = await SheetsAPI.loadJSON(mid, m ? m.kr : mid, fileType);
+    if (!res.ok || !res.data || !res.data.found) return;
+    var d = res.data.data || {};
+    var badgeId = fileType === 'Nutrition' ? '_ns_badge_' + mid : '_as_badge_' + mid;
+    var el = document.getElementById(badgeId);
+    if (!el) return;
+    if (d.signed === false) {
+      el.textContent = '📝 ' + fileType + ' 서명대기';
+      el.style.background = '#FFF3E0';
+      el.style.color = '#B35900';
+    }
+  } catch(e) {}
+}
+
+// PCSP 미완료/작성필요 배지 클릭 → 업무관리로 바로 이동 (기존 카드 링크와 동일 방식)
+function goToPCSPForMember(mid) {
+  localStorage.setItem('pcsp_prefill_mid', mid);
+  window.location.href = 'operations.html?tab=pcsp&mid=' + mid;
+}
+
+// Nutrition/Assessment 미완료 배지 클릭 → 업무관리 해당 폼으로 바로 이동
+function goToFormForMember(mid, type) {
+  window.location.href = 'operations.html?tab=forms&mid=' + mid + '&type=' + type;
 }
