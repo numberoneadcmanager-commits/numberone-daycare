@@ -256,3 +256,156 @@ async function syncLog(sheet, data) {
     await SheetsAPI.post({ action: editId ? 'update' : 'append', sheet, id: editId, data });
   } catch (e) {}
 }
+
+// ══════════════════════════════════════════════════════════════
+// 📅 데일리 일괄 Activity 기록 — 출석 증빙용
+// 출석자 전원에게 프로그램참여+식사지원 기본 체크, 예외/추가지원만 개별 조정
+// ══════════════════════════════════════════════════════════════
+window._dailyActAttendees = [];
+
+async function openDailyActivityModal() {
+  document.getElementById('dact-date').value = todayISO;
+  document.getElementById('dact-program-name').value = 'Bingo';
+  document.getElementById('dact-writer').value = '';
+  document.getElementById('dact-status').textContent = '';
+  document.getElementById('dact-list').innerHTML = '';
+  openOv('ov-daily-act');
+  await loadDailyActivityAttendees();
+}
+
+async function loadDailyActivityAttendees() {
+  const iso = document.getElementById('dact-date').value || todayISO;
+  const statusEl = document.getElementById('dact-status');
+  const listEl = document.getElementById('dact-list');
+  statusEl.textContent = '⏳ 출석자 불러오는 중...';
+  listEl.innerHTML = '';
+
+  // 해당 날짜 출결 캐시가 없으면 Sheets에서 로드
+  if (typeof _attCache !== 'undefined' && !_attCache[iso] && typeof loadAttFromSheets === 'function') {
+    await loadAttFromSheets(iso);
+  }
+
+  const recs = (typeof getRec === 'function') ? getRec(iso) : {};
+  const attendees = MEMBERS.filter(m => {
+    const r = recs[m.id];
+    return r && (r.status === 'in' || r.status === 'late');
+  });
+
+  if (!attendees.length) {
+    statusEl.textContent = '⚠️ 해당 날짜에 출석 기록이 없어요 (출결 탭에서 먼저 체크해주세요)';
+    window._dailyActAttendees = [];
+    return;
+  }
+
+  statusEl.textContent = attendees.length + '명 출석 확인됨';
+  window._dailyActAttendees = attendees.map(m => m.id);
+
+  const catBtns = [
+    { cat:'program', icon:'🎨', label:'프로그램', defChecked:true },
+    { cat:'meal',    icon:'🍽️', label:'식사',     defChecked:true },
+    { cat:'social',  icon:'💬', label:'소셜',     defChecked:false },
+    { cat:'admin',   icon:'📄', label:'서류',     defChecked:false },
+    { cat:'adl',     icon:'🚿', label:'ADL',      defChecked:false },
+    { cat:'etc',     icon:'📋', label:'기타',     defChecked:false },
+  ];
+
+  listEl.innerHTML = attendees.map(m => `
+    <div class="log-card" style="padding:10px 12px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${m.kr}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${catBtns.map(c => `
+          <label style="display:flex;align-items:center;gap:3px;font-size:11px;background:#F2F2F7;border-radius:6px;padding:4px 8px;cursor:pointer">
+            <input type="checkbox" class="dact-cat" data-cat="${c.cat}" data-mid="${m.id}" ${c.defChecked ? 'checked' : ''}
+              ${c.defChecked ? '' : `onchange="toggleDactNote('${m.id}','${c.cat}',this)"`} style="margin:0">
+            ${c.icon}${c.label}
+          </label>
+        `).join('')}
+      </div>
+      <div id="dact-notes-${m.id}"></div>
+    </div>
+  `).join('');
+}
+
+function toggleDactNote(mid, cat, checkbox) {
+  const wrap = document.getElementById('dact-notes-' + mid);
+  const noteId = 'dact-note-' + mid + '-' + cat;
+  if (checkbox.checked) {
+    if (!document.getElementById(noteId)) {
+      const catLabel = { social:'소셜지원', admin:'서류지원', adl:'ADL지원', etc:'기타' }[cat] || '';
+      const div = document.createElement('div');
+      div.innerHTML = `<input class="m-input" id="${noteId}" placeholder="${catLabel} 메모 (선택)" style="font-size:12px;margin-top:4px;padding:6px 10px">`;
+      wrap.appendChild(div.firstChild);
+    }
+  } else {
+    const el = document.getElementById(noteId);
+    if (el) el.remove();
+  }
+}
+
+function updateDailyProgramName() { /* 저장 시점에 값 읽어서 사용, 별도 처리 불필요 */ }
+
+function dailyActToggleAll(cat, checked) {
+  document.querySelectorAll('.dact-cat[data-cat="' + cat + '"]').forEach(cb => {
+    cb.checked = checked;
+    if (cat !== 'program' && cat !== 'meal') toggleDactNote(cb.dataset.mid, cat, cb);
+  });
+}
+
+async function saveDailyActivityLog() {
+  const iso = document.getElementById('dact-date').value;
+  const programName = document.getElementById('dact-program-name').value.trim() || '프로그램';
+  const writer = document.getElementById('dact-writer').value.trim();
+  const attendeeIds = window._dailyActAttendees || [];
+  if (!attendeeIds.length) { alert('출석자가 없어요'); return; }
+
+  const catMeta = {
+    program: { label:'프로그램참여', name: programName },
+    meal:    { label:'식사지원',     name:'식사 지원' },
+    social:  { label:'소셜지원',     name:'소셜/정서적 지원' },
+    admin:   { label:'서류지원',     name:'서류/행정 지원' },
+    adl:     { label:'ADL지원',      name:'ADL 지원' },
+    etc:     { label:'기타',         name:'기타 지원' },
+  };
+
+  const entries = [];
+  attendeeIds.forEach(mid => {
+    const mem = MEMBERS.find(m => m.id === mid) || {};
+    Object.keys(catMeta).forEach(cat => {
+      const cb = document.querySelector('.dact-cat[data-cat="' + cat + '"][data-mid="' + mid + '"]');
+      if (cb && cb.checked) {
+        const noteEl = document.getElementById('dact-note-' + mid + '-' + cat);
+        const note = noteEl ? noteEl.value.trim() : '';
+        entries.push({
+          'ID': 'ACT' + Date.now() + '_' + mid + '_' + cat,
+          '날짜': iso, '멤버ID': mid, '한글이름': mem.kr || '',
+          '활동명': cat === 'program' ? programName : (note || catMeta[cat].name),
+          '카테고리': catMeta[cat].label,
+          '참여도': cat === 'program' ? 'Active — 적극 참여' : '',
+          '메모': (cat !== 'program' && cat !== 'meal') ? note : '',
+          '작성자': writer, '작성시각': new Date().toLocaleString('ko-KR'),
+        });
+      }
+    });
+  });
+
+  if (!entries.length) { alert('선택된 항목이 없어요'); return; }
+
+  const saveBtn = document.getElementById('dact-save-btn');
+  const statusEl = document.getElementById('dact-status');
+  if (saveBtn) saveBtn.disabled = true;
+
+  for (let i = 0; i < entries.length; i++) {
+    activities.unshift(entries[i]);
+    try {
+      await SheetsAPI.post({ action:'append', sheet:'activity', data: entries[i] });
+    } catch(e) { console.log('일괄 Activity 저장 실패:', e); }
+    if (statusEl) statusEl.textContent = '⏳ 저장 중... ' + (i+1) + '/' + entries.length;
+    if (i % 8 === 7) await new Promise(r => setTimeout(r, 200));
+  }
+
+  if (saveBtn) saveBtn.disabled = false;
+  saveToStorage();
+  closeOv('ov-daily-act');
+  renderActivities();
+  alert('✅ ' + attendeeIds.length + '명, 총 ' + entries.length + '건 기록 완료!');
+}
