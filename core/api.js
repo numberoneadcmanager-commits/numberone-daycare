@@ -72,6 +72,10 @@ const SheetsAPI = {
   async update(sheet, id, data)          { return this.post({ action: 'update', sheet, id, data }); },
   async delete(sheet, id)                { return this.post({ action: 'delete', sheet, id }); },
 
+  // 주소 → 좌표 변환 (서버(Apps Script)를 거쳐 안전하게 처리, API 키는 서버에만 저장됨)
+  async geocodeAllMembers()              { return this.post({ action: 'geocodeAllMembers' }); },
+  async geocodeCenter()                  { return this.post({ action: 'geocodeCenter' }); },
+
   // ══════════════════════════════════════════════════════════
   // Drive JSON 저장/로드
   // ══════════════════════════════════════════════════════════
@@ -129,6 +133,8 @@ const SheetsAPI = {
         city:          String(r['City'] || ''),
         state:         String(r['State'] || 'NY'),
         zip:           String(r['Zip'] || ''),
+        lat:           r['Lat'] ? parseFloat(r['Lat']) : null,
+        lng:           r['Lng'] ? parseFloat(r['Lng']) : null,
         gender:        String(r['성별'] || ''),
         diagCode:      String(r['진단코드'] || ''),
         dob:           String(r['생년월일'] || '').slice(0, 10),
@@ -173,6 +179,8 @@ const SheetsAPI = {
       'City':         m.city  || '',
       'State':        m.state || 'NY',
       'Zip':          m.zip   || '',
+      'Lat':          m.lat != null ? m.lat : '',
+      'Lng':          m.lng != null ? m.lng : '',
       '성별':          m.gender || '',
       '진단코드':      m.diagCode || '',
       '생년월일':      m.dob ? m.dob.slice(0, 10) : '',
