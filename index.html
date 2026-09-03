@@ -600,6 +600,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <button class="fpill active" id="ltab-incident" onclick="showLog('incident')">⚠️ Incident</button>
         <button class="fpill" id="ltab-activity" onclick="showLog('activity')">📋 Activity</button>
         <button class="fpill" id="ltab-caselog" onclick="showLog('caselog')">📂 Case</button>
+        <button class="fpill" id="ltab-transport" onclick="showLog('transport')">🚐 Transport</button>
       </div>
 
       <!-- Incident view -->
@@ -652,6 +653,25 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         </div>
         <button class="btn-full btn-primary" onclick="openCaseModal()">+ 새 Case 기록</button>
         <div id="case-list"></div>
+      </div>
+
+      <!-- Transport view -->
+      <div id="lv-transport" style="display:none">
+        <div class="omig-note">🚐 근거리(퀸즈)는 차량 2·3차, 원거리는 5명 이하 택시 · 5명 초과 차량 배정</div>
+
+        <div class="frow" style="margin-bottom:10px">
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">배차 날짜</div><input type="date" class="fi" id="disp-date"></div>
+        </div>
+        <button class="btn-full btn-primary" style="margin-bottom:10px" onclick="generateDispatchPlan()">🗺️ 배차 계획 생성</button>
+        <div id="disp-status" style="font-size:12px;color:#8E8E93;margin-bottom:8px"></div>
+        <div id="disp-result"></div>
+
+        <div class="section-lbl" style="margin-top:16px">📋 트랜스포테이션 로그</div>
+        <div class="frow" style="margin-bottom:10px">
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">시작일</div><input type="date" class="fi" id="trp-from"></div>
+          <div><div style="font-size:11px;color:#8E8E93;margin-bottom:3px">종료일</div><input type="date" class="fi" id="trp-to"></div>
+        </div>
+        <div id="trp-list"></div>
       </div>
     </div>
 
