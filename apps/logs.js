@@ -588,7 +588,13 @@ async function generateDispatchPlan() {
       var remaining = cluster.members.slice();
       while (remaining.length) {
         if (!curChunk) {
-          var vh = VEHICLES[farVehicleCounter % VEHICLES.length];
+          // ★ 우리 차량은 총 3대뿐(Van1, Van2, Minivan1) — 원거리(1차)엔 각 차량 딱 한 번만 배정 가능
+          if (farVehicleCounter >= VEHICLES.length) {
+            taxiCounter++;
+            farAssignments.push({ members: remaining.splice(0), mode: 'taxi', label: '택시' + taxiCounter, cities: [cluster.city] });
+            break; // 차량이 더 없으니 남은 인원 전부 택시로 보내고 이 클러스터 처리 종료
+          }
+          var vh = VEHICLES[farVehicleCounter];
           farVehicleCounter++;
           curChunk = { members: [], mode: 'vehicle', label: vh.label, cities: [] };
           curLeft = vh.cap;
