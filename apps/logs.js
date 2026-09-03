@@ -569,13 +569,26 @@ async function generateDispatchPlan() {
     // 클러스터(같은 City/1마일 이내)를 최대한 유지한 채, 같은 방향(섹터)의 클러스터끼리만
     // 차량 정원만큼 합침. 방향이 다르면 무조건 새 차량/택시로 분리 (엉뚱한 자치구를 한 차에 몰아넣지 않도록)
     var curChunk = null, curLeft = 0, curSector = null;
+
+    // 택시는 4명까지만 태울 수 있음 — 그 이상은 여러 대로 자동 분리
+    function _pushAsTaxis(members) {
+      var remaining = members.slice();
+      while (remaining.length) {
+        taxiCounter++;
+        var chunk = remaining.splice(0, 4);
+        var cities = [];
+        chunk.forEach(function(m) { var c = m.city || '(주소없음)'; if (cities.indexOf(c) === -1) cities.push(c); });
+        farAssignments.push({ members: chunk, mode: 'taxi', label: '택시' + taxiCounter, cities: cities });
+      }
+    }
+
     function _closeFarChunk() {
       if (curChunk && curChunk.members.length) {
         if (curChunk.members.length <= 5) {
-          taxiCounter++;
-          curChunk.mode = 'taxi'; curChunk.label = '택시' + taxiCounter;
+          _pushAsTaxis(curChunk.members); // 5명 이하는 차량 대신 택시로 — 4명 넘으면 자동으로 여러 대 분리
+        } else {
+          farAssignments.push(curChunk);
         }
-        farAssignments.push(curChunk);
       }
       curChunk = null; curLeft = 0; curSector = null;
     }
@@ -590,9 +603,8 @@ async function generateDispatchPlan() {
         if (!curChunk) {
           // ★ 우리 차량은 총 3대뿐(Van1, Van2, Minivan1) — 원거리(1차)엔 각 차량 딱 한 번만 배정 가능
           if (farVehicleCounter >= VEHICLES.length) {
-            taxiCounter++;
-            farAssignments.push({ members: remaining.splice(0), mode: 'taxi', label: '택시' + taxiCounter, cities: [cluster.city] });
-            break; // 차량이 더 없으니 남은 인원 전부 택시로 보내고 이 클러스터 처리 종료
+            _pushAsTaxis(remaining.splice(0)); // 차량 소진 — 남은 인원 전부 택시로 (4명씩 분리)
+            break;
           }
           var vh = VEHICLES[farVehicleCounter];
           farVehicleCounter++;
