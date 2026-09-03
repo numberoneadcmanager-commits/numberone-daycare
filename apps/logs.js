@@ -566,9 +566,9 @@ async function generateDispatchPlan() {
   if (!farClusters.length) {
     html += '<div class="empty-msg" style="padding:10px">원거리 멤버 없음</div>';
   } else {
-    // 클러스터(같은 City/1마일 이내)를 최대한 유지한 채, 차량 정원만큼 채우고
-    // 남는 자리는 다음으로 가까운(같은 방향 우선) 클러스터로 채움. 클러스터 자체가 정원보다 크면 분할.
-    var curChunk = null, curLeft = 0;
+    // 클러스터(같은 City/1마일 이내)를 최대한 유지한 채, 같은 방향(섹터)의 클러스터끼리만
+    // 차량 정원만큼 합침. 방향이 다르면 무조건 새 차량/택시로 분리 (엉뚱한 자치구를 한 차에 몰아넣지 않도록)
+    var curChunk = null, curLeft = 0, curSector = null;
     function _closeFarChunk() {
       if (curChunk && curChunk.members.length) {
         if (curChunk.members.length <= 5) {
@@ -577,10 +577,14 @@ async function generateDispatchPlan() {
         }
         farAssignments.push(curChunk);
       }
-      curChunk = null; curLeft = 0;
+      curChunk = null; curLeft = 0; curSector = null;
     }
 
     farClusters.forEach(function(cluster) {
+      var clusterSector = _sectorOf(cluster.bearing);
+      // 방향이 다르면 지금까지 채우던 차량을 마무리하고 새로 시작
+      if (curChunk && curSector !== clusterSector) _closeFarChunk();
+
       var remaining = cluster.members.slice();
       while (remaining.length) {
         if (!curChunk) {
@@ -588,6 +592,7 @@ async function generateDispatchPlan() {
           farVehicleCounter++;
           curChunk = { members: [], mode: 'vehicle', label: vh.label, cities: [] };
           curLeft = vh.cap;
+          curSector = clusterSector;
         }
         var take = remaining.splice(0, curLeft);
         curChunk.members = curChunk.members.concat(take);
