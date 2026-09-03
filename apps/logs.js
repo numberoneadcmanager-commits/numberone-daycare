@@ -517,57 +517,124 @@ async function generateDispatchPlan() {
   var farMembers  = withCoord.filter(function(m) { return m._dist > FAR_DISTANCE_MILES; });
   var nearMembers = withCoord.filter(function(m) { return m._dist <= FAR_DISTANCE_MILES; });
 
-  // 원거리: 방향(8방위) 섹터로 묶고, 섹터 내에서는 가까운 순
-  var farBySector = {};
-  farMembers.forEach(function(m) {
-    var s = _sectorOf(m._bearing);
-    if (!farBySector[s]) farBySector[s] = [];
-    farBySector[s].push(m);
-  });
-  Object.keys(farBySector).forEach(function(s) {
-    farBySector[s].sort(function(a, b) { return a._dist - b._dist; });
-  });
+  // ── 클러스터링: 같은 City 이거나 1마일 이내면 하나로 묶음 (Union-Find) ──
+  function _clusterMembers(members) {
+    var parent = members.map(function(_, i) { return i; });
+    function find(x) { return parent[x] === x ? x : (parent[x] = find(parent[x])); }
+    function union(a, b) { var ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+
+    for (var i = 0; i < members.length; i++) {
+      for (var j = i + 1; j < members.length; j++) {
+        var sameCity = members[i].city && members[j].city
+          && members[i].city.trim().toUpperCase() === members[j].city.trim().toUpperCase();
+        var closeBy = _haversineMiles(members[i].lat, members[i].lng, members[j].lat, members[j].lng) <= 1;
+        if (sameCity || closeBy) union(i, j);
+      }
+    }
+
+    var groups = {};
+    members.forEach(function(m, i) {
+      var root = find(i);
+      if (!groups[root]) groups[root] = [];
+      groups[root].push(m);
+    });
+
+    return Object.values(groups).map(function(g) {
+      var avgDist = g.reduce(function(s, m) { return s + m._dist; }, 0) / g.length;
+      var avgBearing = g.reduce(function(s, m) { return s + m._bearing; }, 0) / g.length;
+      return { members: g, dist: avgDist, bearing: avgBearing, city: g[0].city || '(주소없음)' };
+    });
+  }
+
+  // 방향 → 거리순으로 정렬 (같은 방향의 가까운 클러스터부터 채움 → 남는 자리는 다음으로 가까운 방향으로 메움)
+  function _sortClusters(clusters) {
+    clusters.sort(function(a, b) {
+      var sa = _sectorOf(a.bearing), sb = _sectorOf(b.bearing);
+      if (sa !== sb) return sa - sb;
+      return a.dist - b.dist;
+    });
+    return clusters;
+  }
 
   var html = '';
   var taxiCounter = 0, farVehicleCounter = 0;
   var farAssignments = [];
 
+  var farClusters = _sortClusters(_clusterMembers(farMembers));
+
   html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:10px 0 6px">🚕 원거리 (' + farMembers.length + '명, ' + FAR_DISTANCE_MILES + '마일 초과)</div>';
-  if (!Object.keys(farBySector).length) {
+  if (!farClusters.length) {
     html += '<div class="empty-msg" style="padding:10px">원거리 멤버 없음</div>';
   } else {
-    Object.keys(farBySector).sort(function(a, b) { return a - b; }).forEach(function(s) {
-      var members = farBySector[s];
-      var mode = members.length <= 5 ? 'taxi' : 'vehicle';
-      var label;
-      if (mode === 'taxi') { taxiCounter++; label = '택시' + taxiCounter; }
-      else { label = VEHICLES[farVehicleCounter % VEHICLES.length].label; farVehicleCounter++; }
-      farAssignments.push({ sector: s, members: members, mode: mode, label: label });
+    // 클러스터(같은 City/1마일 이내)를 최대한 유지한 채, 차량 정원만큼 채우고
+    // 남는 자리는 다음으로 가까운(같은 방향 우선) 클러스터로 채움. 클러스터 자체가 정원보다 크면 분할.
+    var curChunk = null, curLeft = 0;
+    function _closeFarChunk() {
+      if (curChunk && curChunk.members.length) {
+        if (curChunk.members.length <= 5) {
+          taxiCounter++;
+          curChunk.mode = 'taxi'; curChunk.label = '택시' + taxiCounter;
+        }
+        farAssignments.push(curChunk);
+      }
+      curChunk = null; curLeft = 0;
+    }
 
-      var badge = mode === 'taxi'
-        ? '<span class="badge b-blue">🚕 ' + label + '</span>'
-        : '<span class="badge b-warn">🚐 ' + label + '</span>';
+    farClusters.forEach(function(cluster) {
+      var remaining = cluster.members.slice();
+      while (remaining.length) {
+        if (!curChunk) {
+          var vh = VEHICLES[farVehicleCounter % VEHICLES.length];
+          farVehicleCounter++;
+          curChunk = { members: [], mode: 'vehicle', label: vh.label, cities: [] };
+          curLeft = vh.cap;
+        }
+        var take = remaining.splice(0, curLeft);
+        curChunk.members = curChunk.members.concat(take);
+        if (curChunk.cities.indexOf(cluster.city) === -1) curChunk.cities.push(cluster.city);
+        curLeft -= take.length;
+        if (curLeft <= 0) _closeFarChunk();
+      }
+    });
+    _closeFarChunk(); // 마지막 청크 마무리 (5명 이하면 택시로 전환)
+
+    farAssignments.forEach(function(g) {
+      var badge = g.mode === 'taxi'
+        ? '<span class="badge b-blue">🚕 ' + g.label + '</span>'
+        : '<span class="badge b-warn">🚐 ' + g.label + '</span>';
       html += '<div class="log-card">'
-        + '<div class="log-top"><div class="log-name">' + SECTOR_NAMES[s] + '방향 (' + members.length + '명)</div>' + badge + '</div>'
-        + '<div style="font-size:12px;color:#3C3C43">' + members.map(function(m) { return m.kr + ' (' + m._dist.toFixed(1) + 'mi)'; }).join(', ') + '</div>'
+        + '<div class="log-top"><div class="log-name">' + g.cities.join('/') + ' (' + g.members.length + '명)</div>' + badge + '</div>'
+        + '<div style="font-size:12px;color:#3C3C43">' + g.members.map(function(m) { return m.kr + ' (' + (m.city||'—') + ', ' + m._dist.toFixed(1) + 'mi)'; }).join(', ') + '</div>'
         + '</div>';
     });
   }
 
-  // 근거리: 방향 → 거리순 정렬 후 차량 정원대로 청크
-  nearMembers.sort(function(a, b) {
-    var sa = _sectorOf(a._bearing), sb = _sectorOf(b._bearing);
-    if (sa !== sb) return sa - sb;
-    return a._dist - b._dist;
-  });
+  // ── 근거리: 같은 방식으로 클러스터링 후 차량 정원대로 채움 (택시 없이 전부 우리 차량) ──
+  var nearClusters = _sortClusters(_clusterMembers(nearMembers));
   var batches = [];
-  var idx = 0;
-  while (idx < nearMembers.length) {
-    var vh = VEHICLES[batches.length % VEHICLES.length];
-    var chunk = nearMembers.slice(idx, idx + vh.cap);
-    batches.push({ label: (batches.length + 2) + '차 (' + vh.label + ')', members: chunk, cap: vh.cap });
-    idx += vh.cap;
-  }
+  (function() {
+    var curBatch = null, curLeft = 0;
+    function closeBatch() {
+      if (curBatch && curBatch.members.length) batches.push(curBatch);
+      curBatch = null; curLeft = 0;
+    }
+    nearClusters.forEach(function(cluster) {
+      var remaining = cluster.members.slice();
+      while (remaining.length) {
+        if (!curBatch) {
+          var vh = VEHICLES[batches.length % VEHICLES.length];
+          curBatch = { label: (batches.length + 2) + '차 (' + vh.label + ')', members: [], cap: vh.cap, cities: [] };
+          curLeft = vh.cap;
+        }
+        var take = remaining.splice(0, curLeft);
+        curBatch.members = curBatch.members.concat(take);
+        if (curBatch.cities.indexOf(cluster.city) === -1) curBatch.cities.push(cluster.city);
+        curLeft -= take.length;
+        if (curLeft <= 0) closeBatch();
+      }
+    });
+    closeBatch();
+  })();
 
   html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 (' + nearMembers.length + '명, ' + FAR_DISTANCE_MILES + '마일 이내)</div>';
   if (!batches.length) {
@@ -575,8 +642,8 @@ async function generateDispatchPlan() {
   } else {
     batches.forEach(function(b, i) {
       html += '<div class="log-card">'
-        + '<div class="log-top"><div class="log-name">' + b.label + '</div><span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
-        + '<div style="font-size:12px;color:#3C3C43">' + b.members.map(function(m) { return m.kr + ' (' + m._dist.toFixed(1) + 'mi)'; }).join(', ') + '</div>'
+        + '<div class="log-top"><div class="log-name">' + b.label + ' — ' + b.cities.join('/') + '</div><span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
+        + '<div style="font-size:12px;color:#3C3C43">' + b.members.map(function(m) { return m.kr + ' (' + (m.city||'—') + ', ' + m._dist.toFixed(1) + 'mi)'; }).join(', ') + '</div>'
         + '<div class="frow" style="margin-top:8px;gap:6px">'
         + '<input class="fi" id="disp-driver-near-' + i + '" placeholder="운전자 이름" style="font-size:12px">'
         + '</div>'
@@ -588,7 +655,7 @@ async function generateDispatchPlan() {
   if (vehicleFarGroups.length) {
     html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 원거리 차량 운전자</div>';
     vehicleFarGroups.forEach(function(g, i) {
-      html += '<div class="frow" style="margin-bottom:6px"><div style="font-size:12px;padding-top:8px">' + g.label + ' (' + SECTOR_NAMES[g.sector] + '방향)</div>'
+      html += '<div class="frow" style="margin-bottom:6px"><div style="font-size:12px;padding-top:8px">' + g.label + ' (' + g.cities.join('/') + ')</div>'
         + '<input class="fi" id="disp-driver-far-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>';
     });
   }
@@ -612,7 +679,7 @@ async function saveDispatchToLog() {
   var entries = [];
 
   var vehicleIdx = 0;
-  plan.farAssignments.forEach(function(g) {
+  plan.farAssignments.forEach(function(g, i) {
     var driver = '';
     if (g.mode === 'vehicle') {
       var driverEl = document.getElementById('disp-driver-far-' + vehicleIdx);
@@ -620,9 +687,9 @@ async function saveDispatchToLog() {
       vehicleIdx++;
     }
     entries.push({
-      'ID': 'TRP' + Date.now() + '_far' + g.sector,
+      'ID': 'TRP' + Date.now() + '_far_' + g.label.replace(/\s+/g, '') + '_' + i,
       '날짜': iso, '방향': '등원', '차량': g.label, '운전자': driver,
-      '그룹': '원거리-' + SECTOR_NAMES[g.sector], '인원수': g.members.length,
+      '그룹': '원거리-' + g.cities.join('/'), '인원수': g.members.length,
       '멤버ID목록': g.members.map(function(m) { return m.id; }).join(','),
       '멤버명단': g.members.map(function(m) { return m.kr; }).join(', '),
       '메모': '', '작성자': writer, '작성시각': new Date().toLocaleString('ko-KR'),
