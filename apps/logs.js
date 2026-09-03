@@ -5,13 +5,14 @@
 
 // ── 탭 전환 ──────────────────────────────────────────────────
 function showLog(tab) {
-  ['incident','activity','caselog'].forEach(t => {
+  ['incident','activity','caselog','transport'].forEach(t => {
     document.getElementById('lv-' + t).style.display = t === tab ? 'block' : 'none';
     document.getElementById('ltab-' + t).classList.toggle('active', t === tab);
   });
   if (tab === 'incident') renderIncidents();
   if (tab === 'activity') renderActivities();
   if (tab === 'caselog')  renderCases();
+  if (tab === 'transport') { renderTransportLog(); loadTransportFromSheets(); }
 }
 
 // ── Incident ─────────────────────────────────────────────────
@@ -408,4 +409,203 @@ async function saveDailyActivityLog() {
   closeOv('ov-daily-act');
   renderActivities();
   alert('✅ ' + attendeeIds.length + '명, 총 ' + entries.length + '건 기록 완료!');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🚐 배차 계획 (Dispatch Plan) — 근거리/원거리 자동 분류
+// ══════════════════════════════════════════════════════════════
+var NEAR_CITIES = ['FLUSHING','BAYSIDE','WHITESTONE','COLLEGE POINT','COLLEGE PT','FRESH MEADOWS'];
+var VEHICLES = [
+  { label: '15인승 #1', cap: 14 },
+  { label: '15인승 #2', cap: 14 },
+  { label: '7인승',     cap: 6  },
+];
+
+function _isNearCity(city) {
+  var c = (city || '').trim().toUpperCase();
+  return NEAR_CITIES.some(function(nc) { return c.includes(nc); });
+}
+
+function generateDispatchPlan() {
+  var iso = document.getElementById('disp-date').value || todayISO;
+  var dow = (typeof dowKey === 'function') ? dowKey(iso) : null;
+  var statusEl = document.getElementById('disp-status');
+  var resultEl = document.getElementById('disp-result');
+
+  var todayMembers = MEMBERS.filter(function(m) {
+    return isActive(m) && dow && (m.days || []).includes(dow);
+  });
+
+  if (!todayMembers.length) {
+    statusEl.textContent = '⚠️ 해당 요일에 출석 예정인 멤버가 없어요';
+    resultEl.innerHTML = '';
+    return;
+  }
+  statusEl.textContent = '총 ' + todayMembers.length + '명 등원 예정';
+
+  // 원거리 / 근거리 분류
+  var farMembers = [], nearMembers = [];
+  todayMembers.forEach(function(m) {
+    if (_isNearCity(m.city)) nearMembers.push(m); else farMembers.push(m);
+  });
+
+  // 원거리: 도시별로 그룹핑
+  var farByCity = {};
+  farMembers.forEach(function(m) {
+    var city = (m.city || '(주소없음)').trim();
+    if (!farByCity[city]) farByCity[city] = [];
+    farByCity[city].push(m);
+  });
+
+  var html = '';
+
+  // ── 원거리 그룹 ──
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:10px 0 6px">🚕 원거리 (' + farMembers.length + '명)</div>';
+  if (!Object.keys(farByCity).length) {
+    html += '<div class="empty-msg" style="padding:10px">원거리 멤버 없음</div>';
+  } else {
+    Object.keys(farByCity).sort().forEach(function(city) {
+      var members = farByCity[city];
+      var mode = members.length <= 5 ? 'taxi' : 'vehicle';
+      var badge = mode === 'taxi'
+        ? '<span class="badge b-blue">🚕 택시 추천</span>'
+        : '<span class="badge b-warn">🚐 차량 필요</span>';
+      html += '<div class="log-card">'
+        + '<div class="log-top"><div class="log-name">' + city + ' (' + members.length + '명)</div>' + badge + '</div>'
+        + '<div style="font-size:12px;color:#3C3C43">' + members.map(function(m){ return m.kr; }).join(', ') + '</div>'
+        + '</div>';
+    });
+  }
+
+  // ── 근거리: 2차/3차 차량 배정 (도시순 정렬로 인접 지역 묶기) ──
+  nearMembers.sort(function(a, b) { return (a.city || '').localeCompare(b.city || ''); });
+  var batches = [];
+  var idx = 0;
+  var vIdx = 1; // 1차는 원거리 차량 배정에 이미 쓰였다고 가정, 근거리는 2차부터 시작
+  while (idx < nearMembers.length) {
+    var vh = VEHICLES[batches.length % VEHICLES.length];
+    var chunk = nearMembers.slice(idx, idx + vh.cap);
+    batches.push({ label: (batches.length + 2) + '차 (' + vh.label + ')', members: chunk, cap: vh.cap });
+    idx += vh.cap;
+  }
+
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 퀸즈 (' + nearMembers.length + '명)</div>';
+  if (!batches.length) {
+    html += '<div class="empty-msg" style="padding:10px">근거리 멤버 없음</div>';
+  } else {
+    batches.forEach(function(b, i) {
+      html += '<div class="log-card">'
+        + '<div class="log-top"><div class="log-name">' + b.label + '</div><span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
+        + '<div style="font-size:12px;color:#3C3C43">' + b.members.map(function(m){ return m.kr + '(' + (m.city||'—') + ')'; }).join(', ') + '</div>'
+        + '<div class="frow" style="margin-top:8px;gap:6px">'
+        + '<input class="fi" id="disp-driver-near-' + i + '" placeholder="운전자 이름" style="font-size:12px">'
+        + '</div>'
+        + '</div>';
+    });
+  }
+
+  // 원거리 차량 배정군 운전자 입력 (택시 제외)
+  var vehicleFarCities = Object.keys(farByCity).filter(function(c){ return farByCity[c].length > 5; });
+  if (vehicleFarCities.length) {
+    html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 원거리 차량 배정 운전자</div>';
+    vehicleFarCities.forEach(function(city, i) {
+      html += '<div class="frow" style="margin-bottom:6px"><div style="font-size:12px;padding-top:8px">' + city + '</div>'
+        + '<input class="fi" id="disp-driver-far-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>';
+    });
+  }
+
+  html += '<div id="disp-writer-wrap" class="fg" style="margin-top:10px"><div class="fl">작성자</div><input class="m-input" id="disp-writer" placeholder="이름, 직책"></div>';
+  html += '<button class="btn-full btn-primary" style="margin-top:6px" onclick="saveDispatchToLog()">💾 이 배차로 로그 저장</button>';
+
+  resultEl.innerHTML = html;
+
+  // 저장 시 사용할 데이터 임시 보관
+  window._dispatchPlan = { iso: iso, farByCity: farByCity, nearBatches: batches };
+}
+
+async function saveDispatchToLog() {
+  var plan = window._dispatchPlan;
+  if (!plan) { alert('먼저 배차 계획을 생성해주세요'); return; }
+  var writer = (document.getElementById('disp-writer') || {}).value.trim();
+  var iso = plan.iso;
+  var entries = [];
+
+  // 원거리 — 택시/차량
+  Object.keys(plan.farByCity).forEach(function(city, ci) {
+    var members = plan.farByCity[city];
+    var mode = members.length <= 5 ? '택시' : '차량';
+    var driverEl = document.getElementById('disp-driver-far-' + ci);
+    var driver = mode === '차량' && driverEl ? driverEl.value.trim() : '';
+    members.forEach(function(m) {
+      entries.push({
+        'ID': 'TRP' + Date.now() + '_' + m.id + '_far',
+        '날짜': iso, '멤버ID': m.id, '한글이름': m.kr,
+        '방향': '등원', '차량': mode, '운전자': driver,
+        '그룹': '원거리-' + city, '메모': '',
+        '작성자': writer, '작성시각': new Date().toLocaleString('ko-KR'),
+      });
+    });
+  });
+
+  // 근거리 — 2차/3차 배치
+  plan.nearBatches.forEach(function(b, i) {
+    var driverEl = document.getElementById('disp-driver-near-' + i);
+    var driver = driverEl ? driverEl.value.trim() : '';
+    b.members.forEach(function(m) {
+      entries.push({
+        'ID': 'TRP' + Date.now() + '_' + m.id + '_near',
+        '날짜': iso, '멤버ID': m.id, '한글이름': m.kr,
+        '방향': '등원', '차량': b.label, '운전자': driver,
+        '그룹': '근거리', '메모': '',
+        '작성자': writer, '작성시각': new Date().toLocaleString('ko-KR'),
+      });
+    });
+  });
+
+  if (!entries.length) { alert('저장할 배차 내용이 없어요'); return; }
+
+  var statusEl = document.getElementById('disp-status');
+  for (var i = 0; i < entries.length; i++) {
+    try { await SheetsAPI.post({ action:'append', sheet:'transportation', data: entries[i] }); }
+    catch(e) { console.log('배차 로그 저장 실패:', e); }
+    statusEl.textContent = '⏳ 저장 중... ' + (i+1) + '/' + entries.length;
+    if (i % 8 === 7) await new Promise(function(r){ setTimeout(r, 200); });
+  }
+  statusEl.textContent = '✅ ' + entries.length + '건 저장 완료!';
+  loadTransportFromSheets();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🚐 트랜스포테이션 로그 (기록 조회)
+// ══════════════════════════════════════════════════════════════
+var TRANSPORT_LOG = [];
+
+function loadTransportFromSheets() {
+  apiGet({ action: 'read', sheet: 'transportation' }).then(function(res) {
+    if (res && res.ok && res.data) {
+      TRANSPORT_LOG = res.data;
+      renderTransportLog();
+    }
+  }).catch(function(){});
+}
+
+function renderTransportLog() {
+  var from = (document.getElementById('trp-from') || {}).value;
+  var to   = (document.getElementById('trp-to')   || {}).value;
+  var list = [...TRANSPORT_LOG];
+  if (from) list = list.filter(function(t){ return t['날짜'] >= from; });
+  if (to)   list = list.filter(function(t){ return t['날짜'] <= to; });
+  list.sort(function(a, b){ return (b['날짜']||'').localeCompare(a['날짜']||''); });
+
+  var listEl = document.getElementById('trp-list');
+  if (!listEl) return;
+  listEl.innerHTML = list.length
+    ? list.map(function(t) {
+        return '<div class="log-card">'
+          + '<div class="log-top"><div class="log-name">' + (t['한글이름']||'—') + '</div>'
+          + '<span class="badge b-blue">' + (t['차량']||'—') + '</span></div>'
+          + '<div style="font-size:12px;color:#3C3C43">' + (t['날짜']||'') + ' · ' + (t['그룹']||'') + ' · 운전자: ' + (t['운전자']||'—') + '</div>'
+          + '</div>';
+      }).join('')
+    : '<div class="empty-msg">기록 없음</div>';
 }
