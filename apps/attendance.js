@@ -108,11 +108,13 @@ function renderAtt() {
     const sigStr = (r.signIn || r.signOut)
       ? `<div style="font-size:10px;color:#34C759;margin-top:2px">🕐 ${r.signIn || '—'} ~ 🕔 ${r.signOut || '—'}</div>`
       : '';
-    return `<div class="att-row ${isActive(m) ? '' : 'disenrolled-row'}">
+    // 아직 상태 표시 안 한 사람 = 기본 출석 예정 (종이 출석부가 원본, 이 앱은 예외만 빠르게 표시)
+    const pendingTag = !s ? '<span style="font-size:9px;color:#8E8E93;background:#F2F2F7;border-radius:8px;padding:1px 6px;margin-left:4px">기본출석 예정</span>' : '';
+    return `<div class="att-row ${isActive(m) ? '' : 'disenrolled-row'} ${!s ? 'att-row-pending' : ''}">
       <div class="att-top">
         <div class="av av-sm" style="background:${m.avBg};color:${m.avColor}">${m.kr[0]}</div>
         <div class="att-info">
-          <div class="att-name">${m.kr}${etag}</div>
+          <div class="att-name">${m.kr}${etag}${pendingTag}</div>
           <div class="att-id">${m.medicaid} ${insBadge(m.ins || 'Anthem_MLTC')} ${statusBadge(m)}</div>
           ${sigStr}
         </div>
@@ -137,6 +139,35 @@ function renderAtt() {
   const attPnd = document.getElementById('att-pend');  if(attPnd)   attPnd.textContent   = pC;
   const attTtl = document.getElementById('att-title'); if(attTtl)   attTtl.textContent   = (past?'📝 과거 수정 — ':'')+fmtD(iso)+' ('+list.length+'명)';
   const dayCnt = document.getElementById('day-count'); if(dayCnt)   dayCnt.textContent   = '출석 '+inC+'명';
+
+  // 일괄 확정 버튼 표시 여부 (미확정자 있을 때만)
+  const bulkBtn = document.getElementById('att-bulk-confirm-btn');
+  if (bulkBtn) bulkBtn.style.display = pC > 0 ? 'block' : 'none';
+  const bulkCount = document.getElementById('att-bulk-count');
+  if (bulkCount) bulkCount.textContent = pC;
+}
+
+// 결석/지각/여행 등 예외만 표시된 상태에서, 나머지 미확정 전원을 한번에 "출석"으로 확정
+async function confirmRemainingAsPresent() {
+  const iso = toISO(curDate);
+  const list = getList(iso);
+  const recs = getRec(iso);
+  const pending = list.filter(m => !(recs[m.id] || {}).status);
+
+  if (!pending.length) { alert('확정할 대상이 없어요'); return; }
+  if (!confirm(pending.length + '명을 전부 출석(✅)으로 확정할까요?\n(결석/지각 등 예외 처리한 사람은 그대로 유지돼요)')) return;
+
+  const btn = document.getElementById('att-bulk-confirm-btn');
+  if (btn) btn.disabled = true;
+
+  for (let i = 0; i < pending.length; i++) {
+    await qSet(iso, pending[i].id, 'in');
+    if (btn) btn.textContent = '⏳ 확정 중... ' + (i + 1) + '/' + pending.length;
+    if (i % 8 === 7) await new Promise(r => setTimeout(r, 200));
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '☑️ 나머지 전원 출석 확정 (' + 0 + '명)'; }
+  renderAtt();
 }
 
 // ── 빠른 출결 체크 ────────────────────────────────────────────
