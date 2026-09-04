@@ -65,6 +65,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 
 /* Attendance rows */
 .att-row{display:flex;flex-direction:column;padding:11px 14px;border-bottom:.5px solid #E5E5EA}
+.att-row-pending{background:#FAFAFA}
 .att-row:last-child{border-bottom:none}
 .att-top{display:flex;align-items:center;gap:9px}
 .av{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
@@ -450,6 +451,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox"><div class="sv c-orange" id="att-pend">0</div><div class="sl">미확인</div></div>
       </div>
       <div class="search-wrap"><span>🔍</span><input type="search" id="asearch" placeholder="이름으로 검색..."></div>
+      <button id="att-bulk-confirm-btn" onclick="confirmRemainingAsPresent()" style="display:none;width:100%;padding:12px;border-radius:12px;border:none;background:#34C759;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">☑️ 나머지 전원 출석 확정 (<span id="att-bulk-count">0</span>명)</button>
+      <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">💡 종이 출석부가 원본이에요. 결석/지각/여행 등 예외만 표시하고, 나머지는 위 버튼으로 한번에 출석 처리하세요.</div>
       <div class="section-lbl" id="att-title">출결 체크</div>
       <div class="card" id="att-list"></div>
     </div>
