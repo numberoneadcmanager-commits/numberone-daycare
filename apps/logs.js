@@ -417,13 +417,60 @@ async function saveDailyActivityLog() {
 // ══════════════════════════════════════════════════════════════
 // 🚐 배차 계획 (Dispatch Plan) — 거리/방향 기반 자동 그룹핑
 // ══════════════════════════════════════════════════════════════
-var VEHICLES = [
-  { label: 'Van1',     cap: 14 },
-  { label: 'Van2',     cap: 14 },
-  { label: 'Minivan1', cap: 6  },
-];
+var TAXI_CAPACITY = 7; // 택시도 미니밴형을 부를 수 있어서 정원 7명 기준
 var FAR_DISTANCE_MILES = 6; // 이 거리(마일) 초과면 "원거리"로 분류
 var SECTOR_NAMES = ['N','NE','E','SE','S','SW','W','NW'];
+
+// ── 차량 목록 관리 (설정 화면에서 추가/수정/삭제 가능, localStorage에 저장) ──
+function getVehicleFleet() {
+  var saved = localStorage.getItem('fleet_vehicles');
+  if (saved) { try { var arr = JSON.parse(saved); if (arr && arr.length) return arr; } catch(e) {} }
+  // 기본값 (처음 한 번도 설정 안 했을 때)
+  return [
+    { label: 'Van1',     cap: 14 },
+    { label: 'Van2',     cap: 14 },
+    { label: 'Minivan1', cap: 7  },
+  ];
+}
+
+function saveVehicleFleet(fleet) {
+  localStorage.setItem('fleet_vehicles', JSON.stringify(fleet));
+}
+
+function renderVehicleFleetSettings() {
+  var fleet = getVehicleFleet();
+  var el = document.getElementById('fleet-list');
+  if (!el) return;
+  el.innerHTML = fleet.map(function(v, i) {
+    return '<div class="frow" style="margin-bottom:6px;align-items:center">'
+      + '<input class="fi" value="' + v.label + '" onchange="_fleetUpdate(' + i + ',\'label\',this.value)" style="font-size:12px">'
+      + '<input class="fi" type="number" value="' + v.cap + '" onchange="_fleetUpdate(' + i + ',\'cap\',parseInt(this.value)||1)" style="font-size:12px;width:70px" placeholder="정원">'
+      + '<button onclick="_fleetRemove(' + i + ')" style="background:#FFEBEE;color:#FF3B30;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">삭제</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _fleetUpdate(idx, field, value) {
+  var fleet = getVehicleFleet();
+  fleet[idx][field] = value;
+  saveVehicleFleet(fleet);
+}
+
+function _fleetRemove(idx) {
+  var fleet = getVehicleFleet();
+  if (fleet.length <= 1) { alert('차량이 최소 1대는 있어야 해요'); return; }
+  if (!confirm(fleet[idx].label + ' 삭제할까요?')) return;
+  fleet.splice(idx, 1);
+  saveVehicleFleet(fleet);
+  renderVehicleFleetSettings();
+}
+
+function _fleetAdd() {
+  var fleet = getVehicleFleet();
+  fleet.push({ label: '새차량' + (fleet.length + 1), cap: 14 });
+  saveVehicleFleet(fleet);
+  renderVehicleFleetSettings();
+}
 
 function _toRad(deg) { return deg * Math.PI / 180; }
 
@@ -479,6 +526,7 @@ async function generateDispatchPlan() {
   var dow = (typeof dowKey === 'function') ? dowKey(iso) : null;
   var statusEl = document.getElementById('disp-status');
   var resultEl = document.getElementById('disp-result');
+  var VEHICLES = getVehicleFleet(); // 설정 화면에서 관리하는 차량 목록
   statusEl.textContent = '⏳ 계산 중...';
   resultEl.innerHTML = '';
 
@@ -575,7 +623,7 @@ async function generateDispatchPlan() {
       var remaining = members.slice();
       while (remaining.length) {
         taxiCounter++;
-        var chunk = remaining.splice(0, 4);
+        var chunk = remaining.splice(0, TAXI_CAPACITY);
         var cities = [];
         chunk.forEach(function(m) { var c = m.city || '(주소없음)'; if (cities.indexOf(c) === -1) cities.push(c); });
         farAssignments.push({ members: chunk, mode: 'taxi', label: '택시' + taxiCounter, cities: cities });
@@ -701,15 +749,21 @@ function _renderDispatchGroups() {
     html += '<div class="log-card">'
       + '<div class="log-top">'
       + '<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700"><input type="checkbox" class="disp-merge-far" value="' + i + '"> ' + g.cities.join('/') + ' (' + g.members.length + '명)</label>'
-      + badge + '</div>'
+      + badge
+      + ' <span onclick="_dispatchDeleteGroup(\'far\',' + i + ')" style="cursor:pointer;color:#FF3B30;font-size:11px;margin-left:6px">🗑️</span>'
+      + '</div>'
       + '<div>' + g.members.map(function(m) { return memberChip(m, 'far', i); }).join('') + '</div>'
       + unassignedSelect('far', i)
       + (g.mode === 'vehicle' ? '<div class="frow" style="margin-top:8px;gap:6px"><input class="fi" id="disp-driver-far-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>' : '')
       + '</div>';
   });
+  html += '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+  html += '<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="_dispatchAddNewGroup(\'far\',\'taxi\')">➕ 택시 그룹 추가</button>';
+  html += '<button class="btn-sm" style="background:#FFF3E0;color:#B35900" onclick="_dispatchAddNewGroup(\'far\',\'vehicle\')">➕ 차량 그룹 추가</button>';
   if (plan.farAssignments.length > 1) {
-    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6;margin-bottom:12px" onclick="_dispatchMergeChecked(\'far\')">☑️ 체크한 원거리 그룹 합치기</button>';
+    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6" onclick="_dispatchMergeChecked(\'far\')">☑️ 체크한 그룹 합치기</button>';
   }
+  html += '</div>';
 
   // ── 근거리 배치 ──
   html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 (그룹을 직접 조정할 수 있어요)</div>';
@@ -717,15 +771,20 @@ function _renderDispatchGroups() {
     html += '<div class="log-card">'
       + '<div class="log-top">'
       + '<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700"><input type="checkbox" class="disp-merge-near" value="' + i + '"> ' + b.label + ' — ' + b.cities.join('/') + '</label>'
-      + '<span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
+      + '<span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span>'
+      + ' <span onclick="_dispatchDeleteGroup(\'near\',' + i + ')" style="cursor:pointer;color:#FF3B30;font-size:11px;margin-left:6px">🗑️</span>'
+      + '</div>'
       + '<div>' + b.members.map(function(m) { return memberChip(m, 'near', i); }).join('') + '</div>'
       + unassignedSelect('near', i)
       + '<div class="frow" style="margin-top:8px;gap:6px"><input class="fi" id="disp-driver-near-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>'
       + '</div>';
   });
+  html += '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+  html += '<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="_dispatchAddNewGroup(\'near\',\'vehicle\')">➕ 차량 배치 추가</button>';
   if (plan.nearBatches.length > 1) {
-    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6;margin-bottom:12px" onclick="_dispatchMergeChecked(\'near\')">☑️ 체크한 근거리 그룹 합치기</button>';
+    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6" onclick="_dispatchMergeChecked(\'near\')">☑️ 체크한 그룹 합치기</button>';
   }
+  html += '</div>';
 
   // ── 미배정 멤버 풀 ──
   if (plan.unassigned.length) {
@@ -760,6 +819,33 @@ function _dispatchAddMember(groupType, groupIdx, mid) {
   var member = plan.unassigned.splice(idx, 1)[0];
   group.members.push(member);
   if (group.cities && group.cities.indexOf(member.city) === -1) group.cities.push(member.city || '(주소없음)');
+  _renderDispatchGroups();
+}
+
+// 그룹 전체 삭제 — 멤버는 미배정 풀로 되돌려 보냄
+function _dispatchDeleteGroup(groupType, groupIdx) {
+  var plan = window._dispatchPlan;
+  var arr = groupType === 'far' ? plan.farAssignments : plan.nearBatches;
+  var group = arr[groupIdx];
+  if (!group) return;
+  if (!confirm('이 그룹을 삭제할까요? 멤버 ' + group.members.length + '명은 미배정으로 돌아가요.')) return;
+  plan.unassigned = plan.unassigned.concat(group.members);
+  arr.splice(groupIdx, 1);
+  _renderDispatchGroups();
+}
+
+// 새 그룹(택시 또는 차량) 수동 추가 — 처음엔 빈 그룹, 드롭다운으로 멤버를 채움
+function _dispatchAddNewGroup(groupType, mode) {
+  var plan = window._dispatchPlan;
+  if (groupType === 'far') {
+    var taxiCount = plan.farAssignments.filter(function(g) { return g.mode === 'taxi'; }).length;
+    var label = mode === 'taxi' ? '택시' + (taxiCount + 1) : '차량(직접추가)';
+    plan.farAssignments.push({ members: [], mode: mode, label: label, cities: [] });
+  } else {
+    var fleet = getVehicleFleet();
+    var vh = fleet[plan.nearBatches.length % fleet.length];
+    plan.nearBatches.push({ label: (plan.nearBatches.length + 2) + '차 (' + vh.label + ', 직접추가)', members: [], cap: vh.cap, cities: [] });
+  }
   _renderDispatchGroups();
 }
 
@@ -799,6 +885,7 @@ async function saveDispatchToLog() {
   var entries = [];
 
   plan.farAssignments.forEach(function(g, i) {
+    if (!g.members.length) return; // 빈 그룹(수동 추가 후 안 채운 경우)은 저장 안 함
     var driver = '';
     if (g.mode === 'vehicle') {
       var driverEl = document.getElementById('disp-driver-far-' + i);
@@ -815,6 +902,7 @@ async function saveDispatchToLog() {
   });
 
   plan.nearBatches.forEach(function(b, i) {
+    if (!b.members.length) return;
     var driverEl = document.getElementById('disp-driver-near-' + i);
     var driver = driverEl ? driverEl.value.trim() : '';
     entries.push({
@@ -826,6 +914,10 @@ async function saveDispatchToLog() {
       '메모': '', '작성자': writer, '작성시각': new Date().toLocaleString('ko-KR'),
     });
   });
+
+  if (plan.unassigned.length) {
+    if (!confirm('⚠️ 미배정 멤버 ' + plan.unassigned.length + '명이 있어요. 이대로 저장할까요? (미배정 멤버는 기록되지 않아요)')) return;
+  }
 
   if (!entries.length) { alert('저장할 배차 내용이 없어요'); return; }
 
