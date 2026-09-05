@@ -404,7 +404,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="tab" onclick="goTab('authorization',this)">Auth</div>
     <div class="tab" onclick="goTab('visitor',this)">방문자</div>
     <div class="tab" onclick="goTab('council',this)">회의록</div>
-    <div class="tab" id="tab-settings" onclick="goTab('settings',this);loadDaycareHoursDisplay()">설정</div>
+    <div class="tab" id="tab-settings" onclick="goTab('settings',this);loadDaycareHoursDisplay();renderVehicleFleetSettings()">설정</div>
   </div>
 
   <!-- Content -->
@@ -805,6 +805,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     </div>
 
     <div class="panel" id="panel-settings">
+      <div class="settings-card" style="background:#FFF3E0;border:1.5px solid #FFB347">
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px">🚐 배차용 차량 관리</div>
+        <div style="font-size:12px;color:#8E8E93;margin-bottom:10px">보유 차량 목록이에요. 차량이 늘거나 정원이 바뀌면 여기서 직접 수정하세요.</div>
+        <div id="fleet-list"></div>
+        <button class="btn-full" style="background:#FF9500;color:#fff;border:none;border-radius:11px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px" onclick="_fleetAdd()">➕ 차량 추가</button>
+      </div>
       <div class="settings-card" style="background:#EDE9FE;border:1.5px solid #C4B5FD">
         <div style="font-size:14px;font-weight:700;margin-bottom:8px">🗺️ 배차용 주소 좌표 변환</div>
         <div style="font-size:12px;color:#8E8E93;margin-bottom:10px">멤버 주소를 좌표로 변환해서 배차 계획(원거리/근거리 자동 그룹핑)에 사용해요. 새 멤버 추가 후에도 다시 실행하면 새 멤버만 변환돼요.</div>
