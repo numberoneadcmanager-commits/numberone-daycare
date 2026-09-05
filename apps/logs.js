@@ -659,39 +659,136 @@ async function generateDispatchPlan() {
     closeBatch();
   })();
 
-  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 (' + nearMembers.length + '명, ' + FAR_DISTANCE_MILES + '마일 이내)</div>';
-  if (!batches.length) {
-    html += '<div class="empty-msg" style="padding:10px">근거리 멤버 없음</div>';
-  } else {
-    batches.forEach(function(b, i) {
-      html += '<div class="log-card">'
-        + '<div class="log-top"><div class="log-name">' + b.label + ' — ' + b.cities.join('/') + '</div><span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
-        + '<div style="font-size:12px;color:#3C3C43">' + b.members.map(function(m) { return m.kr + ' (' + (m.city||'—') + ', ' + m._dist.toFixed(1) + 'mi)'; }).join(', ') + '</div>'
-        + '<div class="frow" style="margin-top:8px;gap:6px">'
-        + '<input class="fi" id="disp-driver-near-' + i + '" placeholder="운전자 이름" style="font-size:12px">'
-        + '</div>'
-        + '</div>';
-    });
+  window._dispatchPlan = { iso: iso, farAssignments: farAssignments, nearBatches: batches, unassigned: [] };
+  if (noCoord.length) window._dispatchPlan.unassigned = window._dispatchPlan.unassigned.concat(noCoord);
+
+  resultEl.innerHTML = '<div id="disp-editable"></div>'
+    + '<div id="disp-writer-wrap" class="fg" style="margin-top:10px"><div class="fl">작성자</div><input class="m-input" id="disp-writer" placeholder="이름, 직책"></div>'
+    + '<button class="btn-full btn-primary" style="margin-top:6px" onclick="saveDispatchToLog()">💾 이 배차로 로그 저장</button>';
+
+  _renderDispatchGroups();
+}
+
+// ── 배차 결과를 사람이 직접 빼기/추가/합치기로 수정할 수 있게 그리기 ──
+function _renderDispatchGroups() {
+  var plan = window._dispatchPlan;
+  if (!plan) return;
+  var el = document.getElementById('disp-editable');
+  if (!el) return;
+
+  function memberChip(m, groupType, groupIdx) {
+    return '<span style="display:inline-flex;align-items:center;gap:3px;background:#F2F2F7;border-radius:6px;padding:2px 6px;margin:2px;font-size:11px">'
+      + m.kr + ' (' + (m.city||'—') + ')'
+      + ' <span onclick="_dispatchRemoveMember(\'' + groupType + '\',' + groupIdx + ',\'' + m.id + '\')" style="cursor:pointer;color:#FF3B30;font-weight:900;padding:0 2px">✕</span>'
+      + '</span>';
   }
 
-  var vehicleFarGroups = farAssignments.filter(function(g) { return g.mode === 'vehicle'; });
-  if (vehicleFarGroups.length) {
-    html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 원거리 차량 운전자</div>';
-    vehicleFarGroups.forEach(function(g, i) {
-      html += '<div class="frow" style="margin-bottom:6px"><div style="font-size:12px;padding-top:8px">' + g.label + ' (' + g.cities.join('/') + ')</div>'
-        + '<input class="fi" id="disp-driver-far-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>';
-    });
+  function unassignedSelect(groupType, groupIdx) {
+    if (!plan.unassigned.length) return '';
+    var opts = plan.unassigned.map(function(m) { return '<option value="' + m.id + '">' + m.kr + ' (' + (m.city||'—') + ')</option>'; }).join('');
+    return '<select onchange="if(this.value){_dispatchAddMember(\'' + groupType + '\',' + groupIdx + ',this.value);this.value=\'\';}" style="font-size:11px;border:1px solid #E5E5EA;border-radius:6px;padding:3px;margin-top:4px">'
+      + '<option value="">+ 미배정 멤버 추가...</option>' + opts + '</select>';
   }
 
-  if (noCoord.length) {
-    html += '<div style="font-size:11px;color:#FF3B30;margin-top:10px">⚠️ 좌표 없어서 제외됨: ' + noCoord.map(function(m) { return m.kr; }).join(', ') + '</div>';
+  var html = '';
+
+  // ── 원거리 그룹 ──
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:10px 0 6px">🚕 원거리 (그룹을 직접 조정할 수 있어요)</div>';
+  plan.farAssignments.forEach(function(g, i) {
+    var badge = g.mode === 'taxi'
+      ? '<span class="badge b-blue">🚕 ' + g.label + '</span>'
+      : '<span class="badge b-warn">🚐 ' + g.label + '</span>';
+    html += '<div class="log-card">'
+      + '<div class="log-top">'
+      + '<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700"><input type="checkbox" class="disp-merge-far" value="' + i + '"> ' + g.cities.join('/') + ' (' + g.members.length + '명)</label>'
+      + badge + '</div>'
+      + '<div>' + g.members.map(function(m) { return memberChip(m, 'far', i); }).join('') + '</div>'
+      + unassignedSelect('far', i)
+      + (g.mode === 'vehicle' ? '<div class="frow" style="margin-top:8px;gap:6px"><input class="fi" id="disp-driver-far-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>' : '')
+      + '</div>';
+  });
+  if (plan.farAssignments.length > 1) {
+    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6;margin-bottom:12px" onclick="_dispatchMergeChecked(\'far\')">☑️ 체크한 원거리 그룹 합치기</button>';
   }
 
-  html += '<div id="disp-writer-wrap" class="fg" style="margin-top:10px"><div class="fl">작성자</div><input class="m-input" id="disp-writer" placeholder="이름, 직책"></div>';
-  html += '<button class="btn-full btn-primary" style="margin-top:6px" onclick="saveDispatchToLog()">💾 이 배차로 로그 저장</button>';
+  // ── 근거리 배치 ──
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 (그룹을 직접 조정할 수 있어요)</div>';
+  plan.nearBatches.forEach(function(b, i) {
+    html += '<div class="log-card">'
+      + '<div class="log-top">'
+      + '<label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700"><input type="checkbox" class="disp-merge-near" value="' + i + '"> ' + b.label + ' — ' + b.cities.join('/') + '</label>'
+      + '<span class="badge b-ok">' + b.members.length + '/' + b.cap + '명</span></div>'
+      + '<div>' + b.members.map(function(m) { return memberChip(m, 'near', i); }).join('') + '</div>'
+      + unassignedSelect('near', i)
+      + '<div class="frow" style="margin-top:8px;gap:6px"><input class="fi" id="disp-driver-near-' + i + '" placeholder="운전자 이름" style="font-size:12px"></div>'
+      + '</div>';
+  });
+  if (plan.nearBatches.length > 1) {
+    html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6;margin-bottom:12px" onclick="_dispatchMergeChecked(\'near\')">☑️ 체크한 근거리 그룹 합치기</button>';
+  }
 
-  resultEl.innerHTML = html;
-  window._dispatchPlan = { iso: iso, farAssignments: farAssignments, nearBatches: batches };
+  // ── 미배정 멤버 풀 ──
+  if (plan.unassigned.length) {
+    html += '<div style="font-size:12px;font-weight:700;color:#FF3B30;margin:16px 0 6px">⚠️ 미배정 멤버 (' + plan.unassigned.length + '명) — 위 그룹의 드롭다운으로 추가해주세요</div>';
+    html += '<div class="log-card">' + plan.unassigned.map(function(m) {
+      return '<span style="display:inline-block;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px;margin:2px;font-size:11px">' + m.kr + ' (' + (m.city||'—') + ')</span>';
+    }).join('') + '</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// 멤버를 그룹에서 빼서 미배정 풀로
+function _dispatchRemoveMember(groupType, groupIdx, mid) {
+  var plan = window._dispatchPlan;
+  var group = groupType === 'far' ? plan.farAssignments[groupIdx] : plan.nearBatches[groupIdx];
+  if (!group) return;
+  var idx = group.members.findIndex(function(m) { return m.id === mid; });
+  if (idx === -1) return;
+  var removed = group.members.splice(idx, 1)[0];
+  plan.unassigned.push(removed);
+  _renderDispatchGroups();
+}
+
+// 미배정 풀(또는 다른 그룹)에서 멤버를 이 그룹으로 추가
+function _dispatchAddMember(groupType, groupIdx, mid) {
+  var plan = window._dispatchPlan;
+  var group = groupType === 'far' ? plan.farAssignments[groupIdx] : plan.nearBatches[groupIdx];
+  if (!group) return;
+  var idx = plan.unassigned.findIndex(function(m) { return m.id === mid; });
+  if (idx === -1) return;
+  var member = plan.unassigned.splice(idx, 1)[0];
+  group.members.push(member);
+  if (group.cities && group.cities.indexOf(member.city) === -1) group.cities.push(member.city || '(주소없음)');
+  _renderDispatchGroups();
+}
+
+// 체크한 그룹들을 하나로 합치기 (첫 번째 체크한 그룹으로 나머지를 흡수)
+function _dispatchMergeChecked(groupType) {
+  var plan = window._dispatchPlan;
+  var checkboxClass = groupType === 'far' ? '.disp-merge-far' : '.disp-merge-near';
+  var checked = Array.from(document.querySelectorAll(checkboxClass + ':checked')).map(function(el) { return parseInt(el.value); });
+  if (checked.length < 2) { alert('합칠 그룹을 2개 이상 체크해주세요'); return; }
+  checked.sort(function(a, b) { return a - b; });
+
+  var arr = groupType === 'far' ? plan.farAssignments : plan.nearBatches;
+  var baseIdx = checked[0];
+  var base = arr[baseIdx];
+
+  for (var i = checked.length - 1; i >= 1; i--) {
+    var idx = checked[i];
+    var toMerge = arr[idx];
+    base.members = base.members.concat(toMerge.members);
+    (toMerge.cities || []).forEach(function(c) { if (base.cities.indexOf(c) === -1) base.cities.push(c); });
+    arr.splice(idx, 1); // 뒤에서부터 제거해야 인덱스 안 꼬임
+  }
+
+  var totalCap = groupType === 'near' ? base.cap : null;
+  if (totalCap && base.members.length > totalCap) {
+    alert('⚠️ 합친 인원(' + base.members.length + '명)이 차량 정원(' + totalCap + '명)을 넘어요. 일부는 다른 그룹으로 다시 빼주세요.');
+  }
+
+  _renderDispatchGroups();
 }
 
 async function saveDispatchToLog() {
@@ -701,13 +798,11 @@ async function saveDispatchToLog() {
   var iso = plan.iso;
   var entries = [];
 
-  var vehicleIdx = 0;
   plan.farAssignments.forEach(function(g, i) {
     var driver = '';
     if (g.mode === 'vehicle') {
-      var driverEl = document.getElementById('disp-driver-far-' + vehicleIdx);
+      var driverEl = document.getElementById('disp-driver-far-' + i);
       driver = driverEl ? driverEl.value.trim() : '';
-      vehicleIdx++;
     }
     entries.push({
       'ID': 'TRP' + Date.now() + '_far_' + g.label.replace(/\s+/g, '') + '_' + i,
