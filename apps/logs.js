@@ -882,6 +882,7 @@ async function saveDispatchToLog() {
   if (!plan) { alert('먼저 배차 계획을 생성해주세요'); return; }
   var writer = (document.getElementById('disp-writer') || {}).value.trim();
   var iso = plan.iso;
+  var direction = (document.getElementById('disp-direction') || {}).value || '등원';
   var entries = [];
 
   plan.farAssignments.forEach(function(g, i) {
@@ -892,8 +893,8 @@ async function saveDispatchToLog() {
       driver = driverEl ? driverEl.value.trim() : '';
     }
     entries.push({
-      'ID': 'TRP' + Date.now() + '_far_' + g.label.replace(/\s+/g, '') + '_' + i,
-      '날짜': iso, '방향': '등원', '차량': g.label, '운전자': driver,
+      'ID': 'TRP' + iso.replace(/-/g,'') + '_' + direction + '_far_' + g.label.replace(/\s+/g, '') + '_' + i,
+      '날짜': iso, '방향': direction, '차량': g.label, '운전자': driver,
       '그룹': '원거리-' + g.cities.join('/'), '인원수': g.members.length,
       '멤버ID목록': g.members.map(function(m) { return m.id; }).join(','),
       '멤버명단': g.members.map(function(m) { return m.kr; }).join(', '),
@@ -906,8 +907,8 @@ async function saveDispatchToLog() {
     var driverEl = document.getElementById('disp-driver-near-' + i);
     var driver = driverEl ? driverEl.value.trim() : '';
     entries.push({
-      'ID': 'TRP' + Date.now() + '_near' + i,
-      '날짜': iso, '방향': '등원', '차량': b.label, '운전자': driver,
+      'ID': 'TRP' + iso.replace(/-/g,'') + '_' + direction + '_near' + i,
+      '날짜': iso, '방향': direction, '차량': b.label, '운전자': driver,
       '그룹': '근거리-' + b.label, '인원수': b.members.length,
       '멤버ID목록': b.members.map(function(m) { return m.id; }).join(','),
       '멤버명단': b.members.map(function(m) { return m.kr; }).join(', '),
@@ -922,13 +923,29 @@ async function saveDispatchToLog() {
   if (!entries.length) { alert('저장할 배차 내용이 없어요'); return; }
 
   var statusEl = document.getElementById('disp-status');
+
+  // ★ 같은 날짜+방향 기록이 이미 있으면 먼저 지우고 새로 저장 (하루 한 번만 남도록 덮어쓰기)
+  statusEl.textContent = '⏳ 기존 기록 확인 중...';
+  try {
+    var existRes = await SheetsAPI.read('transportation');
+    if (existRes && existRes.ok && existRes.data) {
+      var toDelete = existRes.data.filter(function(r) {
+        return String(r['날짜']).slice(0,10) === iso && r['방향'] === direction && r['그룹'] !== '캔슬';
+      });
+      for (var d = 0; d < toDelete.length; d++) {
+        try { await SheetsAPI.post({ action: 'delete', sheet: 'transportation', id: toDelete[d]['ID'] }); }
+        catch(e) { console.log('기존 배차 삭제 실패:', e); }
+      }
+    }
+  } catch(e) { console.log('기존 배차 조회 실패:', e); }
+
   for (var i = 0; i < entries.length; i++) {
     try { await SheetsAPI.post({ action: 'append', sheet: 'transportation', data: entries[i] }); }
     catch(e) { console.log('배차 로그 저장 실패:', e); }
     statusEl.textContent = '⏳ 저장 중... ' + (i + 1) + '/' + entries.length;
     if (i % 8 === 7) await new Promise(function(r) { setTimeout(r, 200); });
   }
-  statusEl.textContent = '✅ ' + entries.length + '건 저장 완료!';
+  statusEl.textContent = '✅ ' + direction + ' 배차 ' + entries.length + '건 저장 완료! (기존 ' + direction + ' 기록은 덮어써짐)';
   loadTransportFromSheets();
 }
 
@@ -992,16 +1009,67 @@ function loadTransportFromSheets() {
   }).catch(function(){});
 }
 
+var _trpViewMode = 'group'; // 'group' | 'person'
+
+function setTrpViewMode(mode) {
+  _trpViewMode = mode;
+  document.querySelectorAll('#trp-view-toggle button').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.getElementById('trp-view-' + mode);
+  if (btn) btn.classList.add('active');
+  renderTransportLog();
+}
+
 function renderTransportLog() {
   var from = (document.getElementById('trp-from') || {}).value;
   var to   = (document.getElementById('trp-to')   || {}).value;
   var list = [...TRANSPORT_LOG];
   if (from) list = list.filter(function(t) { return t['날짜'] >= from; });
   if (to)   list = list.filter(function(t) { return t['날짜'] <= to; });
-  list.sort(function(a, b) { return (b['날짜'] || '').localeCompare(a['날짜'] || ''); });
+  list.sort(function(a, b) {
+    var d = (b['날짜'] || '').localeCompare(a['날짜'] || '');
+    if (d !== 0) return d;
+    return (a['방향'] || '').localeCompare(b['방향'] || '');
+  });
 
   var listEl = document.getElementById('trp-list');
   if (!listEl) return;
+
+  if (_trpViewMode === 'person') {
+    // ── 개인별로 펼쳐서 표: 날짜 | 방향 | 이름 | 차량 | 운전자 (감사용으로 한눈에 보기 좋게) ──
+    var rows = [];
+    list.forEach(function(t) {
+      if (t['그룹'] === '캔슬') {
+        rows.push({ date: t['날짜'], dir: t['방향'], name: t['멤버명단'], vehicle: '🚫 캔슬', driver: '', memo: t['메모'] });
+        return;
+      }
+      var mids = String(t['멤버ID목록'] || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      var names = String(t['멤버명단'] || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+      var count = Math.max(mids.length, names.length);
+      for (var i = 0; i < count; i++) {
+        rows.push({ date: t['날짜'], dir: t['방향'], name: names[i] || mids[i] || '—', vehicle: t['차량'], driver: t['운전자'], memo: '' });
+      }
+    });
+
+    if (!rows.length) { listEl.innerHTML = '<div class="empty-msg">기록 없음</div>'; return; }
+
+    listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      + '<thead><tr style="background:#F2F2F7;text-align:left">'
+      + '<th style="padding:6px 8px">날짜</th><th style="padding:6px 8px">방향</th><th style="padding:6px 8px">이름</th><th style="padding:6px 8px">차량</th><th style="padding:6px 8px">운전자</th>'
+      + '</tr></thead><tbody>'
+      + rows.map(function(r) {
+          return '<tr style="border-bottom:.5px solid #E5E5EA">'
+            + '<td style="padding:6px 8px">' + r.date + '</td>'
+            + '<td style="padding:6px 8px">' + (r.dir||'') + '</td>'
+            + '<td style="padding:6px 8px;font-weight:700">' + r.name + '</td>'
+            + '<td style="padding:6px 8px">' + (r.vehicle||'—') + '</td>'
+            + '<td style="padding:6px 8px">' + (r.driver||'—') + '</td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table>';
+    return;
+  }
+
+  // ── 그룹(차량) 단위 보기 (기본) ──
   listEl.innerHTML = list.length
     ? list.map(function(t) {
         var isCancel = t['그룹'] === '캔슬';
@@ -1009,7 +1077,7 @@ function renderTransportLog() {
           ? '<span class="badge b-red">🚫 캔슬</span>'
           : '<span class="badge b-blue">' + (t['차량'] || '—') + ' · ' + (t['인원수'] || 0) + '명</span>';
         return '<div class="log-card">'
-          + '<div class="log-top"><div class="log-name">' + (t['그룹'] || '—') + '</div>' + badge + '</div>'
+          + '<div class="log-top"><div class="log-name">' + (t['방향']||'') + ' · ' + (t['그룹'] || '—') + '</div>' + badge + '</div>'
           + '<div style="font-size:12px;color:#3C3C43;margin-bottom:3px">' + (t['멤버명단'] || '') + (t['메모'] ? ' — ' + t['메모'] : '') + '</div>'
           + '<div style="font-size:11px;color:#8E8E93">' + (t['날짜'] || '') + (isCancel ? '' : ' · 운전자: ' + (t['운전자'] || '—')) + '</div>'
           + '</div>';
