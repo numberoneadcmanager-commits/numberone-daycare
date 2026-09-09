@@ -1504,10 +1504,20 @@ function initData(){
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
   var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
+  var pcspId = params.get('pcspId');
+  var signMode = params.get('sign') === '1';
+  var pcspMemberId = params.get('pcspMemberId') || '';
+  var pcspName = params.get('pcspName') || '';
   if (tab === 'pcsp' || tab === 'forms') {
     localStorage.removeItem('pcsp_prefill_mid');
     var formsTabEl = document.querySelector('.tab[onclick*="\'forms\'"]');
     goTab('forms', formsTabEl);
+
+    // 서명대기 목록에서 넘어온 경우 새 PCSP가 아니라 해당 기존 PCSP를 바로 연다.
+    if (signMode && pcspId) {
+      setTimeout(function(){ signPCSP(pcspId, pcspMemberId, pcspName); }, 250);
+      return;
+    }
     if (mid) {
       // 멤버 캐시(loadFormsMemberDropdown)가 채워질 때까지 대기 후 PCSP 오픈
       var tries = 0;
