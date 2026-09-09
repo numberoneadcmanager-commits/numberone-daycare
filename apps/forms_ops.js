@@ -243,7 +243,7 @@ function saveAssessment(){
   var mName=member?(member['한글이름']||''):'';
   var data=collectAssessmentData();
   var author=_currentUser?(_currentUser.name||''):'';
-  apiCall({action:'upsert',sheet:'PCSP',key:'멤버ID',value:_asmt.mid,data:{'멤버ID':_asmt.mid,'한글이름':mName,'작성일':data.date,'작성자':data.assessor||author,'상태':'Assessment완료'}}).catch(function(){});
+  // Assessment는 Drive JSON/JSONLog로 관리한다. PCSP 시트 상태를 덮어쓰지 않는다.
   saveJSONtoDrive(_asmt.mid,mName,'Assessment',data).then(function(res){
     if(res&&res.ok&&res.data&&res.data.success){alert('✅ Assessment 저장 완료!\n'+mName);closeFrmBack();}
     else alert('❌ Drive 저장 실패');
