@@ -297,7 +297,7 @@ function renderPCSPRisks(){var el=document.getElementById('pcsp-risks-list');if(
 function addPcspRisk(){var risk=prompt('위험 요소 (예: Fall Risk):');if(!risk)return;_pcspRisks.push({risk:risk,trigger:'',response:'',measure:'',safeguard:''});renderPCSPRisks();}
 function removePcspRisk(i){_pcspRisks.splice(i,1);renderPCSPRisks();}
 
-function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(!el)return;if(!_pcspGoals.length){el.innerHTML='<div class="empty-msg" style="padding:8px">목표 없음</div>';return;}el.innerHTML=_pcspGoals.map(function(g,i){return '<div class="pcsp-goal-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🎯 Goal '+(i+1)+'</b><button class="btn-danger" onclick="removePcspGoal('+i+')">삭제</button></div><div style="font-size:11px"><b>Goal:</b> '+g.goal+'</div><div style="font-size:11px"><b>Outcome:</b> '+g.outcome+'</div><div style="font-size:11px"><b>Actions:</b> '+g.actions+'</div></div>';}).join('');}
+function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(!el)return;var repaired=[];var changed=false;(_pcspGoals||[]).forEach(function(g){if(g&&g.goal&&(!g.outcome||!g.actions)&&/(?:SMART Goals|\*\*Goal|\bOutcome\s*:|\bActions?\s*:)/i.test(g.goal)){var parsed=parsePCSPAIGoals(g.goal);if(parsed.length){parsed.forEach(function(x){repaired.push(x);});changed=true;return;}}repaired.push(g);});if(changed){_pcspGoals=repaired;}if(!_pcspGoals.length){el.innerHTML='<div class="empty-msg" style="padding:8px">목표 없음</div>';return;}el.innerHTML=_pcspGoals.map(function(g,i){return '<div class="pcsp-goal-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🎯 Goal '+(i+1)+'</b><button class="btn-danger" onclick="removePcspGoal('+i+')">삭제</button></div><div style="font-size:11px"><b>Goal:</b> '+(g.goal||'')+'</div><div style="font-size:11px"><b>Outcome:</b> '+(g.outcome||'')+'</div><div style="font-size:11px"><b>Actions:</b> '+(g.actions||'')+'</div></div>';}).join('');}
 function addPcspGoal(){var goal=prompt('Goal (목표):');if(!goal)return;var outcome=prompt('Outcome Criteria (달성 기준/날짜):','');var actions=prompt('Actions/Steps:','');var activities=prompt('Related Activities:','');_pcspGoals.push({goal:goal,outcome:outcome||'',actions:actions||'',activities:activities||''});renderPCSPGoals();}
 function removePcspGoal(i){_pcspGoals.splice(i,1);renderPCSPGoals();}
 
@@ -453,10 +453,12 @@ async function savePCSPFull(){
       });
 
       if(!res||!res.ok||!res.data||!res.data.success){
-        throw new Error(res&&res.data&&res.data.error ? res.data.error : '서버 오류');
+        console.error('fillPCSP server response:', res);
+        var fillErr = (res&&res.data&&res.data.error) || (res&&res.error) || '서버 오류';
+        throw new Error(fillErr);
       }
 
-      await apiCall({
+      var pdfSaveRes = await apiCall({
         action:'savePDF',
         memberId:memberId,
         memberName:memberName,
@@ -464,6 +466,11 @@ async function savePCSPFull(){
         base64Data:res.data.pdfBase64,
         author:_currentUser?(_currentUser.name||''):''
       });
+      if(!pdfSaveRes || !pdfSaveRes.ok || !pdfSaveRes.data || !pdfSaveRes.data.success){
+        console.error('savePDF server response:', pdfSaveRes);
+        var pdfErr = (pdfSaveRes&&pdfSaveRes.data&&pdfSaveRes.data.error) || (pdfSaveRes&&pdfSaveRes.error) || 'PDF Drive 저장 오류';
+        throw new Error(pdfErr);
+      }
 
       // JSON도 최신 상태로 갱신
       await saveJSONtoDrive(memberId, memberName, 'PCSP', entry);
@@ -742,6 +749,86 @@ function addMedLine(){
 // PCSP AI 자동완성
 // ══════════════════════════════════════════════════════════════
 
+function pcspCleanAIText(v){
+  return String(v == null ? '' : v)
+    .replace(/```(?:json)?/gi,'')
+    .replace(/```/g,'')
+    .replace(/\*\*/g,'')
+    .replace(/__/g,'')
+    .replace(/`/g,'')
+    .replace(/^\s*#{1,6}\s*/gm,'')
+    .trim();
+}
+
+function pcspNormalizeGoalObject(obj){
+  if(!obj || typeof obj !== 'object') return null;
+  var goal = pcspCleanAIText(obj.goal || obj.Goal || '');
+  var outcome = pcspCleanAIText(obj.outcome || obj.Outcome || obj.outcomeCriteria || obj['Outcome Criteria'] || '');
+  var actions = pcspCleanAIText(obj.actions || obj.Actions || obj.steps || obj['Actions and/or Steps'] || '');
+  var activities = pcspCleanAIText(obj.activities || obj.Activities || obj.related || obj['Related Activity(s)'] || '');
+
+  // AI가 값 안에 라벨을 다시 넣은 경우 제거
+  goal = goal.replace(/^\s*Goal\s*:\s*/i,'').trim();
+  outcome = outcome.replace(/^\s*Outcome(?:\s+Criteria)?\s*:\s*/i,'').trim();
+  actions = actions.replace(/^\s*Actions?(?:\s+and\/or\s+Steps)?\s*:\s*/i,'').trim();
+  activities = activities.replace(/^\s*(?:Activities?|Related Activity\(s\))\s*:\s*/i,'').trim();
+
+  if(!goal || !outcome || !actions) return null;
+  return {goal:goal,outcome:outcome,actions:actions,activities:activities};
+}
+
+function parsePCSPAIGoals(rawText){
+  var raw = String(rawText || '').trim();
+  if(!raw) return [];
+
+  // 1) 새 프롬프트의 JSON 응답을 우선 처리
+  var jsonText = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+  var candidates = [jsonText];
+  var a = jsonText.indexOf('['), b = jsonText.lastIndexOf(']');
+  if(a >= 0 && b > a) candidates.push(jsonText.slice(a,b+1));
+
+  for(var ci=0; ci<candidates.length; ci++){
+    try{
+      var parsed = JSON.parse(candidates[ci]);
+      var arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.goals) ? parsed.goals : []);
+      var normalized = arr.map(pcspNormalizeGoalObject).filter(Boolean);
+      if(normalized.length) return normalized;
+    }catch(ignore){}
+  }
+
+  // 2) 예전 Claude 응답/Markdown 응답도 복구 가능하게 처리
+  var text = pcspCleanAIText(raw)
+    .replace(/\|\s*Goal\s*:/gi,'\nGoal:')
+    .replace(/\n\s*(?:[-*]\s*)?(?:\d+[.)]\s*)?Goal\s*:/gi,'\nGoal:')
+    .trim();
+
+  var firstGoal = text.search(/\bGoal\s*:/i);
+  if(firstGoal > 0) text = text.slice(firstGoal); // "SMART Goals for Participant..." 같은 제목 제거
+
+  var starts = [];
+  var re = /\bGoal\s*:/gi, m;
+  while((m = re.exec(text)) !== null) starts.push(m.index);
+  if(!starts.length) return [];
+  starts.push(text.length);
+
+  var out = [];
+  for(var i=0; i<starts.length-1; i++){
+    var block = text.slice(starts[i], starts[i+1]).trim();
+    var gm = block.match(/^Goal\s*:\s*([\s\S]*?)(?=\s*\|?\s*Outcome(?:\s+Criteria)?\s*:)/i);
+    var om = block.match(/Outcome(?:\s+Criteria)?\s*:\s*([\s\S]*?)(?=\s*\|?\s*Actions?(?:\s+and\/or\s+Steps)?\s*:)/i);
+    var am = block.match(/Actions?(?:\s+and\/or\s+Steps)?\s*:\s*([\s\S]*?)(?=\s*\|?\s*(?:Related Activity\(s\)|Activities?)\s*:|$)/i);
+    var rm = block.match(/(?:Related Activity\(s\)|Activities?)\s*:\s*([\s\S]*?)$/i);
+    var g = pcspNormalizeGoalObject({
+      goal: gm ? gm[1] : '',
+      outcome: om ? om[1] : '',
+      actions: am ? am[1] : '',
+      activities: rm ? rm[1] : ''
+    });
+    if(g) out.push(g);
+  }
+  return out;
+}
+
 async function aiWritePCSP(field){
   var diag = (document.getElementById('p-diag')||{}).value || '';
   var meds = (document.getElementById('p-meds')||{}).value || '';
@@ -834,22 +921,38 @@ Requirements:
 - Follow NYS DOH SADC PCSP 2026 template format
 - Do NOT include headers or labels, just the paragraph text`,
 
-    goals: `You are a NYS DOH SADC PCSP writer. Write 2-3 SMART Goals for a Korean-American senior participant.
+    goals: `You are a NYS DOH SADC PCSP writer. Create 2-3 person-centered SMART goals for a Korean-American senior participant.
 
 Participant info:
 - Name: ${nameDisplay}
 - Age/Gender: ${age} ${gender}
 - Diagnoses: ${diag || 'not specified'}
+- Preferences: ${prefs || 'not specified'}
 - Keywords/hints: ${hint || 'typical Korean senior goals'}
 - Current date: ${new Date().toLocaleDateString('sv-SE')}
 
+Return ONLY a valid JSON array. Do not use Markdown, headings, bullets, code fences, commentary, or text before/after the JSON.
+Use exactly this schema:
+[
+  {
+    "goal": "one concise SMART goal sentence",
+    "outcome": "specific measurable outcome criteria with frequency and/or target date",
+    "actions": "clear participant/staff actions and supports",
+    "activities": "related SADC/SADS activity or activities"
+  }
+]
+
 Requirements:
-- Write in English only
-- 2-3 SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound)
-- Each goal on a new line in format: "Goal: [goal] | Outcome: [criteria] | Actions: [steps]"
-- Include dates (6-12 months from today)
-- Goals should relate to diagnoses and preferences
-- Follow NYS DOH SADC PCSP 2026 template format`
+- English only
+- Exactly 2 or 3 goal objects
+- Every field must be a non-empty plain-text string
+- Do not include labels such as Goal:, Outcome:, Actions: inside the values
+- Do not include a title such as SMART Goals for Participant
+- Goals must be person-centered and based only on the participant information provided
+- Do not invent a diagnosis, restriction, or preference that was not provided
+- Make outcomes measurable and time-bound, generally within 6-12 months
+- Actions should identify practical participant and/or SADC staff steps
+- Follow the PCSP form intent while keeping each field concise enough for the printed table`
   };
 
   try {
@@ -862,30 +965,13 @@ Requirements:
     if(!text){ throw new Error('응답 없음'); }
 
     if(field === 'goals'){
-      // Goals는 파싱해서 각 goal 추가
-      var lines = text.split('\n').filter(function(l){ return l.trim().startsWith('Goal:'); });
-      if(lines.length){
-        lines.forEach(function(line){
-          var parts = line.split('|');
-          var goal = (parts[0]||'').replace('Goal:','').trim();
-          var outcome = (parts[1]||'').replace('Outcome:','').trim();
-          var actions = (parts[2]||'').replace('Actions:','').trim();
-          if(goal){
-            _pcspGoals.push({
-              goal: goal,
-              outcome: outcome || 'To be measured by staff observation and participation tracking.',
-              actions: actions || 'SADC staff will remind and encourage participant weekly.',
-              activities: ''
-            });
-          }
-        });
-        renderPCSPGoals();
-        alert('✅ AI가 '+lines.length+'개 목표를 생성했어요!');
-      } else {
-        // 파싱 실패시 첫 번째 goal에 텍스트 전체 넣기
-        _pcspGoals.push({ goal: text.slice(0,200), outcome:'', actions:'', activities:'' });
-        renderPCSPGoals();
+      var parsedGoals = parsePCSPAIGoals(text);
+      if(!parsedGoals.length){
+        throw new Error('AI 목표 형식을 읽지 못했습니다. 잘못된 응답은 저장하지 않았습니다. 다시 생성해주세요.');
       }
+      parsedGoals.slice(0,3).forEach(function(g){ _pcspGoals.push(g); });
+      renderPCSPGoals();
+      alert('✅ AI가 '+Math.min(parsedGoals.length,3)+'개 목표를 생성했어요!');
     } else {
       var ta = document.getElementById('p-'+field);
       if(ta){
