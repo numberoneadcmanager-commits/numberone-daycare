@@ -38,17 +38,23 @@ function savePCSPStorage(){localStorage.setItem('op_pcsp_list',JSON.stringify(PC
 var _pcspStep=0,_pcspDays=new Set(),_pcspContacts=[],_pcspRisks=[],_pcspGoals=[],_pcspCommunity=[],_pcspFilter='all';
 var PCSP_ADL_ITEMS=['Mobility','Transfers','Toileting','Continence','Eating'];
 var PCSP_ADL_LEVELS=['Independent','Supervision Only','Minimal Hands-On','Moderate Hands-On','Total Hands-On'];
+// 샘플 문서(NYS DOH)와 정확히 일치하는 HCBS Final Rule 필수 3개 권리 (고정, 문구 변경 금지)
+var HCBS_RIGHTS=[
+  'Having access to food at any time.',
+  'Freedom and support to control their own schedules and activities.',
+  'Freedom to have visitors of their choosing at any time.'
+];
+// 그 외 참여자 권리 (선택적으로 수정 필요 시에만 기록)
 var PCSP_RIGHTS=[
   'Freedom of movement within the setting',
-  'Access to food/snacks at any time',
   'Physical accessibility of all areas of the setting',
-  'Visitors and visitor hours of choosing',
   'Privacy (phone calls, mail, personal space)',
   'Choice of roommate or those with whom they share a unit',
   'Ability to furnish and decorate their personal space',
   'Right to lock their own space',
-  'Control their own schedules and activities',
-  'Community access and participation in community life'
+  'Community access and participation in community life',
+  'Freedom to control their own funds',
+  'Independence to interact with whom they choose'
 ];
 
 function setPCSPFilter(f,el){_pcspFilter=f;document.querySelectorAll('#panel-forms .fpill').forEach(function(p){p.classList.remove('active');});el.classList.add('active');renderPCSPList();}
@@ -166,7 +172,7 @@ function selectPCSPMember(m){
 
   initPCSPDayBtns();
   initPCSPAdlList();
-  initPCSPRightsList();
+  initPCSPRightsList();initPCSPHcbsList();
   renderPCSPContacts();
   renderPCSPRisks();
   renderPCSPGoals();
@@ -197,7 +203,7 @@ function openPCSPForm(id){
       if(p.rights){p.rights.forEach(function(r,i){var mod=document.getElementById('pright-mod-'+i);var desc=document.getElementById('pright-desc-'+i);if(mod)mod.value=r.modified;if(desc)desc.value=r.desc||'';toggleRightDetail(i);});}
     }
   }
-  initPCSPDayBtns();initPCSPAdlList();initPCSPRightsList();
+  initPCSPDayBtns();initPCSPAdlList();initPCSPRightsList();initPCSPHcbsList();
   renderPCSPContacts();renderPCSPRisks();renderPCSPGoals();renderPCSPCommunity();
   pcspGoStep(0);
 }
@@ -210,6 +216,28 @@ function initPCSPAdlList(){
   PCSP_ADL_ITEMS.forEach(function(item,i){html+='<div class="pcsp-adl-row"><div style="font-weight:700;font-size:11px">'+item+'</div><select class="m-select" id="padl-level-'+i+'" style="font-size:11px;padding:5px">'+PCSP_ADL_LEVELS.map(function(l){return '<option>'+l+'</option>';}).join('')+'</select><input class="m-input" id="padl-device-'+i+'" placeholder="none" style="font-size:11px;padding:5px"></div>';});
   var el=document.getElementById('pcsp-adl-list');if(el)el.innerHTML=html;
 }
+
+function initPCSPHcbsList(){
+  var html='';
+  HCBS_RIGHTS.forEach(function(right,i){
+    html+='<div class="pcsp-right-row">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<div style="font-size:12px;font-weight:600;flex:1">'+right+'</div>'
+      +'<select class="m-select" id="phcbs-mod-'+i+'" style="width:80px;font-size:11px;padding:4px;margin-left:8px" onchange="toggleHcbsDetail('+i+')">'
+      +'<option>No</option><option>Yes</option></select>'
+      +'</div>'
+      +'<div id="phcbs-detail-'+i+'" style="display:none;background:#FFF3E0;border-radius:8px;padding:10px;margin-bottom:4px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<div style="font-size:11px;font-weight:700;color:#B35900">Justification & Details (필수)</div>'
+      +'<button class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:10px" onclick="aiWriteHcbsJustification('+i+')">✨ AI 작성</button>'
+      +'</div>'
+      +'<textarea class="m-textarea" id="phcbs-desc-'+i+'" placeholder="진단/상태, 이전 시도, 검토 기간, 무해성 확인 포함" style="width:100%;font-size:11px;min-height:60px"></textarea>'
+      +'</div>'
+      +'</div>';
+  });
+  var el=document.getElementById('pcsp-hcbs-list');if(el)el.innerHTML=html;
+}
+function toggleHcbsDetail(i){var sel=document.getElementById('phcbs-mod-'+i);var detail=document.getElementById('phcbs-detail-'+i);if(detail)detail.style.display=sel&&sel.value==='Yes'?'block':'none';}
 
 function initPCSPRightsList(){
   var html='';
@@ -243,16 +271,16 @@ function renderPCSPContacts(){var el=document.getElementById('pcsp-contacts-list
 function addPcspContact(){var name=prompt('이름:');if(!name)return;var type=prompt('유형 (Caregiver/Emergency Contact/Guardian):','Emergency Contact');var rel=prompt('관계:','');var phone=prompt('전화번호:','');var email=prompt('이메일 (없으면 none):','none');_pcspContacts.push({name:name,type:type||'Emergency Contact',rel:rel||'',phone:phone||'',email:email||'none'});renderPCSPContacts();}
 function removePcspContact(i){_pcspContacts.splice(i,1);renderPCSPContacts();}
 
-function renderPCSPRisks(){var el=document.getElementById('pcsp-risks-list');if(!el)return;if(!_pcspRisks.length){el.innerHTML='<div class="empty-msg" style="padding:8px">없으면 저장 시 "No known risks" 기록</div>';return;}el.innerHTML=_pcspRisks.map(function(r,i){return '<div class="pcsp-risk-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>⚠️ '+r.risk+'</b><button class="btn-danger" onclick="removePcspRisk('+i+')">삭제</button></div><div style="font-size:11px"><b>Trigger:</b> '+r.trigger+' | <b>Response:</b> '+r.response+'</div><div style="font-size:11px"><b>Measure:</b> '+r.measure+' | <b>Safeguard:</b> '+r.safeguard+'</div></div>';}).join('');}
-function addPcspRisk(){var risk=prompt('위험 요소 (예: Fall Risk):');if(!risk)return;var trigger=prompt('Trigger:','');var response=prompt('Known Response:','');var measure=prompt('Measure in Place:','');var safeguard=prompt('Safeguard:','');_pcspRisks.push({risk:risk,trigger:trigger||'',response:response||'',measure:measure||'',safeguard:safeguard||''});renderPCSPRisks();}
+function renderPCSPRisks(){var el=document.getElementById('pcsp-risks-list');if(!el)return;if(!_pcspRisks.length){el.innerHTML='<div class="empty-msg" style="padding:8px">없으면 저장 시 "No known risks" 기록</div>';return;}el.innerHTML=_pcspRisks.map(function(r,i){return '<div class="pcsp-risk-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>⚠️ '+r.risk+'</b><div><button class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:10px" onclick="aiFillRiskItem('+i+')">✨ AI 작성</button> <button class="btn-danger" onclick="removePcspRisk('+i+')">삭제</button></div></div><div style="font-size:11px"><b>Trigger:</b> '+(r.trigger||'—')+' | <b>Response:</b> '+(r.response||'—')+'</div><div style="font-size:11px"><b>Measure:</b> '+(r.measure||'—')+' | <b>Safeguard:</b> '+(r.safeguard||'—')+'</div></div>';}).join('');}
+function addPcspRisk(){var risk=prompt('위험 요소 (예: Fall Risk):');if(!risk)return;_pcspRisks.push({risk:risk,trigger:'',response:'',measure:'',safeguard:''});renderPCSPRisks();}
 function removePcspRisk(i){_pcspRisks.splice(i,1);renderPCSPRisks();}
 
 function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(!el)return;if(!_pcspGoals.length){el.innerHTML='<div class="empty-msg" style="padding:8px">목표 없음</div>';return;}el.innerHTML=_pcspGoals.map(function(g,i){return '<div class="pcsp-goal-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🎯 Goal '+(i+1)+'</b><button class="btn-danger" onclick="removePcspGoal('+i+')">삭제</button></div><div style="font-size:11px"><b>Goal:</b> '+g.goal+'</div><div style="font-size:11px"><b>Outcome:</b> '+g.outcome+'</div><div style="font-size:11px"><b>Actions:</b> '+g.actions+'</div></div>';}).join('');}
 function addPcspGoal(){var goal=prompt('Goal (목표):');if(!goal)return;var outcome=prompt('Outcome Criteria (달성 기준/날짜):','');var actions=prompt('Actions/Steps:','');var activities=prompt('Related Activities:','');_pcspGoals.push({goal:goal,outcome:outcome||'',actions:actions||'',activities:activities||''});renderPCSPGoals();}
 function removePcspGoal(i){_pcspGoals.splice(i,1);renderPCSPGoals();}
 
-function renderPCSPCommunity(){var el=document.getElementById('pcsp-community-list');if(!el)return;if(!_pcspCommunity.length){el.innerHTML='<div class="empty-msg" style="padding:8px">지역사회 활동 없음</div>';return;}el.innerHTML=_pcspCommunity.map(function(c,i){return '<div class="pcsp-comm-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🌍 '+c.activity+'</b><button class="btn-danger" onclick="removePcspCommunity('+i+')">삭제</button></div><div style="font-size:11px">'+c.location+' · '+c.schedule+'</div><div style="font-size:11px">Transport: '+c.transport+' · Support: '+c.support+'</div></div>';}).join('');}
-function addPcspCommunity(){var activity=prompt('활동명:');if(!activity)return;var location=prompt('장소:','');var schedule=prompt('일정:','');var transport=prompt('교통수단:','');var support=prompt('필요 지원:','none');_pcspCommunity.push({activity:activity,location:location||'',schedule:schedule||'',transport:transport||'',support:support||'none'});renderPCSPCommunity();}
+function renderPCSPCommunity(){var el=document.getElementById('pcsp-community-list');if(!el)return;if(!_pcspCommunity.length){el.innerHTML='<div class="empty-msg" style="padding:8px">지역사회 활동 없음</div>';return;}el.innerHTML=_pcspCommunity.map(function(c,i){return '<div class="pcsp-comm-item"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>🌍 '+c.activity+'</b><div><button class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:10px" onclick="aiFillCommunityItem('+i+')">✨ AI 작성</button> <button class="btn-danger" onclick="removePcspCommunity('+i+')">삭제</button></div></div><div style="font-size:11px">'+(c.details||'')+'</div><div style="font-size:11px">'+(c.location||'—')+' · '+(c.schedule||'—')+'</div><div style="font-size:11px">Transport: '+(c.transport||'—')+' · Support: '+(c.supports||c.support||'—')+'</div></div>';}).join('');}
+function addPcspCommunity(){var activity=prompt('활동명:');if(!activity)return;_pcspCommunity.push({activity:activity,details:'',location:'',schedule:'',materials:'',transport:'',supports:''});renderPCSPCommunity();}
 function removePcspCommunity(i){_pcspCommunity.splice(i,1);renderPCSPCommunity();}
 
 function pcspGoStep(s){
@@ -317,6 +345,16 @@ async function savePCSPFull(){
       noHarm:isYes&&document.getElementById('pright-harm-'+i)?document.getElementById('pright-harm-'+i).value:''
     };
   });
+  // HCBS Final Rule 필수 3개 권리 (샘플 문서와 정확히 일치하는 별도 목록)
+  var hcbsRights=HCBS_RIGHTS.map(function(right,i){
+    var mod=document.getElementById('phcbs-mod-'+i);
+    var isYes=mod&&mod.value==='Yes';
+    return {
+      right:right,
+      modified:mod?mod.value:'No',
+      desc:isYes&&document.getElementById('phcbs-desc-'+i)?document.getElementById('phcbs-desc-'+i).value:'',
+    };
+  });
 
   // 서명 캔버스에서 서명 이미지 가져오기
   // ★ _pcspSig는 실제로 서명을 그렸을 때만 채워짐 — 빈 캔버스에서 강제로 toDataURL()을
@@ -341,8 +379,8 @@ async function savePCSPFull(){
     diag:gp('diag'),medassist:gp('medassist'),medlevel:gp('medlevel'),meds:gp('meds'),
     allergy:gp('allergy'),diet:gp('diet'),nutrition:gp('nutrition'),
     nutr_acc:gp('nutr-acc'),nutr_how:gp('nutr-how'),
-    comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),
-    alone:gp('alone'),pain:gp('pain'),cap_desc:gp('cap-desc'),
+    comm:gp('comm'),decision:gp('decision'),decision_why:gp('decision-why'),comm_why:gp('comm-why'),
+    alone:gp('alone'),alone_why:gp('alone-why'),pain:gp('pain'),pain_desc:gp('pain-desc'),cap_desc:gp('cap-desc'),
     adl:adl,
     carepref:gp('carepref'),carepref_acc:gp('carepref-acc'),
     carepref_desc:gp('carepref-desc'),carepref_notified:gp('carepref-notified'),
@@ -350,7 +388,7 @@ async function savePCSPFull(){
     prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),
     goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,
     work:gp('work'),work_desc:gp('work-desc'),
-    rights:rights,
+    hcbs_rights:hcbsRights, other_rights:rights,
     sig:sigData||'',sigdate:gp('p-sigdate'),
     signed:!!(sigData&&sigData.length>100),
     createdBy:    (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdBy || (_currentUser?(_currentUser.name||''):''),
@@ -731,56 +769,27 @@ var MED_LIBRARY = [
   {name:'Albuterol inhaler', reason:'Asthma / COPD'},
 ];
 
-// ── 공유 약물 라이브러리 (Sheets 'medlib' 시트 — 모든 기기에서 동일하게 자동완성) ──
-var _medLibraryCache = null;   // 로드 완료 전엔 null, 로드 후엔 [{name,reason}, ...]
-var _medLibraryLoading = false;
-
-function loadMedLibraryFromSheets(){
-  if (_medLibraryLoading || _medLibraryCache !== null) return;
-  _medLibraryLoading = true;
-  apiGet({action:'read', sheet:'medlib'}).then(function(res){
-    if (res && res.ok && res.data) {
-      _medLibraryCache = res.data.map(function(r){
-        return { name: String(r['이름']||''), reason: String(r['이유']||'') };
-      }).filter(function(m){ return m.name; });
-    } else {
-      _medLibraryCache = [];
-    }
-  }).catch(function(){
-    _medLibraryCache = [];
-  }).finally(function(){
-    _medLibraryLoading = false;
-  });
-}
-
-// 자동완성 목록: 기본 제공 목록 + Sheets에서 불러온 공유 목록
-// (Sheets 로드가 아직 안 끝났으면 기본 목록만이라도 즉시 사용 가능하게)
+// localStorage에서 커스텀 약 로드
 function getMedLibrary(){
-  if (_medLibraryCache === null && !_medLibraryLoading) loadMedLibraryFromSheets();
-  return MED_LIBRARY.concat(_medLibraryCache || []);
+  var custom = [];
+  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
+  return MED_LIBRARY.concat(custom);
 }
 
 function saveMedToLibrary(name, reason){
-  var exists = MED_LIBRARY.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); })
-    || (_medLibraryCache||[]).find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); });
-  if (exists) return;
-
-  // 즉시 캐시에 반영 (같은 기기에서 바로 자동완성 되도록)
-  if (_medLibraryCache === null) _medLibraryCache = [];
-  _medLibraryCache.push({ name: name, reason: reason || '' });
-
-  // Sheets에 공유 저장 (다른 기기에서도 동일하게 보이도록)
-  apiCall({
-    action:'append', sheet:'medlib',
-    data:{ 'ID':'med_'+Date.now(), '이름':name, '이유':reason||'' }
-  }).catch(function(e){ console.log('약물 라이브러리 Sheets 저장 실패:', e); });
+  var custom = [];
+  try{ custom = JSON.parse(localStorage.getItem('med_custom')||'[]'); }catch(e){}
+  var exists = custom.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); });
+  if(!exists && !MED_LIBRARY.find(function(m){ return m.name.toLowerCase()===name.toLowerCase(); })){
+    custom.push({name:name, reason:reason||''});
+    localStorage.setItem('med_custom', JSON.stringify(custom));
+  }
 }
 
 function initMedAutocomplete(){
   var input = document.getElementById('p-med-input');
   if(!input || input._medInit) return;
   input._medInit = true;
-  loadMedLibraryFromSheets(); // 최초 진입 시 공유 라이브러리 미리 불러오기
 
   input.addEventListener('input', function(){
     var q = this.value.trim().toLowerCase();
@@ -1070,4 +1079,166 @@ function showPCSPSelectPopup(matches, member){
   if (titleEl) titleEl.textContent = 'PCSP 선택';
   if (bodyEl)  bodyEl.innerHTML = html;
   openOv('ov-doc-viewer');
+}
+
+// ══════════════════════════════════════════════════════════════
+// AI 작성 확장 — 위험요소/커뮤니티활동/HCBS 정당화 등 배열 항목용
+// (기존 aiWritePCSP은 단일 textarea용이라 별도 함수로 구현)
+// ══════════════════════════════════════════════════════════════
+
+async function _callAIForJSON(promptText) {
+  var res = await apiCall({ action: 'aiPCSP', prompt: promptText });
+  if (!res || !res.ok || !res.data || !res.data.success) {
+    throw new Error(res && res.data && res.data.error ? res.data.error : 'AI 응답 오류');
+  }
+  var text = res.data.text || '';
+  var clean = text.replace(/```json|```/g, '').trim();
+  var m = clean.match(/\{[\s\S]*\}/);
+  return JSON.parse(m ? m[0] : clean);
+}
+
+function _pcspContextInfo() {
+  var nameLast = (document.getElementById('p-last')||{}).value || '';
+  var nameFirst = (document.getElementById('p-first')||{}).value || '';
+  var nameDisplay = (nameLast && nameFirst) ? nameFirst + ' ' + nameLast : (nameLast || nameFirst || 'the participant');
+  var diag = (document.getElementById('p-diag')||{}).value || 'not specified';
+  return { nameDisplay: nameDisplay, diag: diag };
+}
+
+// ── 위험요소 항목 AI 자동 채우기 ──
+async function aiFillRiskItem(idx) {
+  var r = _pcspRisks[idx];
+  if (!r) return;
+  var ctx = _pcspContextInfo();
+  var prompt = `You are a NYS DOH SADC PCSP writer. Write risk management details for a Korean-American senior participant.
+
+Participant: ${ctx.nameDisplay}
+Diagnoses: ${ctx.diag}
+Risk identified: ${r.risk}
+
+Write in English. Respond with ONLY a raw JSON object, no markdown, no commentary:
+{"trigger":"...","response":"...","measure":"...","safeguard":"..."}`;
+
+  try {
+    var btn = event && event.target;
+    if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+    var obj = await _callAIForJSON(prompt);
+    r.trigger = obj.trigger || r.trigger;
+    r.response = obj.response || r.response;
+    r.measure = obj.measure || r.measure;
+    r.safeguard = obj.safeguard || r.safeguard;
+    renderPCSPRisks();
+  } catch(e) {
+    alert('❌ AI 생성 실패: ' + e.message);
+  }
+}
+
+// ── 커뮤니티 활동 항목 AI 자동 채우기 ──
+async function aiFillCommunityItem(idx) {
+  var c = _pcspCommunity[idx];
+  if (!c) return;
+  var ctx = _pcspContextInfo();
+  var prompt = `You are a NYS DOH SADC PCSP writer. Write community integration activity details for a Korean-American senior participant.
+
+Participant: ${ctx.nameDisplay}
+Activity: ${c.activity}
+
+Write in English. Respond with ONLY a raw JSON object, no markdown, no commentary:
+{"details":"2-3 sentence description of the activity and why it fits the participant","location":"...","schedule":"day/time/frequency","materials":"materials needed or none","transport":"transportation method","supports":"supports needed or none"}`;
+
+  try {
+    var btn = event && event.target;
+    if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+    var obj = await _callAIForJSON(prompt);
+    c.details = obj.details || c.details;
+    c.location = obj.location || c.location;
+    c.schedule = obj.schedule || c.schedule;
+    c.materials = obj.materials || c.materials;
+    c.transport = obj.transport || c.transport;
+    c.supports = obj.supports || c.supports;
+    renderPCSPCommunity();
+  } catch(e) {
+    alert('❌ AI 생성 실패: ' + e.message);
+  }
+}
+
+// ── HCBS 권리 수정 정당화(Justification) AI 작성 ──
+async function aiWriteHcbsJustification(idx) {
+  var right = HCBS_RIGHTS[idx];
+  var ctx = _pcspContextInfo();
+  var hint = prompt('✨ AI로 정당화 사유 작성\n\n키워드를 입력해주세요 (선택사항):\n예: 당뇨 관리, 저녁 시간대 낙상 위험', '');
+  if (hint === null) return;
+
+  var promptText = `You are a NYS DOH SADC PCSP writer. Write justification for a modification to a participant's HCBS right.
+
+Participant: ${ctx.nameDisplay}
+Diagnoses: ${ctx.diag}
+Right being modified: ${right}
+Keywords/hints: ${hint || 'not specified'}
+
+Requirements — the justification MUST include all of the following:
+1. Diagnosis/condition related to the modification
+2. Positive interventions and supports used before this modification
+3. Method for collection and review of data for effectiveness
+4. Timeframe/limits for review and determination of need for modification
+5. Assurance that the modification will cause no harm
+
+Write in English, 4-6 sentences, as one continuous paragraph. Respond with ONLY the paragraph text, no markdown, no headers, no JSON.`;
+
+  var btn = document.querySelector('[onclick="aiWriteHcbsJustification('+idx+')"]');
+  if (btn) { btn.textContent = '⏳ 생성 중...'; btn.disabled = true; }
+
+  try {
+    var res = await apiCall({ action: 'aiPCSP', prompt: promptText });
+    if (!res || !res.ok || !res.data || !res.data.success) throw new Error(res && res.data && res.data.error ? res.data.error : 'AI 응답 오류');
+    var text = (res.data.text || '').replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '$1').trim();
+    var ta = document.getElementById('phcbs-desc-' + idx);
+    if (ta) { ta.value = text; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+  } catch(e) {
+    alert('❌ AI 생성 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '✨ AI 작성'; btn.disabled = false; }
+  }
+}
+
+// ── SADC 활동(필요 지원), 취업/봉사 설명, 새 필드(의사표현/혼자있기/통증 이유) AI 작성 ──
+async function aiWriteSimpleField(field, targetId, label) {
+  var ctx = _pcspContextInfo();
+  var hint = prompt('✨ AI로 ' + label + ' 작성\n\n키워드를 입력해주세요 (선택사항):', '');
+  if (hint === null) return;
+
+  var fieldPrompts = {
+    sadc_act: `Write the "SADC Activities" section listing activities the participant is interested in and any needed supports. Format: one activity per line as "Activity – Supports needed (or 'no support needed')".`,
+    work_desc: `Write a description of the participant's work/volunteer interest, including frequency, days/time, and what support is provided.`,
+    comm_why: `Explain why the participant is unable to communicate their needs (pain, hunger, etc.) independently.`,
+    alone_why: `Explain why the participant cannot be left alone/unsupervised, including any cognitive or communication needs.`,
+    pain_desc: `Describe the participant's pain and/or sensory needs, and what assistance is to be provided.`,
+  };
+
+  var promptText = `You are a NYS DOH SADC PCSP writer. ${fieldPrompts[field] || ('Write the ' + label + ' section.')}
+
+Participant: ${ctx.nameDisplay}
+Diagnoses: ${ctx.diag}
+Keywords/hints: ${hint || 'not specified'}
+
+Write in English, 2-4 sentences (or 2-3 lines if listing activities). Respond with ONLY the text, no markdown, no headers, no JSON.`;
+
+  var btn = event && event.target;
+  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+
+  try {
+    var res = await apiCall({ action: 'aiPCSP', prompt: promptText });
+    if (!res || !res.ok || !res.data || !res.data.success) throw new Error(res && res.data && res.data.error ? res.data.error : 'AI 응답 오류');
+    var text = (res.data.text || '').replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.*?)\*\*/g, '$1').trim();
+    var ta = document.getElementById(targetId);
+    if (ta) {
+      var existing = ta.value.trim();
+      ta.value = existing ? existing + '\n\n' + text : text;
+      ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px';
+    }
+  } catch(e) {
+    alert('❌ AI 생성 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '✨ AI 작성'; btn.disabled = false; }
+  }
 }
