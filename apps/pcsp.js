@@ -242,7 +242,7 @@ function openPCSPForm(id){
   document.getElementById('p-sigdate').value=today;
   document.getElementById('p-nextdate').value=nextYear.toISOString().slice(0,10);
   document.getElementById('p-writer').value=_currentUser?(_currentUser.name||''):'';
-  ['last','first','kr','genderid','addr','phone','email','lang','livewithname','ins','medicaid','ins2','ins2id','time','transport','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','diag','meds','allergy','diet','nutrition','nutr-how','comm-why','decision-why','alone-why','pain-desc','cap-desc','carepref-desc','prefs','strengths','needs','sadc-act','work-desc','sig'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value='';});
+  ['last','first','kr','genderid','addr','phone','email','lang','livewithname','ins','medicaid','ins2','ins2id','time','transport','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','diag','meds','allergy','diet','nutrition','nutr-how','comm-why','decision-why','alone-why','pain-desc','cap-desc','carepref-desc','prefs','strengths','needs','sadc-act','work-desc','work-support','sig'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value='';});
 
   initPCSPAdlList();
   initPCSPRightsList();
@@ -251,7 +251,7 @@ function openPCSPForm(id){
   if(id){
     var p=PCSP_LIST.find(function(x){return x.id===id;});
     if(p){
-      var fields={last:'nameLast',first:'nameFirst',kr:'nameKr',writer:'writer',wdate:'wdate',nextdate:'nextdate',dob:'dob',genderid:'genderid',addr:'addr',phone:'phone',email:'email',lang:'lang',livewithname:'livewithname',ins:'ins',medicaid:'medicaid',ins2:'ins2',ins2id:'ins2id',time:'time',transport:'transport',cm1name:'cm1name',cm1phone:'cm1phone',cm1email:'cm1email',cm2name:'cm2name',cm2phone:'cm2phone',cm2email:'cm2email',pcpname:'pcpname',pcpphone:'pcpphone',pcpemail:'pcpemail',diag:'diag',meds:'meds',allergy:'allergy',diet:'diet',nutrition:'nutrition','nutr-how':'nutr_how','comm-why':'comm_why','decision-why':'decision_why','alone-why':'alone_why','pain-desc':'pain_desc','cap-desc':'cap_desc','carepref-desc':'carepref_desc',prefs:'prefs',strengths:'strengths',needs:'needs','sadc-act':'sadc_act','work-desc':'work_desc',sigdate:'sigdate'};
+      var fields={last:'nameLast',first:'nameFirst',kr:'nameKr',writer:'writer',wdate:'wdate',nextdate:'nextdate',dob:'dob',genderid:'genderid',addr:'addr',phone:'phone',email:'email',lang:'lang',livewithname:'livewithname',ins:'ins',medicaid:'medicaid',ins2:'ins2',ins2id:'ins2id',time:'time',transport:'transport',cm1name:'cm1name',cm1phone:'cm1phone',cm1email:'cm1email',cm2name:'cm2name',cm2phone:'cm2phone',cm2email:'cm2email',pcpname:'pcpname',pcpphone:'pcpphone',pcpemail:'pcpemail',diag:'diag',meds:'meds',allergy:'allergy',diet:'diet',nutrition:'nutrition','nutr-how':'nutr_how','comm-why':'comm_why','decision-why':'decision_why','alone-why':'alone_why','pain-desc':'pain_desc','cap-desc':'cap_desc','carepref-desc':'carepref_desc',prefs:'prefs',strengths:'strengths',needs:'needs','sadc-act':'sadc_act','work-desc':'work_desc','work-support':'work_support',sigdate:'sigdate'};
       Object.keys(fields).forEach(function(k){var el=document.getElementById('p-'+k);var v=p[fields[k]];if(el&&v!==undefined&&v!==null&&v!=='')el.value=v;});
       ['gender','livewith','caresupp','medassist','medlevel','nutr-acc','comm','decision','alone','pain','carepref','carepref-acc','carepref-notified','work'].forEach(function(k){var el=document.getElementById('p-'+k);var pk=k.replace(/-/g,'_');var v=p[pk];if(el&&v!==undefined&&v!==null&&v!=='')el.value=v;});
       _pcspDays=new Set(p.days||[]);_pcspContacts=p.contacts||[];_pcspRisks=p.risks||[];_pcspGoals=p.goals||[];_pcspCommunity=p.community||[];
@@ -452,7 +452,7 @@ async function savePCSPFull(){
     risks:_pcspRisks.length?_pcspRisks:[{risk:'No known risks',trigger:'',response:'',measure:'',safeguard:''}],
     prefs:gp('prefs'),strengths:gp('strengths'),needs:gp('needs'),
     goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,
-    work:gp('work'),work_desc:gp('work-desc'),
+    work:gp('work'),work_desc:gp('work-desc'),work_support:gp('work-support'),
     hcbs_rights:hcbsRights, other_rights:rights,
     sig:sigData||'',sigdate:gp('sigdate'),
     signed:!!(sigData&&sigData.length>100),
@@ -1224,7 +1224,8 @@ async function aiWriteSimpleField(field, targetId, label) {
 
   var fieldPrompts = {
     sadc_act: `Write the "SADC Activities" section listing activities the participant is interested in and any needed supports. Format: one activity per line as "Activity – Supports needed (or 'no support needed')".`,
-    work_desc: `Write a description of the participant's work/volunteer interest, including frequency, days/time, and what support is provided.`,
+    work_desc: `Write only the participant's work/volunteer interest or opportunity, including frequency and days/time. Do NOT include staff support in this field. If the participant is unable to work or volunteer, describe why instead.`,
+    work_support: `Write only the support being provided so the participant can pursue or maintain the work/volunteer goal. Include concrete SADC staff actions such as reminders, coordination, transportation assistance, preparation, or follow-up as applicable.`,
     comm_why: `Explain why the participant is unable to communicate their needs (pain, hunger, etc.) independently.`,
     alone_why: `Explain why the participant cannot be left alone/unsupervised, including any cognitive or communication needs.`,
     pain_desc: `Describe the participant's pain and/or sensory needs, and what assistance is to be provided.`,

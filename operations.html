@@ -959,12 +959,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">지역사회 일/봉사에 대한 관심 · SADC 내 봉사도 물어볼 것</div>
             <div class="modal-input-wrap" style="margin-bottom:10px"><label>일/봉사 관심?</label>
               <select class="m-select" id="p-work">
-                <option>No</option>
-                <option>Yes</option>
-                <option>N/A – Participant is unable to do so</option>
+                <option value="">선택</option>
+                <option value="work">Yes – Work Only</option>
+                <option value="volunteer">Yes – Volunteer Only</option>
+                <option value="both">Yes – Work &amp; Volunteer</option>
+                <option value="no">No – Not Interested</option>
+                <option value="na">N/A – Participant is unable to do so</option>
               </select>
             </div>
-            <textarea class="m-textarea" id="p-work-desc" style="width:100%" placeholder="Yes인 경우: 관심 내용, 빈도, 시간, 지원 방법 등 상세 기술&#10;N/A인 경우: 불가 이유 상세 기술&#10;예(Yes): Interested in volunteering at local animal shelter 1 day/week, 10am-12pm. SADC staff remind participant before leaving."></textarea>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <label style="font-size:12px;font-weight:600">관심 내용 / 빈도 / 시간 또는 N/A 사유</label>
+              <button type="button" class="btn-sm" onclick="aiWriteSimpleField('work_desc','p-work-desc','일/봉사 관심 내용')" style="font-size:10px">✨ AI 작성</button>
+            </div>
+            <textarea class="m-textarea" id="p-work-desc" style="width:100%;margin-bottom:10px" placeholder="Yes인 경우: 관심 있는 일/봉사 내용, 빈도, 요일/시간 등을 기술&#10;N/A인 경우: 참여가 어려운 이유를 기술&#10;예: Interested in volunteering at a local senior center once a week on Tuesday mornings."></textarea>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <label style="font-size:12px;font-weight:600">지원 방법 (Support Provided)</label>
+              <button type="button" class="btn-sm" onclick="aiWriteSimpleField('work_support','p-work-support','일/봉사 지원 방법')" style="font-size:10px">✨ AI 작성</button>
+            </div>
+            <textarea class="m-textarea" id="p-work-support" style="width:100%" placeholder="Yes인 경우: 목표 달성을 위해 제공하는 지원을 별도로 기술&#10;예: SADC staff will provide reminders, help coordinate transportation, and follow up on participation."></textarea>
           </div>
         </div>
 
