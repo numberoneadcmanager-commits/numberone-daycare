@@ -561,237 +561,62 @@ async function deletePCSP(id){
   try{ await apiCall({action:'delete',sheet:'PCSP',id:id}); }catch(e){ console.log('PCSP Sheets 삭제 실패:', e); }
 }
 
-function printPCSP(id){
+async function printPCSP(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});
   if(!p){alert('PCSP를 찾을 수 없어요');return;}
-  var days=(p.days||[]).join(', ')||'—';
 
-  // ADL rows
-  var adlRows=(p.adl||[{item:'Mobility'},{item:'Transfers'},{item:'Toileting'},{item:'Continence'},{item:'Eating'}]).map(function(a){
-    return '<tr><td>'+a.item+'</td><td>'+(a.level||'—')+'</td><td>'+(a.device||'none')+'</td></tr>';
-  }).join('');
+  // 출력은 브라우저 HTML이 아니라 서버의 단일 PCSP 출력 엔진을 사용한다.
+  // 이렇게 해야 화면 출력/Drive PDF가 서로 다른 양식으로 갈라지지 않는다.
+  var memberId=p.memberId||p.medicaid||p.id;
+  var memberName=p.nameKr||p.nameLast||'Unknown';
 
-  // Contacts
-  var contactsHtml=(p.contacts||[]).map(function(c,i){
-    return '<table style="margin-bottom:6px"><tr><th colspan="4" style="background:#e8e8e8;text-align:center">Contact '+(i+1)+'</th></tr>'
-      +'<tr><th>Full Name</th><td>'+c.name+'</td><th>Contact Type</th><td>'+c.type+'</td></tr>'
-      +'<tr><th>Relationship</th><td colspan="3">'+c.rel+'</td></tr>'
-      +'<tr><th>Phone</th><td>'+c.phone+'</td><th>Email</th><td>'+(c.email||'N/A')+'</td></tr>'
-      +'</table>';
-  }).join('');
+  var previewWin=window.open('','_blank');
+  if(!previewWin){alert('팝업을 허용해주세요');return;}
+  previewWin.document.write('<!doctype html><html><head><meta charset="utf-8"><title>PCSP 생성 중</title></head><body style="font-family:Arial,sans-serif;padding:30px">PCSP PDF 생성 중...</body></html>');
+  previewWin.document.close();
 
-  // Goals
-  var goalsHtml=(p.goals||[]).map(function(g){
-    return '<table style="margin-bottom:8px"><tr><th style="width:180px">Goal</th><td>'+g.goal+'</td></tr>'
-      +'<tr><th>Outcome Criteria</th><td>'+g.outcome+'</td></tr>'
-      +'<tr><th>Actions and/or Steps</th><td>'+g.actions+'</td></tr>'
-      +'<tr><th>Related Activity(s)</th><td>'+(g.related||'—')+'</td></tr>'
-      +'</table>';
-  }).join('');
+  try{
+    // 목록에는 요약 데이터만 있을 수 있으므로 Drive JSON을 우선 사용한다.
+    try{
+      var loaded=await loadJSONfromDrive(memberId,memberName,'PCSP');
+      if(loaded&&loaded.ok&&loaded.data&&loaded.data.found&&loaded.data.data){
+        p=loaded.data.data;
+        p.memberId=p.memberId||memberId;
+      }
+    }catch(loadErr){
+      console.log('PCSP 출력용 Drive JSON 로드 실패, 캐시 사용:',loadErr);
+    }
 
-  // SADC Activities
-  var sadcActHtml='';
-  if(p.sadc_activities&&p.sadc_activities.length){
-    sadcActHtml='<table><tr><th>SADC Activity</th><th>Needed Supports</th></tr>'
-      +p.sadc_activities.map(function(a){return '<tr><td>'+(a.activity||'')+'</td><td>'+(a.supports||'none')+'</td></tr>';}).join('')
-      +'</table>';
-  } else if(p.sadc_act){
-    sadcActHtml='<table><tr><th>SADC Activity</th><th>Needed Supports</th></tr><tr><td>'+p.sadc_act+'</td><td>—</td></tr></table>';
+    var sigBase64='';
+    if(p.sig&&p.sig.indexOf('base64,')>=0)sigBase64=p.sig.split('base64,')[1]||'';
+
+    var res=await apiCall({
+      action:'fillPCSP',
+      memberId:memberId,
+      memberName:memberName,
+      sigBase64:sigBase64,
+      pcsp:p,
+      previewOnly:true
+    });
+
+    if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64){
+      throw new Error(res&&res.data&&res.data.error?res.data.error:'PDF 생성 실패');
+    }
+
+    var binary=atob(res.data.pdfBase64);
+    var bytes=new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    var blob=new Blob([bytes],{type:'application/pdf'});
+    var url=URL.createObjectURL(blob);
+    previewWin.location.replace(url);
+    setTimeout(function(){try{URL.revokeObjectURL(url);}catch(e){}},120000);
+  }catch(e){
+    console.error('PCSP print error:',e);
+    try{previewWin.close();}catch(closeErr){}
+    alert('❌ PCSP 출력 실패: '+e.message);
   }
-
-  // Community Activities
-  var commActHtml='';
-  if(p.comm_activities&&p.comm_activities.length){
-    commActHtml=p.comm_activities.map(function(a){
-      return '<table style="margin-bottom:6px"><tr><th colspan="2" style="text-align:center;background:#eee">'+a.activity+'</th></tr>'
-        +'<tr><td colspan="2" style="font-weight:700;background:#f9f9f9">Details</td></tr>'
-        +'<tr><th>Location of Activity</th><td>'+(a.location||'—')+'</td></tr>'
-        +'<tr><th>Day, Time, & Frequency</th><td>'+(a.schedule||'—')+'</td></tr>'
-        +'<tr><th>Materials Needed</th><td>'+(a.materials||'—')+'</td></tr>'
-        +'<tr><th>Transportation Method</th><td>'+(a.transport||'—')+'</td></tr>'
-        +'<tr><th>Supports Needed</th><td>'+(a.supports||'—')+'</td></tr>'
-        +'</table>';
-    }).join('');
-  } else if(p.comm_act){
-    commActHtml='<table><tr><th colspan="2" style="text-align:center">Community Activity</th></tr>'
-      +'<tr><th>Activity</th><td>'+p.comm_act+'</td></tr></table>';
-  }
-
-  // Risks
-  var risksHtml='';
-  if(p.risks&&p.risks.length&&p.risks[0].risk){
-    risksHtml=p.risks.map(function(r){
-      return '<table style="margin-bottom:6px">'
-        +'<tr><th style="width:160px">Risk</th><td>'+r.risk+'</td></tr>'
-        +'<tr><th>Trigger(s)</th><td>'+r.trigger+'</td></tr>'
-        +'<tr><th>Known Response(s)</th><td>'+r.response+'</td></tr>'
-        +'<tr><th>Measure(s) in Place</th><td>'+r.measure+'</td></tr>'
-        +'<tr><th>Safeguard(s)</th><td>'+r.safeguard+'</td></tr>'
-        +'</table>';
-    }).join('');
-  }
-
-  // HCBS Rights
-  var hcbsRights=['Having access to food at any time.','Freedom and support to control their own schedules and activities.','Freedom to have visitors of their choosing at any time.'];
-  var hcbsHtml='<table><tr><th>Participant Rights</th><th style="width:90px;text-align:center">Modification Needed?</th><th>Justification & Details</th></tr>'
-    +hcbsRights.map(function(right){
-      var r=(p.hcbs_rights||p.rights||[]).find(function(x){return x.right===right;})||{};
-      return '<tr><td>'+right+'</td><td style="text-align:center">'+(r.modified==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'</td><td>'+(r.modified==='Yes'?(r.desc||''):'')+'</td></tr>';
-    }).join('')+'</table>';
-
-  // Other Rights
-  var otherRights=['Freedom to control their own funds.','Independence to interact with whom they choose.'];
-  var otherRightsHtml='<table><tr><th>Participant Rights</th><th style="width:90px;text-align:center">Modification Needed?</th><th>Justification & Details</th></tr>'
-    +otherRights.map(function(right){
-      var r=(p.other_rights||[]).find(function(x){return x.right===right;})||{};
-      return '<tr><td>'+right+'</td><td style="text-align:center">'+(r.modified==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'</td><td>'+(r.modified==='Yes'?(r.desc||''):'')+'</td></tr>';
-    }).join('')+'</table>';
-
-  // Work/Volunteer
-  var workHtml='<table>'
-    +'<tr><td colspan="2" style="font-size:9px;font-style:italic">Please speak to the participant about their interests in obtaining/keeping a job and/or volunteering.</td></tr>'
-    +'<tr><td colspan="2"><b>Is the participant interested in working or volunteering?</b><br>'
-    +(p.work==='work'?'☑ Yes – Work Only  ☐ Yes – Volunteer Only  ☐ Yes – Work & Volunteer  ☐ No – Not Interested  ☐ N/A':
-      p.work==='volunteer'?'☐ Yes – Work Only  ☑ Yes – Volunteer Only  ☐ Yes – Work & Volunteer  ☐ No – Not Interested  ☐ N/A':
-      p.work==='both'?'☐ Yes – Work Only  ☐ Yes – Volunteer Only  ☑ Yes – Work & Volunteer  ☐ No – Not Interested  ☐ N/A':
-      p.work==='na'?'☐ Yes – Work Only  ☐ Yes – Volunteer Only  ☐ Yes – Work & Volunteer  ☐ No – Not Interested  ☑ N/A':
-      '☐ Yes – Work Only  ☐ Yes – Volunteer Only  ☐ Yes – Work & Volunteer  ☑ No – Not Interested  ☐ N/A')
-    +'</td></tr>'
-    +(p.work==='na'?'<tr><th>If N/A – please describe why unable:</th><td>'+p.work_desc+'</td></tr>':'')
-    +(p.work&&p.work!=='no'&&p.work!=='na'?'<tr><th>If yes, describe opportunity:</th><td>'+p.work_desc+'</td></tr>':'')
-    +'</table>';
-
-  // Sig image
-  var sigImg=p.sig&&p.sig.length>10?'<img src="'+p.sig+'" style="max-height:50px;max-width:100%">':'';
-
-  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>PCSP - '+p.nameLast+', '+p.nameFirst+'</title>'
-    +'<style>'
-    +'*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:9.5px;margin:20px;color:#000;line-height:1.4}'
-    +'h1{font-size:13px;text-align:center;font-weight:700;margin-bottom:2px}'
-    +'.center{text-align:center;font-size:8.5px;color:#555;margin-bottom:10px}'
-    +'.sec{width:100%;border-collapse:collapse;margin-bottom:2px}'
-    +'.sec-hdr{background:#1a3a6b;color:#fff;font-weight:700;font-size:10px;padding:4px 8px}'
-    +'.sub-hdr{background:#6b7db3;color:#fff;font-size:9px;padding:3px 8px}'
-    +'table{width:100%;border-collapse:collapse;margin-bottom:6px}'
-    +'td,th{border:1px solid #999;padding:4px 7px;vertical-align:top}'
-    +'th{background:#f0f0f0;font-weight:700;white-space:nowrap}'
-    +'.sig-row{height:55px;vertical-align:bottom}'
-    +'@media print{button{display:none}}'
-    +'</style></head><body>'
-
-    +'<h1>Number One Adult Daycare</h1>'
-    +'<h1>Person Centered Service Plan (PCSP)</h1>'
-    +'<p class="center">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</p>'
-
-    // PCSP Completion
-    +'<table class="sec"><tr><td class="sec-hdr" colspan="4">PCSP Completion Information</td></tr>'
-    +'<tr><th>Person Completing PCSP</th><td>'+p.writer+'</td><th>Date of PCSP Completion</th><td>'+p.wdate+'</td></tr></table>'
-
-    // Participant Info
-    +'<table class="sec"><tr><td class="sec-hdr" colspan="4">SADC Participant Information</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">7.1 Participant Demographic and Contact Information</td></tr>'
-    +'<tr><th>Full Name</th><td>'+p.nameLast+', '+p.nameFirst+'</td><th>Date of Birth</th><td>'+p.dob+'</td></tr>'
-    +'<tr><th>Address</th><td colspan="3">'+p.addr+'</td></tr>'
-    +'<tr><th>Phone</th><td>'+p.phone+'</td><th>Email</th><td>'+p.email+'</td></tr>'
-    +'<tr><th>Preferred Language</th><td>'+p.lang+'</td><th>Gender</th><td>'+p.gender+'</td></tr>'
-    +'<tr><th>Gender Identity</th><td>'+p.genderid+'</td><th></th><td></td></tr>'
-    +'<tr><td colspan="4"><b>Does the participant live with someone?</b> '+(p.livewith==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'
-    +(p.livewith==='Yes'?'<b>If yes, does that person support the participant\'s care?</b> '+(p.caresupp==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>':'')
-    +(p.livewithname?'<b>Name(s) and relationship:</b> '+p.livewithname:'')+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">7.2 Primary Insurance / MLTC Plan</td></tr>'
-    +'<tr><th>MLTC Plan/Insurance Co.</th><td>'+p.ins+'</td><th>Medicaid/Insurance ID</th><td>'+p.mltc+' / '+p.medicaid+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">7.4 Primary Care Manager</td></tr>'
-    +'<tr><th>Full Name</th><td>'+p.cm1name+'</td><th>Phone</th><td>'+p.cm1phone+'</td></tr>'
-    +'<tr><th>Email</th><td colspan="3">'+p.cm1email+'</td></tr>'
-    +(p.cm2name?'<tr><td class="sub-hdr" colspan="4">7.5 Secondary Care Manager</td></tr><tr><th>Full Name</th><td>'+p.cm2name+'</td><th>Phone</th><td>'+p.cm2phone+'</td></tr><tr><th>Email</th><td colspan="3">'+p.cm2email+'</td></tr>':'')
-    +'<tr><td class="sub-hdr" colspan="4">7.6 Primary Care Physician</td></tr>'
-    +'<tr><th>Full Name</th><td>'+p.pcpname+'</td><th>Phone</th><td>'+p.pcpphone+'</td></tr>'
-    +'<tr><th>Email (if known)</th><td colspan="3">'+(p.pcpemail||'N/A')+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">7.7 SADC Attendance</td></tr>'
-    +'<tr><th>Days of Attendance</th><td colspan="3">'+days+'</td></tr>'
-    +'<tr><th>Time</th><td>'+p.time+'</td><th>Transportation</th><td>'+p.transport+'</td></tr>'
-    +'</table>'
-
-    // Contact Info
-    +'<table class="sec"><tr><td class="sec-hdr" colspan="4">Contact Information</td></tr></table>'
-    +(contactsHtml||'<table><tr><td>No contacts recorded</td></tr></table>')
-
-    // Health Info
-    +'<table class="sec"><tr><td class="sec-hdr" colspan="4">Participant Health Information</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">9.1 Pertinent Diagnoses</td></tr>'
-    +'<tr><td colspan="4"><i>Physical, cognitive, mental health, and behavioral health conditions:</i><br>'+p.diag+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">9.2 Medications</td></tr>'
-    +'<tr><td colspan="4"><b>Does the participant require assistance with medication while attending the SADC?</b> '+(p.medassist==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.medassist==='Yes'?'<b>If yes, what level of assistance is needed?</b> '+p.medlevel:'')+'</td></tr>'
-    +'<tr><td colspan="4">'+p.meds+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">9.3 Other Health Information</td></tr>'
-    +'<tr><th>Allergies (include severity & emergency response)</th><td colspan="3">'+p.allergy+'</td></tr>'
-    +'<tr><th>Dietary Restrictions/Requirements (include reason)</th><td colspan="3">'+p.diet+'</td></tr>'
-    +'<tr><th>Nutrition (Preferences/Special Diet)</th><td colspan="3">'+p.nutrition+'</td></tr>'
-    +'<tr><td colspan="4"><b>If the participant has a nutrition preference or special diet, can the SADC accommodate this?</b> '+(p.nutr_acc==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.nutr_how?p.nutr_how:'')+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">9.4 Capacity for Independence</td></tr>'
-    +'<tr><td colspan="4">'
-    +'<b>Is the participant able to communicate their needs?</b> '+(p.comm==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.comm==='No'&&p.cap_desc?'<br><i>If no: '+p.cap_desc+'</i>':'')+'<br>'
-    +'<b>Does the participant appear able to make their own decisions?</b> '+(p.decision==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.decision==='No'&&p.decision_why?'<br><i>If no: '+p.decision_why+'</i>':'')+'<br>'
-    +'<b>Is the participant capable of being left alone and unsupervised?</b> '+(p.alone==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.alone==='No'&&p.cap_desc?'<br><i>If no: '+p.cap_desc+'</i>':'')+'<br>'
-    +'<b>Does the participant have any pain and/or sensory needs?</b> '+(p.pain==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+(p.pain==='Yes'&&p.cap_desc?'<br><i>If yes: '+p.cap_desc+'</i>':'')
-    +'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="4">9.5 Functional Assessment / Staff Intervention</td></tr>'
-    +'<tr><th>ADL</th><th>Level of Care</th><th colspan="2">Assistive Technology/Device</th></tr>'
-    +adlRows
-    +'<tr><td class="sub-hdr" colspan="4">9.6 Personal Care Assistance Preference</td></tr>'
-    +'<tr><td colspan="4"><b>Does the participant have a preference of who provides their personal care assistance?</b> '+(p.carepref==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'<br>'+(p.carepref==='Yes'&&p.carepref_desc?'<b>If yes:</b> '+p.carepref_desc+'<br>':'')+(p.carepref==='Yes'?'<b>Can the SADC accommodate this preference?</b> '+(p.carepref_acc==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No'):'')+'</td></tr>'
-    +'</table>'
-
-    // Risk Management
-    +'<table class="sec"><tr><td class="sec-hdr">Risk Management and Safeguards</td></tr></table>'
-    +(risksHtml||'<table><tr><td>No known risks identified</td></tr></table>')
-
-    // Preferences
-    +'<table class="sec"><tr><td class="sec-hdr" colspan="2">Preferences, Strengths, and Needs</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="2">Preferences</td></tr>'
-    +'<tr><td colspan="2">'+p.prefs+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="2">Strengths</td></tr>'
-    +'<tr><td colspan="2">'+p.strengths+'</td></tr>'
-    +'<tr><td class="sub-hdr" colspan="2">Needs</td></tr>'
-    +'<tr><td colspan="2">'+p.needs+'</td></tr>'
-    +'</table>'
-
-    // Goals
-    +'<table class="sec"><tr><td class="sec-hdr">Goals and Activities</td></tr></table>'
-    +(goalsHtml||'<table><tr><td>No goals recorded</td></tr></table>')
-    +'<table><tr><td class="sub-hdr" colspan="2">SADC Activities</td></tr></table>'
-    +(sadcActHtml||'<table><tr><th>SADC Activity</th><th>Needed Supports</th></tr><tr><td>—</td><td>—</td></tr></table>')
-    +'<table><tr><td class="sub-hdr">Community Integration Activities</td></tr></table>'
-    +(commActHtml||'<table><tr><td>No community activities recorded</td></tr></table>')
-    +'<table><tr><td class="sub-hdr">Work / Volunteer Interests</td></tr></table>'
-    +workHtml
-
-    // Rights Modifications
-    +'<table class="sec"><tr><td class="sec-hdr">Modifications to Participant Rights</td></tr>'
-    +'<tr><td class="sub-hdr">13.1 CMS HCBS Final Rule Rights</td></tr></table>'
-    +hcbsHtml
-    +'<table><tr><td class="sub-hdr">13.2 Other Participant Rights</td></tr></table>'
-    +otherRightsHtml
-
-    // Acknowledgement
-    +'<table class="sec"><tr><td class="sec-hdr">PCSP Acknowledgement</td></tr>'
-    +'<tr><td style="font-size:9px;font-style:italic;line-height:1.6">'
-    +'I agree with what is written in this person centered service plan and acknowledge that I, the participant, lead the person centered planning process. '
-    +'I understand my rights and/or I have someone I trust who can help me with them. This includes the right to integrate with and be a part of my community, '
-    +'separate from the Social Adult Day Care and Social Adult Day Services I am choosing to receive. I acknowledge that I was offered options to integrate with '
-    +'and be part of my community, and my decisions on goals or activities related to this are documented in this plan. I understand that my plan will be reviewed '
-    +'regularly, that I can ask for it to be reviewed sooner, and whom to speak to about having my plan reviewed and updated. I agree to this plan being shared '
-    +'with the people that need it to provide my services.'
-    +'</td></tr>'
-    +'<tr><th>Participant or Designated Representative Signature</th><th>Date</th></tr>'
-    +'<tr><td class="sig-row">'+sigImg+'</td><td>'+p.sigdate+'</td></tr>'
-    +'</table>'
-    +'<button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>'
-    +'</body></html>';
-
-  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
-  w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
 }
+
 // ══════════════════════════════════════════════════════════════
 // 약 자동완성
 // ══════════════════════════════════════════════════════════════
