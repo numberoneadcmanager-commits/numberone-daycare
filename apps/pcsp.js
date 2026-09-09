@@ -6,27 +6,29 @@
 var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
 function loadPCSPFromSheets(){
   apiGet({action:'read',sheet:'PCSP'}).then(function(res){
-    if(!res.ok||!res.data||!res.data.length)return;
-    // Sheets에 있는 ID 목록
-    var sheetIds = res.data.map(function(r){return String(r['ID']||'');}).filter(Boolean);
-    // localStorage에 없는 항목은 Drive JSON에서 로드
-    sheetIds.forEach(function(id){
-      if(!PCSP_LIST.find(function(p){return p.id===id;})){
-        var row = res.data.find(function(r){return String(r['ID'])===id;});
-        if(row){
-          // 기본 정보만 추가 (Drive JSON 로드는 별도)
-          PCSP_LIST.push({
-            id: id,
-            nameLast: String(row['nameLast']||''),
-            nameFirst: String(row['nameFirst']||''),
-            nameKr: String(row['한글이름']||''),
-            wdate: String(row['작성일']||''),
-            nextdate: String(row['갱신예정일']||''),
-            writer: String(row['작성자']||''),
-            diag: String(row['진단']||''),
-            status: String(row['상태']||'active'),
-          });
-        }
+    if(!res.ok||!res.data)return;
+    res.data.forEach(function(row){
+      var id=String(row['ID']||'');
+      if(!id)return;
+      var existing=PCSP_LIST.find(function(p){return p.id===id;});
+      var summary={
+        id:id,
+        memberId:String(row['멤버ID']||''),
+        nameLast:String(row['nameLast']||''),
+        nameFirst:String(row['nameFirst']||''),
+        nameKr:String(row['한글이름']||''),
+        wdate:String(row['작성일']||'').slice(0,10),
+        nextdate:String(row['갱신예정일']||'').slice(0,10),
+        writer:String(row['작성자']||''),
+        diag:String(row['진단']||''),
+        status:String(row['상태']||'active')
+      };
+      if(existing){
+        Object.keys(summary).forEach(function(k){
+          if(summary[k]!=='' || k==='status') existing[k]=summary[k];
+        });
+      }else{
+        PCSP_LIST.push(summary);
       }
     });
     savePCSPStorage();
@@ -71,11 +73,16 @@ function renderPCSPList(){
   if(!list.length)html='<div class="empty-msg">PCSP 기록이 없어요</div>';
   list.forEach(function(p){
     var due=p.nextdate&&p.nextdate<=today;
-    var badge=due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 유효</span>';
+    var isPending=String(p.status||'')==='서명대기';
+    var badge=isPending
+      ?'<span class="badge b-warn">✍️ 서명대기</span>'
+      :(due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 완료/유효</span>');
+    var safeName=(p.nameKr||p.nameLast||'').replace(/'/g,"\\'");
     html+='<div class="log-card"><div class="log-top"><div class="log-name">📄 '+(p.nameLast||'')+', '+(p.nameFirst||'')+' '+(p.nameKr?'('+p.nameKr+')':'')+'</div>'+badge+'</div>'
       +'<div style="font-size:11px;color:#8E8E93">작성: '+(p.wdate||'—')+' · 갱신예정: '+(p.nextdate||'—')+'</div>'
       +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+(p.diag||'').slice(0,60)+'</div>'
       +'<div class="log-actions" style="margin-top:6px">'
+      +(isPending?'<button class="btn-sm" style="background:#FF9500;color:#fff;border-color:#FF9500" onclick="signPCSP(\''+p.id+'\',\''+(p.memberId||p.medicaid||'')+'\',\''+safeName+'\')">✍️ 서명하기</button>':'')
       +'<button class="btn-sm" onclick="editPCSP(\''+p.id+'\')">✏️ 수정</button>'
       +'<button class="btn-sm" onclick="printPCSP(\''+p.id+'\')">🖨️ 출력</button>'
       +'<button class="btn-danger" onclick="deletePCSP(\''+p.id+'\')">삭제</button>'
@@ -182,8 +189,10 @@ function selectPCSPMember(m){
 
 function openPCSPForm(id){
   document.getElementById('pcsp-list-view').style.display='none';
+  document.getElementById('pcsp-member-select').style.display='none';
   document.getElementById('pcsp-form-view').style.display='block';
   _pcspDays=new Set();_pcspContacts=[];_pcspRisks=[];_pcspGoals=[];_pcspCommunity=[];
+  _pcspSig=null;
   document.getElementById('pcsp-edit-id').value=id||'';
   var today=new Date().toLocaleDateString('sv-SE');
   var nextYear=new Date();nextYear.setFullYear(nextYear.getFullYear()+1);
@@ -191,19 +200,30 @@ function openPCSPForm(id){
   document.getElementById('p-sigdate').value=today;
   document.getElementById('p-nextdate').value=nextYear.toISOString().slice(0,10);
   document.getElementById('p-writer').value=_currentUser?(_currentUser.name||''):'';
-  ['last','first','kr','genderid','addr','phone','email','lang','livewithname','ins','medicaid','ins2','ins2id','time','transport','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','diag','meds','allergy','diet','nutrition','nutr-how','cap-desc','carepref-desc','prefs','strengths','needs','sadc-act','work-desc','sig'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value='';});
+  ['last','first','kr','genderid','addr','phone','email','lang','livewithname','ins','medicaid','ins2','ins2id','time','transport','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','diag','meds','allergy','diet','nutrition','nutr-how','comm-why','decision-why','alone-why','pain-desc','cap-desc','carepref-desc','prefs','strengths','needs','sadc-act','work-desc','sig'].forEach(function(k){var el=document.getElementById('p-'+k);if(el)el.value='';});
+
+  initPCSPAdlList();
+  initPCSPRightsList();
+  initPCSPHcbsList();
+
   if(id){
     var p=PCSP_LIST.find(function(x){return x.id===id;});
     if(p){
-      var fields={last:'nameLast',first:'nameFirst',kr:'nameKr',writer:'writer',wdate:'wdate',nextdate:'nextdate',dob:'dob',genderid:'genderid',addr:'addr',phone:'phone',email:'email',lang:'lang',livewithname:'livewithname',ins:'ins',medicaid:'medicaid',ins2:'ins2',ins2id:'ins2id',time:'time',transport:'transport',cm1name:'cm1name',cm1phone:'cm1phone',cm1email:'cm1email',cm2name:'cm2name',cm2phone:'cm2phone',cm2email:'cm2email',pcpname:'pcpname',pcpphone:'pcpphone',pcpemail:'pcpemail',diag:'diag',meds:'meds',allergy:'allergy',diet:'diet',nutrition:'nutrition','nutr-how':'nutr_how','cap-desc':'cap_desc','carepref-desc':'carepref_desc',prefs:'prefs',strengths:'strengths',needs:'needs','sadc-act':'sadc_act','work-desc':'work_desc',sig:'sig',sigdate:'sigdate'};
-      Object.keys(fields).forEach(function(k){var el=document.getElementById('p-'+k);if(el&&p[fields[k]])el.value=p[fields[k]];});
-      ['gender','livewith','caresupp','medassist','medlevel','nutr-acc','comm','decision','alone','pain','carepref','carepref-acc','work'].forEach(function(k){var el=document.getElementById('p-'+k);var pk=k.replace(/-/g,'_');if(el&&p[pk])el.value=p[pk];});
+      var fields={last:'nameLast',first:'nameFirst',kr:'nameKr',writer:'writer',wdate:'wdate',nextdate:'nextdate',dob:'dob',genderid:'genderid',addr:'addr',phone:'phone',email:'email',lang:'lang',livewithname:'livewithname',ins:'ins',medicaid:'medicaid',ins2:'ins2',ins2id:'ins2id',time:'time',transport:'transport',cm1name:'cm1name',cm1phone:'cm1phone',cm1email:'cm1email',cm2name:'cm2name',cm2phone:'cm2phone',cm2email:'cm2email',pcpname:'pcpname',pcpphone:'pcpphone',pcpemail:'pcpemail',diag:'diag',meds:'meds',allergy:'allergy',diet:'diet',nutrition:'nutrition','nutr-how':'nutr_how','comm-why':'comm_why','decision-why':'decision_why','alone-why':'alone_why','pain-desc':'pain_desc','cap-desc':'cap_desc','carepref-desc':'carepref_desc',prefs:'prefs',strengths:'strengths',needs:'needs','sadc-act':'sadc_act','work-desc':'work_desc',sigdate:'sigdate'};
+      Object.keys(fields).forEach(function(k){var el=document.getElementById('p-'+k);var v=p[fields[k]];if(el&&v!==undefined&&v!==null&&v!=='')el.value=v;});
+      ['gender','livewith','caresupp','medassist','medlevel','nutr-acc','comm','decision','alone','pain','carepref','carepref-acc','carepref-notified','work'].forEach(function(k){var el=document.getElementById('p-'+k);var pk=k.replace(/-/g,'_');var v=p[pk];if(el&&v!==undefined&&v!==null&&v!=='')el.value=v;});
       _pcspDays=new Set(p.days||[]);_pcspContacts=p.contacts||[];_pcspRisks=p.risks||[];_pcspGoals=p.goals||[];_pcspCommunity=p.community||[];
-      if(p.adl){p.adl.forEach(function(a,i){var lv=document.getElementById('padl-level-'+i);var dv=document.getElementById('padl-device-'+i);if(lv)lv.value=a.level;if(dv)dv.value=a.device;});}
-      if(p.rights){p.rights.forEach(function(r,i){var mod=document.getElementById('pright-mod-'+i);var desc=document.getElementById('pright-desc-'+i);if(mod)mod.value=r.modified;if(desc)desc.value=r.desc||'';toggleRightDetail(i);});}
+      if(p.adl){p.adl.forEach(function(a,i){var lv=document.getElementById('padl-level-'+i);var dv=document.getElementById('padl-device-'+i);if(lv)lv.value=a.level||'';if(dv)dv.value=a.device||'';});}
+      (p.hcbs_rights||[]).forEach(function(r,i){var mod=document.getElementById('phcbs-mod-'+i);var desc=document.getElementById('phcbs-desc-'+i);if(mod)mod.value=r.modified||'No';if(desc)desc.value=r.desc||'';toggleHcbsDetail(i);});
+      (p.other_rights||p.rights||[]).forEach(function(r,i){
+        var mod=document.getElementById('pright-mod-'+i);if(mod)mod.value=r.modified||'No';
+        var vals={desc:r.desc||'',dx:r.dx||'',prior:r.prior||'',data:r.dataReview||'',time:r.timeframe||'',harm:r.noHarm||''};
+        Object.keys(vals).forEach(function(k){var el=document.getElementById('pright-'+k+'-'+i);if(el)el.value=vals[k];});
+        toggleRightDetail(i);
+      });
     }
   }
-  initPCSPDayBtns();initPCSPAdlList();initPCSPRightsList();initPCSPHcbsList();
+  initPCSPDayBtns();
   renderPCSPContacts();renderPCSPRisks();renderPCSPGoals();renderPCSPCommunity();
   pcspGoStep(0);
 }
@@ -256,9 +276,11 @@ function initPCSPRightsList(){
       +'<input class="m-input" id="pright-dx-'+i+'" placeholder="예: Type 2 Diabetes" style="font-size:11px;margin-bottom:8px">'
       +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">③ Positive Interventions Used Before Modification (이전 시도 방법)</div>'
       +'<input class="m-input" id="pright-prior-'+i+'" placeholder="예: Verbal reminders, motivational interviewing, visual cues" style="font-size:11px;margin-bottom:8px">'
-      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">④ Timeframe for Review (기간 및 재검토 일정)</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">④ Data Collection & Review Method (효과 측정/검토 방법)</div>'
+      +'<input class="m-input" id="pright-data-'+i+'" placeholder="예: Staff will document incidents weekly and review monthly" style="font-size:11px;margin-bottom:8px">'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">⑤ Timeframe for Review (기간 및 재검토 일정)</div>'
       +'<input class="m-input" id="pright-time-'+i+'" placeholder="예: 6 months – 1/1/2026 to 7/1/2026" style="font-size:11px;margin-bottom:8px">'
-      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">⑤ Assurance of No Harm (무해성 확인)</div>'
+      +'<div style="font-size:11px;color:#3C3C43;margin-bottom:4px">⑥ Assurance of No Harm (무해성 확인)</div>'
       +'<textarea class="m-textarea" id="pright-harm-'+i+'" placeholder="예: Participant will continue to have access to healthy snacks at any time at the SADC" style="width:100%;font-size:11px;min-height:50px"></textarea>'
       +'</div>'
       +'</div>';
@@ -341,6 +363,7 @@ async function savePCSPFull(){
       desc:isYes&&document.getElementById('pright-desc-'+i)?document.getElementById('pright-desc-'+i).value:'',
       dx:isYes&&document.getElementById('pright-dx-'+i)?document.getElementById('pright-dx-'+i).value:'',
       prior:isYes&&document.getElementById('pright-prior-'+i)?document.getElementById('pright-prior-'+i).value:'',
+      dataReview:isYes&&document.getElementById('pright-data-'+i)?document.getElementById('pright-data-'+i).value:'',
       timeframe:isYes&&document.getElementById('pright-time-'+i)?document.getElementById('pright-time-'+i).value:'',
       noHarm:isYes&&document.getElementById('pright-harm-'+i)?document.getElementById('pright-harm-'+i).value:''
     };
@@ -389,14 +412,14 @@ async function savePCSPFull(){
     goals:_pcspGoals,sadc_act:gp('sadc-act'),community:_pcspCommunity,
     work:gp('work'),work_desc:gp('work-desc'),
     hcbs_rights:hcbsRights, other_rights:rights,
-    sig:sigData||'',sigdate:gp('p-sigdate'),
+    sig:sigData||'',sigdate:gp('sigdate'),
     signed:!!(sigData&&sigData.length>100),
     createdBy:    (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdBy || (_currentUser?(_currentUser.name||''):''),
     createdByEmail: (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdByEmail || (_currentUser?(_currentUser.email||''):''),
     createdAt:    (PCSP_LIST.find(function(x){return x.id===editId;})||{}).createdAt || new Date().toISOString(),
     lastEditedBy:    _currentUser?(_currentUser.name||''):'',
     lastEditedByEmail: _currentUser?(_currentUser.email||''):'',
-    status:'active',updatedAt:new Date().toISOString()
+    status:(sigData&&sigData.length>100)?'완료':'서명대기',updatedAt:new Date().toISOString()
   };
 
   if(editId){var idx=PCSP_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);}
@@ -473,6 +496,40 @@ async function savePCSPFull(){
     console.error('PCSP save error:', e);
   } finally {
     if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 PCSP 저장 (Drive)'; }
+  }
+}
+
+// 서명대기 PCSP를 기존 JSON으로 열고 서명 단계(7단계)로 바로 이동
+async function signPCSP(id, memberId, memberName){
+  try{
+    var cached=PCSP_LIST.find(function(x){return x.id===id;});
+    memberId=memberId||(cached&&(cached.memberId||cached.medicaid))||'';
+    memberName=memberName||(cached&&(cached.nameKr||cached.nameLast))||'';
+    var full=null;
+    if(memberId){
+      var res=await loadJSONfromDrive(memberId,memberName,'PCSP');
+      if(res&&res.ok&&res.data&&res.data.found&&res.data.data)full=res.data.data;
+    }
+    if(full){
+      full.memberId=full.memberId||memberId;
+      full.status='서명대기';
+      var ix=PCSP_LIST.findIndex(function(x){return x.id===full.id;});
+      if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);
+      savePCSPStorage();
+      openPCSPForm(full.id);
+    }else if(cached&&(cached.nameLast||cached.nameFirst||cached.medicaid)){
+      openPCSPForm(id);
+    }else{
+      throw new Error('저장된 PCSP 상세 JSON을 찾을 수 없습니다.');
+    }
+    setTimeout(function(){
+      var sigDate=document.getElementById('p-sigdate');
+      if(sigDate&&!sigDate.value)sigDate.value=new Date().toLocaleDateString('sv-SE');
+      pcspGoStep(6);
+    },120);
+  }catch(e){
+    console.error('PCSP signature open error:',e);
+    alert('❌ 서명대기 PCSP를 불러오지 못했습니다: '+e.message);
   }
 }
 
@@ -578,7 +635,7 @@ function printPCSP(id){
   var hcbsRights=['Having access to food at any time.','Freedom and support to control their own schedules and activities.','Freedom to have visitors of their choosing at any time.'];
   var hcbsHtml='<table><tr><th>Participant Rights</th><th style="width:90px;text-align:center">Modification Needed?</th><th>Justification & Details</th></tr>'
     +hcbsRights.map(function(right){
-      var r=(p.rights||[]).find(function(x){return x.right===right;})||{};
+      var r=(p.hcbs_rights||p.rights||[]).find(function(x){return x.right===right;})||{};
       return '<tr><td>'+right+'</td><td style="text-align:center">'+(r.modified==='Yes'?'☑ Yes  ☐ No':'☐ Yes  ☑ No')+'</td><td>'+(r.modified==='Yes'?(r.desc||''):'')+'</td></tr>';
     }).join('')+'</table>';
 
