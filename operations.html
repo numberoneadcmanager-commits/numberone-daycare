@@ -177,6 +177,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="fpill" onclick="setAuditFilter('swh',this)">SWH</div>
         <div class="fpill" onclick="setAuditFilter('common',this)">공통</div>
       </div>
+      <div class="card" id="audit-generated-pdfs" style="margin:12px 0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px;font-weight:800">📄 생성된 PDF · Audit 출력</div>
+            <div style="font-size:10px;color:#8E8E93;margin-top:2px">Drive에 저장된 최종 문서를 앱에서 바로 열고 인쇄할 수 있습니다.</div>
+          </div>
+          <button class="btn-sm" onclick="loadAuditGeneratedPDFs(true)">↻ 새로고침</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          <button id="audit-pdf-mode-pcsp" class="fpill active" onclick="setAuditPdfMode('pcsp',this)">PCSP</button>
+          <button id="audit-pdf-mode-all" class="fpill" onclick="setAuditPdfMode('all',this)">전체 PDF</button>
+          <input id="audit-pdf-search" class="m-input" placeholder="이름 / 파일명 검색" oninput="renderAuditGeneratedPDFs()" style="flex:1;min-width:160px;padding:7px 9px;font-size:11px">
+        </div>
+        <div id="audit-pdf-summary" style="font-size:10px;color:#8E8E93;margin-bottom:6px"></div>
+        <div id="audit-pdf-list"><div class="empty-msg" style="padding:10px">PDF 목록 불러오는 중...</div></div>
+      </div>
       <div id="audit-list"></div>
     </div>
 
@@ -1493,6 +1509,7 @@ function showApp(user){
 // ── 앱 시작 시 전체 데이터 로드 (이 함수가 없어서 아무것도 안 불러와졌던 버그) ──
 function initData(){
   renderAudit();
+  loadAuditGeneratedPDFs(false);
   loadOpStaffFromSheets();
   loadGRfromSheets();
   loadFDfromSheets();
@@ -1541,7 +1558,7 @@ function goTab(tab,el){
   if(panel)panel.classList.add('active');
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   if(el)el.classList.add('active');
-  if(tab==='audit')renderAudit();
+  if(tab==='audit'){renderAudit();loadAuditGeneratedPDFs(false);}
   if(tab==='forms'){loadFormsMemberDropdown();renderPCSPList();loadPCSPFromSheets();}
   if(tab==='staff')loadOpStaffFromSheets();
   if(tab==='grievance')loadGRfromSheets();
@@ -1641,7 +1658,7 @@ function renderAudit(){
     html+='<div class="audit-item">'
       +'<div class="audit-check'+(done?' done':'')+'" onclick="toggleAudit(\''+item.id+'\')">'+(done?'✓':'')+'</div>'
       +'<div class="audit-label'+(done?' done':'')+'">'+item.label+'</div>'
-      +(item.link?'<a href="'+item.link+'" style="font-size:10px;color:#5856D6;text-decoration:none">→ 이동</a>':'')
+      +(item.id==='a2'?'<button class="btn-sm" onclick="showAuditPCSPDocs()" style="font-size:10px;padding:4px 8px">📄 PDF 목록</button>':(item.link?'<a href="'+item.link+'" style="font-size:10px;color:#5856D6;text-decoration:none">→ 이동</a>':''))
       +'</div>';
   });
   html+='</div>';
@@ -1652,6 +1669,80 @@ function toggleAudit(id){
   AUDIT_DONE[id]=!AUDIT_DONE[id];
   localStorage.setItem('audit_done',JSON.stringify(AUDIT_DONE));
   renderAudit();
+}
+
+// ── AUDIT: Drive에 생성된 PDF 바로 보기/인쇄 ──────────────
+var AUDIT_PDF_ROWS=[];
+var _auditPdfMode='pcsp';
+var _auditPdfLoadedAt=0;
+
+function setAuditPdfMode(mode,el){
+  _auditPdfMode=mode;
+  ['audit-pdf-mode-pcsp','audit-pdf-mode-all'].forEach(function(id){var b=document.getElementById(id);if(b)b.classList.remove('active');});
+  if(el)el.classList.add('active');
+  renderAuditGeneratedPDFs();
+}
+
+function showAuditPCSPDocs(){
+  _auditPdfMode='pcsp';
+  var p=document.getElementById('audit-pdf-mode-pcsp'),a=document.getElementById('audit-pdf-mode-all');
+  if(p)p.classList.add('active');if(a)a.classList.remove('active');
+  renderAuditGeneratedPDFs();
+  var box=document.getElementById('audit-generated-pdfs');if(box)box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function loadAuditGeneratedPDFs(force){
+  if(!force && _auditPdfLoadedAt && Date.now()-_auditPdfLoadedAt<15000){renderAuditGeneratedPDFs();return Promise.resolve(AUDIT_PDF_ROWS);}
+  var listEl=document.getElementById('audit-pdf-list');
+  if(listEl)listEl.innerHTML='<div class="empty-msg" style="padding:10px">PDF 목록 불러오는 중...</div>';
+  return apiGet({action:'read',sheet:'PDFLog'}).then(function(res){
+    if(!res||!res.ok||!res.data)throw new Error((res&&res.error)||'PDFLog 로드 실패');
+    // PDFLog는 append 방식이므로 뒤쪽 행이 최신이다. 같은 멤버/문서종류는 최신본만 표시한다.
+    var seen={};var rows=[];
+    res.data.slice().reverse().forEach(function(r){
+      var url=String(r['Drive링크']||'');if(!url)return;
+      var type=String(r['파일종류']||'');
+      var mid=String(r['멤버ID']||'');
+      var name=String(r['한글이름']||'');
+      var key=(mid||name)+'|'+type;
+      if(seen[key])return;seen[key]=true;
+      rows.push({memberId:mid,name:name,type:type,fileName:String(r['파일명']||''),url:url,savedAt:String(r['저장일시']||''),author:String(r['작성자']||'')});
+    });
+    AUDIT_PDF_ROWS=rows;_auditPdfLoadedAt=Date.now();renderAuditGeneratedPDFs();return rows;
+  }).catch(function(e){
+    console.error('Audit PDFLog load error:',e);
+    if(listEl)listEl.innerHTML='<div class="empty-msg" style="padding:10px;color:#FF3B30">PDF 목록 로드 실패: '+escapeAuditText(e.message)+'</div>';
+    return [];
+  });
+}
+
+function escapeAuditText(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function renderAuditGeneratedPDFs(){
+  var el=document.getElementById('audit-pdf-list');if(!el)return;
+  var q=((document.getElementById('audit-pdf-search')||{}).value||'').trim().toLowerCase();
+  var rows=AUDIT_PDF_ROWS.filter(function(r){
+    if(_auditPdfMode==='pcsp' && r.type!=='PCSP_Final')return false;
+    if(!q)return true;
+    return (r.name+' '+r.memberId+' '+r.fileName+' '+r.type).toLowerCase().includes(q);
+  });
+  var sum=document.getElementById('audit-pdf-summary');if(sum)sum.textContent=(_auditPdfMode==='pcsp'?'최신 PCSP PDF ':'최신 생성 PDF ')+rows.length+'건';
+  if(!rows.length){el.innerHTML='<div class="empty-msg" style="padding:10px">저장된 '+(_auditPdfMode==='pcsp'?'PCSP ':'')+'PDF가 없습니다.</div>';return;}
+  var html='';
+  rows.forEach(function(r){
+    var ix=AUDIT_PDF_ROWS.indexOf(r);
+    html+='<div class="log-card" style="padding:9px 10px;margin-bottom:6px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0">'
+      +'<div style="font-size:12px;font-weight:800">'+escapeAuditText(r.name||r.memberId||'문서')+'</div>'
+      +'<div style="font-size:10px;color:#8E8E93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeAuditText(r.type)+' · '+escapeAuditText(r.savedAt||r.fileName)+'</div>'
+      +'</div><button class="btn-sm" onclick="openAuditGeneratedPDF('+ix+')" style="background:#E1F5EE;color:#0F6E56;border-color:#A7DCCB;flex-shrink:0">📄 열기 / 인쇄</button></div></div>';
+  });
+  el.innerHTML=html;
+}
+
+function openAuditGeneratedPDF(index){
+  var r=AUDIT_PDF_ROWS[index];if(!r||!r.url){alert('PDF 링크를 찾을 수 없습니다.');return;}
+  var w=window.open(r.url,'_blank');if(!w)alert('팝업을 허용해주세요.');
 }
 
 // ── GRIEVANCE ────────────────────────────────────────────
