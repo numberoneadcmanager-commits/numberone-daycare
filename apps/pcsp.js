@@ -4,6 +4,44 @@
 // ══════════════════════════════════════════════════════════
 
 var PCSP_LIST=JSON.parse(localStorage.getItem('op_pcsp_list')||'[]');
+var PCSP_PDF_MAP={};
+var _pcspPdfLoadedAt=0;
+
+function _pcspPdfKey(v){return String(v||'').trim().toUpperCase();}
+function loadPCSPPdfLinks(force){
+  if(!force && _pcspPdfLoadedAt && Date.now()-_pcspPdfLoadedAt<15000) return Promise.resolve(PCSP_PDF_MAP);
+  return apiGet({action:'read',sheet:'PDFLog'}).then(function(res){
+    if(!res||!res.ok||!res.data)return PCSP_PDF_MAP;
+    var map={};
+    res.data.forEach(function(r){
+      if(String(r['파일종류']||'')!=='PCSP_Final' || !r['Drive링크'])return;
+      var obj={url:String(r['Drive링크']),fileName:String(r['파일명']||''),savedAt:String(r['저장일시']||''),memberId:String(r['멤버ID']||''),name:String(r['한글이름']||'')};
+      var keys=[_pcspPdfKey(obj.memberId),_pcspPdfKey(obj.name)];
+      keys.forEach(function(k){if(k)map[k]=obj;});
+    });
+    PCSP_PDF_MAP=map;_pcspPdfLoadedAt=Date.now();
+    renderPCSPList();
+    return map;
+  }).catch(function(e){console.log('PCSP PDFLog 로드 실패:',e);return PCSP_PDF_MAP;});
+}
+function getStoredPCSPPdf(p){
+  if(!p)return null;
+  var keys=[p.memberId,p.medicaid,p.nameKr,p.nameLast].map(_pcspPdfKey);
+  for(var i=0;i<keys.length;i++){if(keys[i]&&PCSP_PDF_MAP[keys[i]])return PCSP_PDF_MAP[keys[i]];}
+  return null;
+}
+async function openStoredPCSPPdf(id){
+  var p=PCSP_LIST.find(function(x){return x.id===id;});
+  if(!p){alert('PCSP를 찾을 수 없어요');return;}
+  var w=window.open('','_blank');
+  if(!w){alert('팝업을 허용해주세요');return;}
+  w.document.write('<!doctype html><html><body style="font-family:Arial,sans-serif;padding:30px">저장된 PCSP PDF 찾는 중...</body></html>');w.document.close();
+  var pdf=getStoredPCSPPdf(p);
+  if(!pdf){await loadPCSPPdfLinks(true);pdf=getStoredPCSPPdf(p);}
+  if(!pdf||!pdf.url){try{w.close();}catch(e){} alert('저장된 최종 PCSP PDF를 찾을 수 없습니다. 완료 저장 후 다시 시도해주세요.');return;}
+  w.location.replace(pdf.url);
+}
+
 function loadPCSPFromSheets(){
   apiGet({action:'read',sheet:'PCSP'}).then(function(res){
     if(!res.ok||!res.data)return;
@@ -33,6 +71,7 @@ function loadPCSPFromSheets(){
     });
     savePCSPStorage();
     renderPCSPList();
+    loadPCSPPdfLinks(false);
   }).catch(function(){});
 }
 
@@ -77,14 +116,16 @@ function renderPCSPList(){
     var badge=isPending
       ?'<span class="badge b-warn">✍️ 서명대기</span>'
       :(due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 완료/유효</span>');
-    var safeName=(p.nameKr||p.nameLast||'').replace(/'/g,"\\'");
+    var safeName=(p.nameKr||p.nameLast||'').replace(/'/g,"\'");
+    var storedPdf=getStoredPCSPPdf(p);
     html+='<div class="log-card"><div class="log-top"><div class="log-name">📄 '+(p.nameLast||'')+', '+(p.nameFirst||'')+' '+(p.nameKr?'('+p.nameKr+')':'')+'</div>'+badge+'</div>'
       +'<div style="font-size:11px;color:#8E8E93">작성: '+(p.wdate||'—')+' · 갱신예정: '+(p.nextdate||'—')+'</div>'
       +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+(p.diag||'').slice(0,60)+'</div>'
       +'<div class="log-actions" style="margin-top:6px">'
       +(isPending?'<button class="btn-sm" style="background:#FF9500;color:#fff;border-color:#FF9500" onclick="signPCSP(\''+p.id+'\',\''+(p.memberId||p.medicaid||'')+'\',\''+safeName+'\')">✍️ 서명하기</button>':'')
       +'<button class="btn-sm" onclick="editPCSP(\''+p.id+'\')">✏️ 수정</button>'
-      +'<button class="btn-sm" onclick="printPCSP(\''+p.id+'\')">🖨️ 출력</button>'
+      +(storedPdf&&!isPending?'<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56;border-color:#A7DCCB" onclick="openStoredPCSPPdf(\''+p.id+'\')">📄 PDF 보기</button>':'')
+      +'<button class="btn-sm" onclick="printPCSP(\''+p.id+'\')">🔄 미리보기</button>'
       +'<button class="btn-danger" onclick="deletePCSP(\''+p.id+'\')">삭제</button>'
       +'</div></div>';
   });
@@ -97,6 +138,7 @@ function showPCSPList(){
   document.getElementById('pcsp-form-view').style.display='none';
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   renderPCSPList();
+  loadPCSPPdfLinks(false);
 }
 
 function openPCSPMemberSelect(){
@@ -470,6 +512,11 @@ async function savePCSPFull(){
         console.error('savePDF server response:', pdfSaveRes);
         var pdfErr = (pdfSaveRes&&pdfSaveRes.data&&pdfSaveRes.data.error) || (pdfSaveRes&&pdfSaveRes.error) || 'PDF Drive 저장 오류';
         throw new Error(pdfErr);
+      }
+      if(pdfSaveRes.data.url){
+        var pdfObj={url:pdfSaveRes.data.url,fileName:pdfSaveRes.data.fileName||'',savedAt:new Date().toISOString(),memberId:memberId,name:memberName};
+        [_pcspPdfKey(memberId),_pcspPdfKey(memberName)].forEach(function(k){if(k)PCSP_PDF_MAP[k]=pdfObj;});
+        _pcspPdfLoadedAt=Date.now();
       }
 
       // JSON도 최신 상태로 갱신
