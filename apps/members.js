@@ -756,7 +756,7 @@ async function showPendingSignatures() {
             mName: String(p['한글이름']||''),
             type: 'PCSP', icon: '📋',
             date: String(p['작성일']||'').slice(0,10),
-            onclick: "closeOv('ov-doc-viewer');openPCSPForm('"+(p['ID']||'')+"')"
+            onclick: "closeOv('ov-doc-viewer');window.location.href='operations.html?tab=forms&sign=1&pcspId="+encodeURIComponent(p['ID']||'')+"&pcspMemberId="+encodeURIComponent(p['멤버ID']||'')+"&pcspName="+encodeURIComponent(p['한글이름']||'')+"'"
           });
         }
       });
