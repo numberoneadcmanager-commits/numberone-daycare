@@ -108,6 +108,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pcsp-adl-row:last-child{border-bottom:none}
 .pcsp-right-row{padding:8px 0;border-bottom:.5px solid #F2F2F7}
 .pcsp-right-row:last-child{border-bottom:none}
+.pcsp-inline-card{background:#F8F8FA;border:1px solid #E5E5EA;border-radius:10px;padding:10px;margin:7px 0}
+.pcsp-chip-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pcsp-chip-label{font-size:11px;font-weight:800;color:#8E8E93;text-transform:uppercase;letter-spacing:.4px;margin:8px 0 5px}
+.pcsp-activity-chip{border:1.5px solid #D1D1D6;background:#fff;color:#3C3C43;border-radius:999px;padding:7px 11px;font-size:11px;font-weight:700;cursor:pointer}
+.pcsp-activity-chip.sel{background:#E1F5EE;color:#0F6E56;border-color:#5DCAA5}
+.pcsp-daily-chip{border-radius:10px;background:#FFF8E8;border-color:#F5C451;color:#8A5A00}
+.pcsp-daily-chip.sel{background:#FFF0C2;border-color:#E8A317;color:#6B4700}
+.pcsp-confirm-needed{background:#FFF6CC!important;border-color:#E8B931!important}
+.pcsp-confirm-badge{display:inline-block;margin-left:7px;padding:2px 6px;border-radius:999px;background:#FFF1B8;color:#7A5200;font-size:9px;font-weight:800}
+.pcsp-validation-box{margin-top:8px;padding:9px;background:#FFF3CD;border:1px solid #E8B931;border-radius:8px;color:#6B4B00;font-size:11px}
+.pcsp-valid-box{margin-top:8px;padding:9px;background:#E1F5EE;border:1px solid #9FE1CB;border-radius:8px;color:#085041;font-size:11px;font-weight:700}
+.pcsp-right-detail{margin-top:7px;padding:8px;background:#FFF8E8;border-radius:8px;border:1px solid #F3D28A}
+.pcsp-source-badge{font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px;background:#E6F1FB;color:#185FA5;margin-left:6px}
+.pcsp-section-note{font-size:11px;color:#8E8E93;line-height:1.45;margin:3px 0 9px}
+.pcsp-help-ko{font-size:11px;line-height:1.55;color:#5F6368;background:#F8F8FA;border-left:3px solid #C7C7CC;border-radius:6px;padding:7px 9px;margin:4px 0 8px}
+.pcsp-default-note{font-size:11px;line-height:1.55;color:#185FA5;background:#EEF6FF;border:1px solid #CDE3F7;border-radius:8px;padding:8px 10px;margin:7px 0 10px}
+@media(max-width:700px){.pcsp-adl-row{grid-template-columns:1fr}.pcsp-inline-card .modal-date-row{display:block}}
+
 @media print{.tabbar,.hdr,.btn-full,.ov,.modal,#pcsp-nav{display:none!important}.panel{display:block!important}}
 /* Forms — Assessment / Nutrition / Member Rights */
 .back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:#5856D6;font-size:13px;font-weight:700;cursor:pointer;padding:4px 0;margin-bottom:12px}
@@ -176,6 +194,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div class="fpill" onclick="setAuditFilter('clp',this)">CenterLight</div>
         <div class="fpill" onclick="setAuditFilter('swh',this)">SWH</div>
         <div class="fpill" onclick="setAuditFilter('common',this)">공통</div>
+      </div>
+      <div class="card" id="audit-generated-pdfs" style="margin:12px 0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px;font-weight:800">📄 생성된 PDF · Audit 출력</div>
+            <div style="font-size:10px;color:#8E8E93;margin-top:2px">Drive에 저장된 최종 문서를 앱에서 바로 열고 인쇄할 수 있습니다.</div>
+          </div>
+          <button class="btn-sm" onclick="loadAuditGeneratedPDFs(true)">↻ 새로고침</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          <button id="audit-pdf-mode-pcsp" class="fpill active" onclick="setAuditPdfMode('pcsp',this)">PCSP</button>
+          <button id="audit-pdf-mode-all" class="fpill" onclick="setAuditPdfMode('all',this)">전체 PDF</button>
+          <input id="audit-pdf-search" class="m-input" placeholder="이름 / 파일명 검색" oninput="renderAuditGeneratedPDFs()" style="flex:1;min-width:160px;padding:7px 9px;font-size:11px">
+        </div>
+        <div id="audit-pdf-summary" style="font-size:10px;color:#8E8E93;margin-bottom:6px"></div>
+        <div id="audit-pdf-list"><div class="empty-msg" style="padding:10px">PDF 목록 불러오는 중...</div></div>
       </div>
       <div id="audit-list"></div>
     </div>
@@ -626,374 +660,162 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <!-- PCSP 목록 -->
       <div id="pcsp-list-view" style="display:none">
         <div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PCSP 전체 목록</div>
-        <div class="f-row">
-          <div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div>
-          <div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div>
-          <div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div>
-        </div>
+        <div class="f-row"><div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div><div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div><div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div></div>
         <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
         <div id="pcsp-list"></div>
         <button class="btn-full btn-primary" style="margin-top:8px" onclick="showPCSPMemberSelect()">➕ 새 PCSP 작성</button>
       </div>
 
-      <!-- PCSP 폼 뷰 (멤버 선택 후) -->
       <div id="pcsp-member-select" style="display:none">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <button class="btn-sm" onclick="closeFrmBack()">← 목록으로</button>
-          <span style="font-size:14px;font-weight:700">멤버 선택 — PCSP</span>
-        </div>
-        <div class="search-wrap"><span>🔍</span><input id="pcsp-member-q" placeholder="이름 검색..."></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn-sm" onclick="closeFrmBack()">← 목록으로</button><span style="font-size:14px;font-weight:700">멤버 선택 — PCSP v2</span></div>
+        <div class="search-wrap"><span>🔍</span><input id="pcsp-member-q" placeholder="이름 검색..." oninput="renderPCSPMemberList()"></div>
         <div id="pcsp-member-list" style="max-height:60dvh;overflow-y:auto"></div>
       </div>
 
-      <!-- PCSP 7단계 폼 -->
+      <!-- PCSP v2 11단계 폼 -->
       <div id="pcsp-form-view" style="display:none">
         <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
             <button class="btn-sm" onclick="showPCSPList()">← 목록으로</button>
-            <span id="pcsp-step-label" style="font-size:12px;color:#8E8E93">1 / 7</span>
+            <button id="pcsp-ai-all-btn" type="button" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none" onclick="aiDraftWholePCSP()">✨ Claude 전체 문장 초안</button>
+            <span id="pcsp-step-label" style="font-size:12px;color:#8E8E93">1 / 11</span>
           </div>
-          <div style="background:#F2F2F7;border-radius:4px;height:6px">
-            <div id="pcsp-progress" style="background:#5856D6;height:6px;border-radius:4px;width:14%;transition:.3s"></div>
-          </div>
-          <div class="f-row" style="margin-top:8px;gap:4px">
-            <div class="fpill active" id="ptab-0" onclick="pcspGoStep(0)">기본</div>
-            <div class="fpill" id="ptab-1" onclick="pcspGoStep(1)">연락처</div>
-            <div class="fpill" id="ptab-2" onclick="pcspGoStep(2)">건강</div>
-            <div class="fpill" id="ptab-3" onclick="pcspGoStep(3)">ADL</div>
-            <div class="fpill" id="ptab-4" onclick="pcspGoStep(4)">위험/선호</div>
-            <div class="fpill" id="ptab-5" onclick="pcspGoStep(5)">목표</div>
-            <div class="fpill" id="ptab-6" onclick="pcspGoStep(6)">권리/서명</div>
+          <div style="background:#F2F2F7;border-radius:4px;height:6px"><div id="pcsp-progress" style="background:#5856D6;height:6px;border-radius:4px;width:9%;transition:.3s"></div></div>
+          <div class="f-row" style="margin-top:8px;gap:4px;flex-wrap:wrap">
+            <div class="fpill active" id="ptab-0" onclick="pcspGoStep(0)">기본/AUTH</div><div class="fpill" id="ptab-1" onclick="pcspGoStep(1)">Planning</div><div class="fpill" id="ptab-2" onclick="pcspGoStep(2)">연락처</div><div class="fpill" id="ptab-3" onclick="pcspGoStep(3)">건강</div><div class="fpill" id="ptab-4" onclick="pcspGoStep(4)">ADL</div><div class="fpill" id="ptab-5" onclick="pcspGoStep(5)">TO/FOR</div><div class="fpill" id="ptab-6" onclick="pcspGoStep(6)">위험</div><div class="fpill" id="ptab-7" onclick="pcspGoStep(7)">Goals</div><div class="fpill" id="ptab-8" onclick="pcspGoStep(8)">활동</div><div class="fpill" id="ptab-9" onclick="pcspGoStep(9)">권리/Review</div><div class="fpill" id="ptab-10" onclick="pcspGoStep(10)">서명</div>
           </div>
         </div>
 
-        <!-- Step 0: 기본정보 -->
+        <input type="hidden" id="p-member-id"><input type="hidden" id="pcsp-edit-id">
+
+        <!-- 0 Basic + AUTH -->
         <div class="pcsp-step" id="pstep-0">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">📋 PCSP 작성 정보</div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>작성자 Full Name *</label><input class="m-input" id="p-writer" placeholder="First Last Name"></div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>작성일 *</label><input class="m-input" id="p-wdate" type="date"></div>
-              <div class="modal-input-wrap"><label>갱신 예정일</label><input class="m-input" id="p-nextdate" type="date"></div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:0"><label>작성 유형</label>
-              <select class="m-select" id="p-type"><option>Initial</option><option>Annual Reassessment</option><option>Essential Change</option></select>
-            </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:10px">📋 PCSP 작성 / Review 정보</div>
+            <div class="modal-input-wrap"><label>Person Completing PCSP *</label><input class="m-input" id="p-writer"></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Date of PCSP Completion *</label><input type="date" class="m-input" id="p-wdate"></div><div class="modal-input-wrap"><label>Next Review Due *</label><input type="date" class="m-input" id="p-nextdate"></div></div>
+            <div class="modal-input-wrap"><label>PCSP Type *</label><select class="m-select" id="p-type"><option value="">선택</option><option>Initial</option><option>Annual</option><option>Change in Condition</option><option>Significant Event</option><option>Participant Request</option></select></div>
           </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">👤 참여자 기본정보</div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>Last Name *</label><input class="m-input" id="p-last" placeholder="SHIN"></div>
-              <div class="modal-input-wrap"><label>First Name *</label><input class="m-input" id="p-first" placeholder="CHUN JA"></div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>한글 이름</label><input class="m-input" id="p-kr" placeholder="신춘자"></div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>생년월일 (DOB)</label><input class="m-input" id="p-dob" type="date"></div>
-              <div class="modal-input-wrap"><label>Gender (생물학적)</label>
-                <select class="m-select" id="p-gender"><option>Female</option><option>Male</option><option>Nonbinary</option></select>
-              </div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Gender Identity</label><input class="m-input" id="p-genderid" placeholder="Female, Male, Non-binary, Transgender..."></div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>주소 (Address)</label><input class="m-input" id="p-addr" placeholder="Street, City, State ZIP"></div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>전화번호 (Phone)</label><input class="m-input" id="p-phone" placeholder="718-000-0000"></div>
-              <div class="modal-input-wrap"><label>이메일 (Email)</label><input class="m-input" id="p-email" placeholder="없으면 'none'"></div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>선호 언어 (Preferred Language)</label><input class="m-input" id="p-lang" placeholder="Korean, English..."></div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>동거인 있음?</label>
-                <select class="m-select" id="p-livewith"><option>Yes</option><option>No</option></select>
-              </div>
-              <div class="modal-input-wrap"><label>동거인이 케어 지원?</label>
-                <select class="m-select" id="p-caresupp"><option>Yes</option><option>No</option><option>N/A</option></select>
-              </div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:0"><label>동거인 이름/관계 (케어 지원 시)</label><input class="m-input" id="p-livewithname" placeholder="예: Jane Doe, daughter"></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:10px">👤 Participant Information</div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Last Name *</label><input class="m-input" id="p-last"></div><div class="modal-input-wrap"><label>First Name *</label><input class="m-input" id="p-first"></div></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>한글 이름</label><input class="m-input" id="p-kr"></div><div class="modal-input-wrap"><label>Date of Birth</label><input type="date" class="m-input" id="p-dob"></div></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Gender</label><select class="m-select" id="p-gender"><option value="">선택</option><option>Female</option><option>Male</option><option>Nonbinary</option><option>Other</option></select></div><div class="modal-input-wrap"><label>Gender Identity</label><input class="m-input" id="p-genderid"></div></div>
+            <div class="modal-input-wrap"><label>Address</label><input class="m-input" id="p-addr"></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Phone</label><input class="m-input" id="p-phone"></div><div class="modal-input-wrap"><label>Email</label><input class="m-input" id="p-email"></div></div>
+            <div class="modal-input-wrap"><label>Preferred Language</label><input class="m-input" id="p-lang"></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Lives with someone?</label><select class="m-select" id="p-livewith"><option value="">선택</option><option>Yes</option><option>No</option></select></div><div class="modal-input-wrap"><label>That person supports care?</label><select class="m-select" id="p-caresupp"><option value="">선택</option><option>Yes</option><option>No</option><option>N/A</option></select></div></div>
+            <div class="modal-input-wrap"><label>Name(s) / relationship of person(s) lived with</label><input class="m-input" id="p-livewithname"></div>
           </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🏥 보험 정보</div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>MLTC Plan / 보험사 *</label><input class="m-input" id="p-ins" placeholder="Anthem MLTC"></div>
-              <div class="modal-input-wrap"><label>Medicaid / Insurance ID *</label><input class="m-input" id="p-medicaid" placeholder="Medicaid #"></div>
-            </div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>Secondary 보험사</label><input class="m-input" id="p-ins2" placeholder="없으면 공란"></div>
-              <div class="modal-input-wrap"><label>Secondary Insurance ID</label><input class="m-input" id="p-ins2id" placeholder="없으면 공란"></div>
-            </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🔗 Authorization 자동 연결 <span class="pcsp-source-badge">AUTH</span></div><div class="pcsp-section-note">현재 유효한 SADC AUTH를 우선 선택합니다. 보험사, 케어매니저, 진단코드, 승인요일을 가져오며 직원이 수정할 수 있습니다.</div>
+            <div class="modal-input-wrap"><label>연결할 AUTH</label><select class="m-select" id="p-auth-select" onchange="applyPCSPAuth(this.value,true)"><option value="">불러오는 중...</option></select></div><div id="pcsp-auth-summary" class="pcsp-inline-card"></div>
           </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">📅 SADC 출석 정보</div>
-            <div style="margin-bottom:10px">
-              <div style="font-size:11px;font-weight:700;color:#8E8E93;margin-bottom:6px">출석 요일 (Days of SADC Attendance)</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Mon')">Mon</button>
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Tue')">Tue</button>
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Wed')">Wed</button>
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Thu')">Thu</button>
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Fri')">Fri</button>
-                <button class="pcsp-day-btn" onclick="togglePcspDay(this,'Sat')">Sat</button>
-              </div>
-            </div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>출석 시간 (Time)</label><input class="m-input" id="p-time" placeholder="예: 8:00am–2:00pm"></div>
-              <div class="modal-input-wrap"><label>교통수단 (Transportation)</label><input class="m-input" id="p-transport" placeholder="예: Van, Public Transit, Family"></div>
-            </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:10px">🏥 Insurance / Care Plan</div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Primary Insurance/MLTC Plan</label><input class="m-input" id="p-ins"></div><div class="modal-input-wrap"><label>Medicaid / Insurance ID</label><input class="m-input" id="p-medicaid"></div></div>
+            <div class="modal-date-row"><div class="modal-input-wrap"><label>Secondary / Back-Up Plan</label><input class="m-input" id="p-ins2"></div><div class="modal-input-wrap"><label>Secondary Insurance ID</label><input class="m-input" id="p-ins2id"></div></div>
           </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:10px">📅 SADC Schedule</div><div class="pcsp-chip-wrap"><button type="button" class="pcsp-day-btn" data-day="Mon" onclick="togglePcspDay(this,'Mon')">Mon</button><button type="button" class="pcsp-day-btn" data-day="Tue" onclick="togglePcspDay(this,'Tue')">Tue</button><button type="button" class="pcsp-day-btn" data-day="Wed" onclick="togglePcspDay(this,'Wed')">Wed</button><button type="button" class="pcsp-day-btn" data-day="Thu" onclick="togglePcspDay(this,'Thu')">Thu</button><button type="button" class="pcsp-day-btn" data-day="Fri" onclick="togglePcspDay(this,'Fri')">Fri</button><button type="button" class="pcsp-day-btn" data-day="Sat" onclick="togglePcspDay(this,'Sat')">Sat</button></div><div class="modal-date-row"><div class="modal-input-wrap"><label>Time</label><input class="m-input" id="p-time"></div><div class="modal-input-wrap"><label>Transportation</label><input class="m-input" id="p-transport"></div></div></div>
         </div>
 
-        <!-- Step 1: 연락처 -->
+        <!-- 1 Planning Process -->
         <div class="pcsp-step" id="pstep-1" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📞 MLTC Plan Care Manager (Primary)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">이메일 주소는 필수입니다</div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name *</label><input class="m-input" id="p-cm1name" placeholder="Care Manager 이름"></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">🧭 Planning Process</div>
+            <div class="pcsp-section-note">PCSP를 실제로 어떻게 논의했는지 기록하는 부분입니다. 참가자가 직접 참여했는지, 누가 참가자의 선택으로 함께했는지, 회의 장소·의사소통·접근성 요구가 무엇이었는지를 남깁니다.</div>
+            <div class="pcsp-default-note"><b>센터 기본값:</b> 신규 작성 시 Participant participated = Yes, Meeting date = PCSP 작성일, Meeting location = <b>Number One Adult Daycare, 161-22 Northern Blvd 1FL, Flushing, NY 11358</b>가 자동 입력됩니다. Participation notes도 일반적인 기본 문장이 들어갑니다. 실제 상황이 다르면 반드시 수정하세요. 참가자별 선호·기능·권리 판단은 자동 선택하지 않습니다.</div>
             <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>전화 (직통 또는 내선)</label><input class="m-input" id="p-cm1phone" placeholder="전화번호"></div>
-              <div class="modal-input-wrap"><label>이메일 *</label><input class="m-input" id="p-cm1email" placeholder="이메일 주소"></div>
+              <div class="modal-input-wrap"><label>Participant participated? *</label><div class="pcsp-help-ko">참가자가 PCSP 논의에 의미 있게 참여했는지 선택합니다. 직접 말로 의견을 표현했거나, 질문에 답하거나, 활동·서비스·지원 방법을 선택하는 방식으로 참여했다면 보통 Yes입니다. 참여하지 못했다면 No를 선택하고 아래에 이유와 참여를 지원한 방법을 적습니다.</div><select class="m-select" id="p-planning-participated"><option value="">선택</option><option>Yes</option><option>No</option></select></div>
+              <div class="modal-input-wrap"><label>Preferred communication method</label><div class="pcsp-help-ko">참가자가 가장 편하게 의사소통하는 방법을 적습니다. 예: Spoken Korean, Spoken English, simple verbal questions, written information, visual cues, family/representative support 등. 실제로 확인된 방법만 적습니다.</div><input class="m-input" id="p-communication-method" placeholder="예: Spoken Korean / simple verbal questions"></div>
             </div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">📞 Care Manager (Secondary / Alternate)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">없으면 공란</div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name</label><input class="m-input" id="p-cm2name" placeholder="없으면 공란"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">Participation notes</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-planning-notes','Planning participation notes')">✨ AI 문장정리</button></div>
+            <div class="pcsp-help-ko">참가자가 어떤 방식으로 참여했고 선택권을 어떻게 제공했는지 간단히 적습니다. 기본 문장이 자동으로 들어가며, 실제 회의에서 특별한 상황이 있었다면 수정하면 됩니다.</div><textarea class="m-textarea" id="p-planning-notes" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea>
             <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>전화</label><input class="m-input" id="p-cm2phone"></div>
-              <div class="modal-input-wrap"><label>이메일</label><input class="m-input" id="p-cm2email"></div>
+              <div class="modal-input-wrap"><label>Meeting date *</label><div class="pcsp-help-ko">PCSP 내용을 참가자와 실제로 논의한 날짜입니다. 신규 작성 시 PCSP 작성일과 같은 날짜가 기본으로 들어갑니다.</div><input type="date" class="m-input" id="p-meeting-date"></div>
+              <div class="modal-input-wrap"><label>Meeting time</label><div class="pcsp-help-ko">회의를 진행한 대략적인 시간입니다. 정확한 시간이 중요하지 않은 경우 실제 회의한 시간대에 맞게 입력하면 됩니다.</div><input type="time" class="m-input" id="p-meeting-time"></div>
             </div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">👨‍⚕️ 주치의 (Primary Care Physician)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">이메일 모를 경우 'unknown' 입력</div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>Full Name</label><input class="m-input" id="p-pcpname" placeholder="의사 이름"></div>
+            <div class="modal-input-wrap"><label>Meeting location *</label><div class="pcsp-help-ko">PCSP 회의를 진행한 장소입니다. 센터에서 진행하는 경우가 대부분이므로 <b>Number One Adult Daycare, 161-22 Northern Blvd 1FL, Flushing, NY 11358</b>가 기본 입력됩니다. 가정, 병원, 화상회의 등 예외적인 경우에만 실제 장소로 바꾸세요.</div><input class="m-input" id="p-meeting-location"></div>
             <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>전화 (직통 또는 오피스)</label><input class="m-input" id="p-pcpphone"></div>
-              <div class="modal-input-wrap"><label>이메일</label><input class="m-input" id="p-pcpemail" placeholder="모르면 'unknown'"></div>
+              <div class="modal-input-wrap"><label>Interpreter / translation needed?</label><div class="pcsp-help-ko">참가자가 내용을 이해하고 의사를 표현하기 위해 별도의 통역·번역 지원이 실제로 필요했는지 선택합니다. 직원과 직접 의사소통이 가능했다면 No, 별도 통역/번역이 필요했다면 Yes입니다.</div><select class="m-select" id="p-interpreter-needed"><option value="">선택</option><option>Yes</option><option>No</option></select></div>
+              <div class="modal-input-wrap"><label>Language</label><div class="pcsp-help-ko">통역 또는 번역이 필요한 경우 사용한 언어를 적습니다. 필요하지 않다면 비워둘 수 있습니다.</div><input class="m-input" id="p-interpreter-language" placeholder="예: Korean"></div>
             </div>
+            <div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">Accessibility accommodation</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-accessibility','Accessibility accommodation')">✨ AI 문장정리</button></div>
+            <div class="pcsp-help-ko">회의에 참여하기 위해 제공한 접근성 지원을 적습니다. 예: wheelchair-accessible space, large-print materials, hearing/visual support, quiet area, extra time, repeated/simple explanations. 별도 지원이 없었다면 실제 확인 후 그 사실을 간단히 기록할 수 있습니다.</div><textarea class="m-textarea" id="p-accessibility" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">Participant / representative concerns</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-planning-concerns','Participant or representative concerns')">✨ AI 문장정리</button></div>
+            <div class="pcsp-help-ko">참가자 또는 대표가 PCSP와 관련해 특별히 요청하거나 걱정한 내용을 적습니다. 서비스 시간, 활동, 건강·안전, 교통, 직원 지원 등에 대한 요청이 여기에 들어갑니다. 특별한 우려가 없었다면 확인 후 그 사실을 짧게 기록할 수 있습니다.</div><textarea class="m-textarea" id="p-planning-concerns" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea>
           </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🆘 연락처 (Contacts)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">최소 2명 이상 입력 권장 · Caregiver / Emergency Contact / Guardian 구분</div>
-            <div id="pcsp-contacts-list"></div>
-            <button class="btn-sm" style="margin-top:8px" onclick="addPcspContact()">➕ 연락처 추가</button>
-          </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:5px">👥 People chosen by participant</div><div class="pcsp-help-ko">참가자가 PCSP 논의에 함께하기를 원한 가족, 보호자, 친구, Care Manager 등만 추가합니다. 센터 직원이라고 해서 자동으로 넣지 말고, 참가자가 선택했거나 실제로 함께한 사람이 있을 때 이름과 관계/역할을 기록하세요.</div><div id="pcsp-planning-people"></div><button type="button" class="btn-sm" onclick="addPlanningPerson()">➕ Person 추가</button></div>
         </div>
 
-        <!-- Step 2: 건강정보 -->
+        <!-- 2 Contacts -->
         <div class="pcsp-step" id="pstep-2" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🩺 진단 (Pertinent Diagnoses)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">신체/인지/정신건강 진단 모두 포함 · MLTC PCSP에서 확인 후 참여자와 검증</div>
-            <textarea class="m-textarea" id="p-diag" style="width:100%;min-height:80px" placeholder="예: Type 2 Diabetes, Hypertension, Mild Dementia, Osteoporosis..."></textarea>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💊 약물 (Medications)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">처방약 + OTC + 건강보조식품 모두 포함 · 모르는 진단명은 'unknown'</div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>SADC에서 복약 지원 필요?</label>
-                <select class="m-select" id="p-medassist"><option>No</option><option>Yes</option></select>
-              </div>
-              <div class="modal-input-wrap"><label>지원 수준 (Yes인 경우)</label>
-                <select class="m-select" id="p-medlevel"><option>N/A</option><option>Verbal Cueing</option><option>Assistance with Setup</option></select>
-              </div>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">• Verbal Cueing: 시간 알려주기&nbsp;&nbsp;• Assistance with Setup: 용기 열기 등</div>
-            <div style="position:relative">
-              <div style="display:flex;gap:6px;margin-bottom:6px">
-                <input class="fi" id="p-med-input" placeholder="약물명 입력 후 Enter (자동완성)" style="flex:1;font-size:12px">
-                <input class="fi" id="p-med-reason" placeholder="진단명/이유" style="flex:1;font-size:12px">
-                <button onclick="addMedLine()" class="btn-sm" style="white-space:nowrap">➕ 추가</button>
-              </div>
-              <div id="med-autocomplete" style="display:none;position:absolute;top:36px;left:0;right:0;background:#fff;border:1px solid #E5E5EA;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:100;max-height:200px;overflow-y:auto"></div>
-              <textarea class="m-textarea" id="p-meds" style="width:100%;min-height:100px" placeholder="약물명 – 진단명 형식으로 입력&#10;예: Metformin 500mg – Type 2 Diabetes&#10;Lisinopril 10mg – Hypertension&#10;Calcium supplement – Bone Health"></textarea>
-            </div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🚨 알레르기 (Allergies)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">심각도 및 응급 대처 포함 · 없으면 'None'</div>
-            <textarea class="m-textarea" id="p-allergy" style="width:100%" placeholder="예: Peanuts – Severe, causes anaphylaxis within 1-2 min, EpiPen required, call 911&#10;없으면: None"></textarea>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🥗 식이 제한 (Dietary Restrictions)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">이유 포함 · 없으면 'None'</div>
-            <textarea class="m-textarea" id="p-diet" style="width:100%" placeholder="예: Thickened liquids (nectar-thick) – dysphagia&#10;Low sodium diet – hypertension&#10;없으면: None"></textarea>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🍽️ 영양 선호/특별식 (Nutrition Preferences)</div>
-            <textarea class="m-textarea" id="p-nutrition" style="width:100%;margin-bottom:10px" placeholder="예: Kosher diet, Low-calorie diet&#10;없으면: None"></textarea>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>SADC 수용 가능?</label>
-                <select class="m-select" id="p-nutr-acc"><option>N/A</option><option>Yes</option><option>No</option></select>
-              </div>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin:6px 0 6px">수용 가능 시: 어떻게 수용하는지 / 불가 시: 대안 설명</div>
-            <textarea class="m-textarea" id="p-nutr-how" style="width:100%" placeholder="예(Yes): SADC has Kosher options available for each meal&#10;예(No): Participant brings food from home that meets their dietary preference"></textarea>
-          </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">📞 Primary Care Manager <span class="pcsp-source-badge">AUTH 우선</span></div><div class="modal-input-wrap"><label>Name</label><input class="m-input" id="p-cm1name"></div><div class="modal-date-row"><div class="modal-input-wrap"><label>Phone</label><input class="m-input" id="p-cm1phone"></div><div class="modal-input-wrap"><label>Email</label><input class="m-input" id="p-cm1email"></div></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">📞 Secondary / Back-Up Care Manager</div><div class="modal-input-wrap"><label>Name</label><input class="m-input" id="p-cm2name"></div><div class="modal-date-row"><div class="modal-input-wrap"><label>Phone</label><input class="m-input" id="p-cm2phone"></div><div class="modal-input-wrap"><label>Email</label><input class="m-input" id="p-cm2email"></div></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">👨‍⚕️ Primary Care Physician</div><div class="modal-input-wrap"><label>Name</label><input class="m-input" id="p-pcpname"></div><div class="modal-date-row"><div class="modal-input-wrap"><label>Phone</label><input class="m-input" id="p-pcpphone"></div><div class="modal-input-wrap"><label>Email</label><input class="m-input" id="p-pcpemail"></div></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:5px">🆘 Contact Information</div><div class="pcsp-section-note">Sample처럼 Contact 1~3은 항상 유지됩니다. 필요하면 추가할 수 있습니다.</div><div id="pcsp-contacts-list"></div><button type="button" class="btn-sm" onclick="addPcspContact()">➕ Contact 추가</button></div>
         </div>
 
-        <!-- Step 3: 독립능력 + ADL -->
+        <!-- 3 Health -->
         <div class="pcsp-step" id="pstep-3" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🧠 독립 능력 (Capacity for Independence)</div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>필요 표현 가능?</label>
-                <select class="m-select" id="p-comm"><option>Yes</option><option>No</option></select>
-              </div>
-              <div class="modal-input-wrap"><label>스스로 결정 가능?</label>
-                <select class="m-select" id="p-decision"><option>Yes</option><option>No</option></select>
-              </div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>No인 경우 이유 설명</label>
-              <textarea class="m-textarea" id="p-decision-why" placeholder="예: Diagnosed with Alzheimer's disease which affects decision-making ability"></textarea>
-            </div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>혼자 있을 수 있음?</label>
-                <select class="m-select" id="p-alone"><option>Yes</option><option>No</option></select>
-              </div>
-              <div class="modal-input-wrap"><label>통증/감각 필요?</label>
-                <select class="m-select" id="p-pain"><option>No</option><option>Yes</option></select>
-              </div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:0">
-              <label>혼자 불가 이유 / 통증·감각 내용 및 지원 방법</label>
-              <textarea class="m-textarea" id="p-cap-desc" placeholder="예(혼자 불가): Dementia requires supervision at all times to prevent wandering&#10;예(통증): Degenerative bone disease – staff encourage standing/walking every hour"></textarea>
-            </div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🚶 ADL 기능 평가 (Functional Assessment)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">Independent = 혼자 가능 · Supervision Only = 지시/리마인더 필요 · Minimal = 약간 도움 · Moderate = 상당한 도움 · Total = 완전 도움</div>
-            <div id="pcsp-adl-list"></div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">🤝 개인 케어 선호 (Personal Care Preference)</div>
-            <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>케어 제공자 선호 있음?</label>
-                <select class="m-select" id="p-carepref"><option>No</option><option>Yes</option></select>
-              </div>
-              <div class="modal-input-wrap"><label>SADC 수용 가능?</label>
-                <select class="m-select" id="p-carepref-acc"><option>N/A</option><option>Yes</option><option>No</option></select>
-              </div>
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>선호 내용 (Yes인 경우)</label>
-              <input class="m-input" id="p-carepref-desc" placeholder="예: Female staff for toileting assistance, Korean-speaking staff preferred">
-            </div>
-            <div class="modal-input-wrap" style="margin-bottom:0"><label>수용 불가 시 참여자 고지 여부</label>
-              <select class="m-select" id="p-carepref-notified"><option>N/A</option><option>Yes – notified prior to enrollment</option><option>Yes – notified when preference could no longer be met</option><option>No</option></select>
-            </div>
-          </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">🩺 Participant Health Information</div><div class="modal-input-wrap"><label>Diagnosis code <span class="pcsp-source-badge">AUTH</span></label><input class="m-input" id="p-diag-code"></div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">Pertinent Diagnoses / Health Conditions</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-diag','Pertinent diagnoses narrative')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-diag" style="width:100%;min-height:80px" oninput="pcspMarkConfirmFields()"></textarea></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">💊 Medications</div><div class="modal-date-row"><div class="modal-input-wrap"><label>Medication assistance at SADC?</label><select class="m-select" id="p-medassist"><option value="">선택</option><option>No</option><option>Yes</option></select></div><div class="modal-input-wrap"><label>Level of assistance</label><select class="m-select" id="p-medlevel"><option value="">선택</option><option>N/A</option><option>Verbal Cueing</option><option>Assistance with Setup</option></select></div></div><div style="position:relative"><div style="display:flex;gap:6px"><input class="fi" id="p-med-input" placeholder="Medication" style="flex:1"><input class="fi" id="p-med-reason" placeholder="Condition/reason" style="flex:1"><button type="button" class="btn-sm" onclick="addMedLine()">➕</button></div><div id="med-autocomplete" style="display:none;position:absolute;left:0;right:0;top:36px;background:#fff;border:1px solid #E5E5EA;border-radius:10px;z-index:50"></div><textarea class="m-textarea" id="p-meds" style="width:100%;min-height:110px;margin-top:7px"></textarea></div></div>
+          <div class="card"><div style="display:flex;justify-content:space-between"><b>🚨 Allergies</b><button type="button" class="btn-sm" onclick="aiDraftTextField('p-allergy','Allergy and emergency response wording')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-allergy" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea></div>
+          <div class="card"><div style="display:flex;justify-content:space-between"><b>🥗 Dietary Restrictions / Requirements</b><button type="button" class="btn-sm" onclick="aiDraftTextField('p-diet','Dietary restrictions and reason')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-diet" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea></div>
+          <div class="card"><div style="display:flex;justify-content:space-between"><b>🍽️ Nutrition Preferences / Special Diet</b><button type="button" class="btn-sm" onclick="aiDraftTextField('p-nutrition','Nutrition preferences')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-nutrition" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea><div class="modal-date-row"><div class="modal-input-wrap"><label>SADC can accommodate?</label><select class="m-select" id="p-nutr-acc"><option value="">선택</option><option>Yes</option><option>No</option><option>N/A</option></select></div></div><div style="display:flex;justify-content:space-between"><label style="font-size:11px;font-weight:700">How accommodated / alternative</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-nutr-how','Nutrition accommodation')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-nutr-how" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea></div>
         </div>
 
-        <!-- Step 4: 위험관리 + 선호도 -->
+        <!-- 4 Function / ADL -->
         <div class="pcsp-step" id="pstep-4" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">⚠️ 위험 관리 (Risk Management & Safeguards)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">위험 없으면 저장 시 자동으로 "No known risks" 기록 · 위험 여러 개면 각각 추가</div>
-            <div id="pcsp-risks-list"></div>
-            <button class="btn-sm" style="margin-top:8px" onclick="addPcspRisk()">➕ 위험 요소 추가</button>
-          </div>
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:#5856D6">❤️ 선호도 (Preferences)</div>
-              <button onclick="aiWritePCSP('prefs')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">활동, 음식, 사회화, 종교, 취미 등 · SADC 활동에 국한하지 않고 전반적 선호도 기록</div>
-            <textarea class="m-textarea" id="p-prefs" style="width:100%;min-height:80px" placeholder="좋아하는 것: Enjoys Korean music, bingo, walking, watching Korean dramas&#10;싫어하는 것: Dislikes loud environments, large groups"></textarea>
-          </div>
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:#5856D6">💪 강점 (Strengths)</div>
-              <button onclick="aiWritePCSP('strengths')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · 신체적/사회적/행동적 강점 모두 포함 · 탐색 질문: "What are things you like to do and are good at?"</div>
-            <textarea class="m-textarea" id="p-strengths" style="width:100%;min-height:70px" placeholder="예: Good communicator, advocates for her needs&#10;Friendly and enjoys socializing with other participants&#10;Independent with mobility using a cane"></textarea>
-          </div>
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:#5856D6">📌 필요 (Needs)</div>
-              <button onclick="aiWritePCSP('needs')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">'None' 불가 · SADC 참석 이유 및 높은 수준의 필요 사항 · 탐색 질문: "What do you hope to get out of SADC?"</div>
-            <textarea class="m-textarea" id="p-needs" style="width:100%;min-height:70px" placeholder="예: Socialization and peer interaction&#10;Caregiver respite during daytime hours&#10;Cognitive stimulation and structured activities"></textarea>
-          </div>
-        </div>
-
-        <!-- Step 5: 목표 + 활동 -->
-        <div class="pcsp-step" id="pstep-5" style="display:none">
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-              <div style="font-size:13px;font-weight:700;color:#5856D6">🎯 목표 (Goals & Activities — SMART)</div>
-              <button onclick="aiWritePCSP('goals')" class="btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:11px">✨ AI 작성</button>
-            </div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">Specific · Measurable · Achievable · Relevant · Time-bound · 날짜/기간 포함 필수</div>
-            <div id="pcsp-goals-list"></div>
-            <button class="btn-sm" style="margin-top:8px" onclick="addPcspGoal()">➕ 목표 추가</button>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🎨 SADC 활동 (SADC Activities)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:8px">참여자가 관심 있는 활동만 기록 · Cultural/Educational/Intellectual/Physical/Social 카테고리 포함 · 필요 지원 없으면 'none'</div>
-            <textarea class="m-textarea" id="p-sadc-act" style="width:100%;min-height:90px" placeholder="활동명 – 필요 지원 형식&#10;예: Bingo – no support needed&#10;Exercise class – staff assists with seated variations&#10;Korean cultural programs – no support needed&#10;Art class – large-print materials provided"></textarea>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🌍 지역사회 통합 활동 (Community Integration)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">관심 없으면 거절한 활동도 기록 필수 · SADC가 지원 조정 의무</div>
-            <div id="pcsp-community-list"></div>
-            <button class="btn-sm" style="margin-top:8px" onclick="addPcspCommunity()">➕ 활동 추가</button>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">💼 일/봉사 관심 (Work / Volunteer)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">지역사회 일/봉사에 대한 관심 · SADC 내 봉사도 물어볼 것</div>
-            <div class="modal-input-wrap" style="margin-bottom:10px"><label>일/봉사 관심?</label>
-              <select class="m-select" id="p-work">
-                <option>No</option>
-                <option>Yes</option>
-                <option>N/A – Participant is unable to do so</option>
-              </select>
-            </div>
-            <textarea class="m-textarea" id="p-work-desc" style="width:100%" placeholder="Yes인 경우: 관심 내용, 빈도, 시간, 지원 방법 등 상세 기술&#10;N/A인 경우: 불가 이유 상세 기술&#10;예(Yes): Interested in volunteering at local animal shelter 1 day/week, 10am-12pm. SADC staff remind participant before leaving."></textarea>
-          </div>
-        </div>
-
-        <!-- Step 6: 권리수정 + 서명 -->
-        <div class="pcsp-step" id="pstep-6" style="display:none">
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">⚖️ 권리 수정 (HCBS Final Rule Rights Modifications)</div>
-            <div style="font-size:11px;color:#8E8E93;margin-bottom:10px">진단명만으로는 수정 불가 · 수정 필요한 권리만 Yes 선택 · 시간 제한 명시 필수</div>
-            <div id="pcsp-rights-list"></div>
-          </div>
-          <div class="card">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:12px">✅ PCSP 확인 (Acknowledgement)</div>
-            <div style="font-size:11px;color:#3C3C43;line-height:1.6;margin-bottom:12px;padding:10px;background:#F2F2F7;border-radius:8px">
-              I confirm that I led the person centered planning process, was offered various opportunities and choices, and was free to choose activities and services according to my goals and preferences. The information documented in this PCSP is accurate.
-            </div>
-            <div class="fg" style="margin-bottom:8px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                <div class="fl">참여자 / 법적 대리인 서명 ✍️</div>
-                <button onclick="clearPCSPSig()" style="font-size:10px;color:#FF3B30;background:none;border:none;cursor:pointer">지우기</button>
-              </div>
-              <div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none">
-                <canvas id="pcsp-sig-canvas" width="600" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas>
-                <div id="pcsp-sig-empty" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;font-size:13px;pointer-events:none;flex-direction:column;gap:4px"><div>✍️</div><div>서명하세요</div></div>
-              </div>
-            </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🧠 Capacity for Independence</div>
+            <div class="pcsp-section-note" style="margin-bottom:6px">이 부분은 걷기·식사 같은 ADL이 아니라, 참가자가 자신의 필요를 표현하고 판단하며 혼자 있을 때 안전을 유지할 수 있는지를 확인하는 항목입니다. 먼저 Yes/No를 선택하고, 설명이 필요한 경우에만 아래 칸이 나타납니다.</div>
+            <div class="pcsp-default-note"><b>중요:</b> 이 네 질문은 참가자마다 다르므로 자동 기본값을 넣지 않습니다. 실제 관찰·assessment·확인된 정보에 따라 선택하세요. No 또는 Pain/Sensory = Yes인 경우에는 짧은 키워드만 적고 <b>✨ AI 문장</b>을 눌러도 됩니다.</div>
             <div class="modal-date-row">
-              <div class="modal-input-wrap"><label>서명 날짜</label><input class="m-input" id="p-sigdate" type="date"></div>
+              <div class="modal-input-wrap"><label>Able to communicate needs?</label><div class="pcsp-help-ko"><b>무엇을 보는 질문?</b> 통증, 배고픔, 목마름, 화장실 필요, 불편함, 도움 요청 등을 말·표정·제스처 등으로 직원에게 전달할 수 있는지 봅니다. 스스로 필요한 도움을 알릴 수 있으면 Yes, 필요한 상태를 잘 표현하지 못해 직원이 관찰·추측하거나 자주 확인해야 한다면 No가 더 적절합니다.</div><select class="m-select" id="p-comm" onchange="updatePcspCapacityUI()"><option value="">선택</option><option>Yes</option><option>No</option></select></div>
+              <div class="modal-input-wrap"><label>Able to make own decisions?</label><div class="pcsp-help-ko"><b>무엇을 보는 질문?</b> 일상적인 선택, 활동 참여, 식사, 서비스와 관련된 기본적인 결정을 이해하고 자신의 선택을 표현할 수 있는지 봅니다. 복잡한 결정에는 도움을 받아도 기본 선택을 할 수 있다면 상황에 맞게 판단하세요. 지속적으로 다른 사람의 결정 지원이 필요하다면 No로 기록하고 지원 방법을 설명합니다.</div><select class="m-select" id="p-decision" onchange="updatePcspCapacityUI()"><option value="">선택</option><option>Yes</option><option>No</option></select></div>
             </div>
+            <div id="pcsp-comm-detail" style="display:none;margin:6px 0 12px"><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">If no — why / what staff support is needed</label><button type="button" class="btn-sm" onclick="aiDraftCapacityExplanation('p-comm-why','Communication limitation and staff support',this)">✨ AI 문장</button></div><div class="pcsp-help-ko">예: 질문을 단순하게 해야 함, verbal cueing 필요, 직원이 통증/화장실 필요를 주기적으로 확인해야 함, 가족/대표의 도움이 필요함 등 실제로 확인된 지원을 짧게 적으세요.</div><textarea class="m-textarea" id="p-comm-why" style="width:100%" placeholder="예: needs simple questions and verbal cueing" oninput="pcspMarkConfirmFields()"></textarea></div>
+            <div id="pcsp-decision-detail" style="display:none;margin:6px 0 12px"><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">If no — why / what decision support is needed</label><button type="button" class="btn-sm" onclick="aiDraftCapacityExplanation('p-decision-why','Decision-making limitation and support',this)">✨ AI 문장</button></div><div class="pcsp-help-ko">예: 여러 선택지를 한꺼번에 주기보다 2~3개의 간단한 선택지를 제시함, 설명을 반복함, 중요한 결정은 대표/가족의 지원을 받음 등 실제 지원 방법을 적습니다.</div><textarea class="m-textarea" id="p-decision-why" style="width:100%" placeholder="예: benefits from simple choices and staff guidance" oninput="pcspMarkConfirmFields()"></textarea></div>
+            <div class="modal-date-row">
+              <div class="modal-input-wrap"><label>Can be left alone / unsupervised?</label><div class="pcsp-help-ko"><b>무엇을 보는 질문?</b> 직원의 직접적인 감독 없이 혼자 있어도 안전한지를 확인합니다. 배회, 낙상 위험, 판단력 저하, 응급상황 대처 어려움 등으로 정기적 관찰이나 감독이 필요하면 No를 선택하고 이유와 필요한 supervision을 적습니다.</div><select class="m-select" id="p-alone" onchange="updatePcspCapacityUI()"><option value="">선택</option><option>Yes</option><option>No</option></select></div>
+              <div class="modal-input-wrap"><label>Pain / sensory needs?</label><div class="pcsp-help-ko"><b>무엇을 보는 질문?</b> 현재 통증 또는 소리·온도·빛·촉감 등에 대한 민감성, toileting 필요를 인지하기 어려운 문제처럼 특별한 감각/인지 지원이 필요한지 봅니다. 해당 필요가 있으면 Yes를 선택하고 어떤 도움을 제공하는지 설명합니다.</div><select class="m-select" id="p-pain" onchange="updatePcspCapacityUI()"><option value="">선택</option><option>No</option><option>Yes</option></select></div>
+            </div>
+            <div id="pcsp-alone-detail" style="display:none;margin:6px 0 12px"><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">If no — why / supervision or safety support</label><button type="button" class="btn-sm" onclick="aiDraftCapacityExplanation('p-alone-why','Unsupervised limitation and staff support',this)">✨ AI 문장</button></div><div class="pcsp-help-ko">왜 혼자 두기 어려운지와 직원이 어떻게 안전을 확인하는지 적습니다. 예: periodic supervision, close observation during mobility, reminders, redirection 등. 확인되지 않은 진단이나 사건은 적지 않습니다.</div><textarea class="m-textarea" id="p-alone-why" style="width:100%" placeholder="예: requires supervision for safety" oninput="pcspMarkConfirmFields()"></textarea></div>
+            <div id="pcsp-pain-detail" style="display:none;margin:6px 0 12px"><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-size:11px;font-weight:700">If yes — pain/sensory need and assistance</label><button type="button" class="btn-sm" onclick="aiDraftCapacityExplanation('p-pain-desc','Pain or sensory needs and assistance',this)">✨ AI 문장</button></div><div class="pcsp-help-ko">통증/감각 필요가 무엇인지, 직원이 어떤 식으로 관찰·도움·환경 조정을 제공하는지 적습니다. 예: monitor discomfort, provide quiet area, verbal reminders, toileting prompts 등.</div><textarea class="m-textarea" id="p-pain-desc" style="width:100%" placeholder="예: noise sensitivity; quiet area as needed" oninput="pcspMarkConfirmFields()"></textarea></div>
           </div>
-          <div class="card" style="background:#EDE9FE">
-            <div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">📄 작성 요약</div>
-            <div id="pcsp-summary" style="font-size:12px;color:#3C3C43;line-height:1.8"></div>
-          </div>
-          <input type="hidden" id="pcsp-edit-id">
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <button class="mbt mbt-cancel" onclick="pcspPrev()">← 이전</button>
-            <button id="pcsp-save-btn" class="mbt mbt-save" onclick="savePCSPFull()">💾 PCSP 저장 (Drive)</button>
-          </div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🚶 Functional Assessment / Staff Intervention</div><div class="pcsp-help-ko">Mobility, Transfers, Toileting, Continence, Eating 각각에 대해 센터에서 실제로 필요한 도움 수준을 선택합니다. Independent는 직원의 직접 도움이 필요 없는 경우이고, Supervision/Minimal/Moderate/Total Hands-On은 필요한 실제 지원 수준에 맞춰 선택합니다. 지팡이, walker, wheelchair, continence supplies 등 사용하는 보조기기가 있으면 오른쪽에 적습니다.</div><div id="pcsp-adl-list"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:4px">🤝 Personal Care Preference</div><div class="pcsp-help-ko">화장실, 개인위생 등 개인적인 도움을 받을 때 특정 성별의 직원, 특정 방식 등 참가자가 선호하는 것이 있는지 확인합니다. 선호가 실제로 확인된 경우에만 Yes로 하고 내용을 적습니다. 센터가 그 선호를 제공할 수 없는 경우에는 참가자에게 알리고 다른 선택권을 제공했는지도 기록합니다.</div><div class="modal-date-row"><div class="modal-input-wrap"><label>Preference of who provides personal care?</label><select class="m-select" id="p-carepref"><option value="">선택</option><option>No</option><option>Yes</option></select></div><div class="modal-input-wrap"><label>Can SADC accommodate?</label><select class="m-select" id="p-carepref-acc"><option value="">선택</option><option>N/A</option><option>Yes</option><option>No</option></select></div></div><div style="display:flex;justify-content:space-between"><label style="font-size:11px;font-weight:700">Preference details</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-carepref-desc','Personal care preference details')">✨ AI 문장</button></div><textarea class="m-textarea" id="p-carepref-desc" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea><div class="modal-input-wrap"><label>If not accommodated, participant notified?</label><select class="m-select" id="p-carepref-notified"><option value="">선택</option><option>N/A</option><option>Yes</option><option>No</option></select></div></div>
         </div>
 
-        <!-- 이전/다음 버튼 -->
-        <div id="pcsp-nav" style="display:flex;gap:8px;margin-top:12px">
-          <button class="mbt mbt-cancel" id="pcsp-prev-btn" onclick="pcspPrev()" style="visibility:hidden">← 이전</button>
-          <button class="mbt mbt-save" id="pcsp-next-btn" onclick="pcspNext()">다음 →</button>
+        <!-- 5 What Matters -->
+        <div class="pcsp-step" id="pstep-5" style="display:none">
+          <div class="card" style="background:#F4F0FF"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:14px;font-weight:800;color:#5856D6">❤️ What Matters TO / FOR Me</div><div class="pcsp-section-note">Claude는 AUTH·건강·선택된 활동 등 확인된 사실만 사용합니다. 모르는 개인 선호는 노란색 “CONFIRM WITH PARTICIPANT”로 남깁니다.</div></div><button id="pcsp-ai-pc-btn" type="button" class="btn-sm" onclick="aiDraftPersonCentered()">✨ 이 섹션 전체 작성</button></div></div>
+          <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">What is important TO the participant?</div><div class="pcsp-section-note">참가자가 “내 생활에서 중요하다”고 직접 느끼는 것을 적습니다. 좋아하는 사람·일상·활동·관계·선택권·문화적 요소 등이 포함될 수 있습니다. 진단만 보고 추측하지 말고, 실제 대화나 확인된 활동 정보를 사용하세요.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-importantTo','What is important TO the participant?')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-importantTo" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">What is important FOR the participant?</div><div class="pcsp-section-note">참가자가 원하는 삶을 안전하게 유지하기 위해 필요한 건강·안전·지원 요소를 적습니다. 예: medication support, supervision, transportation, dietary support, communication assistance. AUTH·assessment 등 확인된 자료를 활용할 수 있습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-importantFor','What is important FOR the participant?')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-importantFor" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Strengths / abilities</div><div class="pcsp-section-note">참가자가 잘하는 것과 스스로 할 수 있는 능력을 적습니다. 예: 자신의 요구를 말함, 독립적으로 식사함, 그룹 활동에 잘 참여함, 다른 사람과 관계를 형성함 등 실제 관찰된 강점을 기록합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-strengthsAbilities','Strengths / abilities')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-strengthsAbilities" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Interests</div><div class="pcsp-section-note">참가자가 관심을 보이거나 실제로 참여하는 활동을 적습니다. SADC에서 선택한 Breakfast/Lunch/Bingo, 미술, 음악, 노래방, 당구, 보드게임 등의 실제 참여 정보를 Claude가 참고할 수 있습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-interests','Interests')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-interests" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Personal preferences</div><div class="pcsp-section-note">음식, 활동, 시간대, 사람과의 상호작용, 조용한 환경 등 참가자의 개인적인 선호를 기록합니다. 실제로 확인되지 않은 선호는 AI가 진단이나 나이만 보고 만들면 안 됩니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-personalPreferences','Personal preferences')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-personalPreferences" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Preferences regarding services</div><div class="pcsp-section-note">SADC 참석 일정, 서비스 제공 방식, 도움을 받는 방법 등 참가자가 선호하는 서비스 방식을 적습니다. AUTH의 승인 내용은 사실 자료로 사용할 수 있지만 “선호” 자체는 참가자 확인이 필요합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-servicePreferences','Preferences regarding services')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-servicePreferences" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Preferences regarding staff</div><div class="pcsp-section-note">도움을 제공하는 직원과 관련해 참가자가 실제로 표현한 선호를 적습니다. 예: Korean-speaking staff, female staff for personal care 등. 확인된 선호가 없으면 임의로 만들지 않습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-staffPreferences','Preferences regarding staff')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-staffPreferences" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Preferences regarding setting</div><div class="pcsp-section-note">센터 환경과 관련된 실제 선호를 적습니다. 예: 조용한 공간, 소규모 그룹, 특정 좌석, 밝기/소음 조절 등. 특별한 선호가 확인되지 않았다면 추측하지 않습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-settingPreferences','Preferences regarding setting')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-settingPreferences" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Medical needs</div><div class="pcsp-section-note">AUTH, 진단, 약물, allergy, diet, assessment에서 확인된 의료·건강 지원 필요를 요약합니다. 새로운 진단을 만들지 않고 이미 확인된 정보만 사용합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-medicalNeeds','Medical needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-medicalNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Behavioral / support needs</div><div class="pcsp-section-note">인지 저하, cueing, redirection, supervision, 반복 설명 등 실제로 필요한 행동·인지 지원을 적습니다. Capacity/ADL에서 선택한 내용과 연결하면 Claude가 문장을 정리할 수 있습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-behavioralNeeds','Behavioral / support needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-behavioralNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Social relationship needs</div><div class="pcsp-section-note">다른 사람과의 상호작용, 그룹 참여, 외로움 감소, 관계 유지 등 사회적 지원 필요를 적습니다. 실제 참여 모습이나 확인된 목표가 있으면 그 내용을 사용합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-socialNeeds','Social relationship needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-socialNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Community participation needs</div><div class="pcsp-section-note">센터 밖 지역사회 활동에 참여하기 위해 필요한 지원을 적습니다. 동행, 일정 계획, 접근성, 안전 감독, 교통 등 실제 필요한 부분을 기록합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-communityNeeds','Community participation needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-communityNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Transportation needs</div><div class="pcsp-section-note">센터 출퇴근 및 지역사회 활동 이동과 관련된 지원을 적습니다. AUTH/멤버 정보의 transportation 내용을 우선 사용하고, 필요한 assistance가 있으면 함께 기록합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-transportationNeeds','Transportation needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-transportationNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Housing preferences</div><div class="pcsp-section-note">현재 거주 형태와 별개로 참가자가 어디에서 누구와 살고 싶어 하는지 등 주거 관련 선호를 적는 칸입니다. 실제로 확인된 내용이 없다면 AI가 임의로 작성하지 않습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-housingPreferences','Housing preferences')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-housingPreferences" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Cultural needs/preferences</div><div class="pcsp-section-note">음식, 종교·전통, 생활습관 등 서비스에 영향을 주는 문화적 선호가 실제로 확인된 경우 기록합니다. 이름, 언어, 인종 등을 근거로 AI가 문화적 선호를 추측하면 안 됩니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-culturalNeeds','Cultural needs/preferences')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-culturalNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Linguistic needs</div><div class="pcsp-section-note">참가자가 서비스를 이해하고 의사를 표현하는 데 필요한 언어 지원을 적습니다. 예: Korean-speaking staff, translated materials, simple English 등 실제 확인된 내용을 사용합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-linguisticNeeds','Linguistic needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-linguisticNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:13px;font-weight:700;color:#5856D6">Communication needs</div><div class="pcsp-section-note">참가자가 편하게 의사를 표현하도록 필요한 방법을 적습니다. 예: 천천히 질문하기, 짧고 쉬운 문장, 반복 설명, visual cue, hearing assistance 등 실제 필요를 기록합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftTextField('p-pc-communicationNeeds','Communication needs')">✨ AI 작성</button></div><textarea class="m-textarea" id="p-pc-communicationNeeds" style="width:100%;min-height:72px" oninput="pcspMarkConfirmFields()"></textarea></div>
         </div>
+
+        <!-- 6 Risks -->
+        <div class="pcsp-step" id="pstep-6" style="display:none"><div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">⚠️ Risk Management and Safeguards</div><div class="pcsp-section-note">실제로 확인된 Risk만 직원이 먼저 입력하세요. Claude는 그 Risk의 문장만 보조하며 모르는 과거 사건/trigger는 만들지 않습니다.</div><div id="pcsp-risks-list"></div><button type="button" class="btn-sm" onclick="addPcspRisk()">➕ Risk 추가</button></div></div>
+
+        <!-- 7 Goals -->
+        <div class="pcsp-step" id="pstep-7" style="display:none"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:700;color:#5856D6">🎯 Goals & Supports</div><div class="pcsp-section-note">Goal / Outcome / Target Date / Frequency / Natural Support / Paid Support / Staff Responsibility / Review Method까지 한 번에 관리합니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftGoals()">✨ Claude Goal 초안</button></div><div id="pcsp-goals-list"></div><button type="button" class="btn-sm" onclick="addPcspGoal()">➕ 빈 Goal 추가</button></div></div>
+
+        <!-- 8 Activities -->
+        <div class="pcsp-step" id="pstep-8" style="display:none">
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">🎨 SADC/SADS Activities</div><div class="pcsp-section-note">신규 PCSP에는 센터의 일반적인 일상활동인 Breakfast, Lunch, Bingo가 기본 선택됩니다. 실제로 참여하지 않는 항목은 눌러서 해제하고, 미술·음악·노래방·당구 등 추가 활동을 선택하세요. 각 활동의 support 수준도 실제 상황에 맞게 수정하면 PDF 표가 자동 생성됩니다.</div><div id="pcsp-sadc-chips"></div><div class="modal-date-row"><div class="modal-input-wrap"><label>기타 활동 직접 추가</label><input class="m-input" id="p-sadc-custom" placeholder="Activity name"></div><div style="display:flex;align-items:flex-end"><button type="button" class="btn-sm" onclick="addCustomSadcActivity()">➕ 추가</button></div></div><div class="pcsp-chip-label">Selected activities</div><div id="pcsp-sadc-selected"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">🌍 Community Integration</div><div class="pcsp-section-note">실제 관심 활동을 먼저 입력한 후 AI 문장 버튼으로 Details/Supports를 작성할 수 있습니다.</div><div id="pcsp-community-list"></div><button type="button" class="btn-sm" onclick="addPcspCommunity()">➕ Community Activity 추가</button></div>
+          <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:13px;font-weight:700;color:#5856D6">💼 Work / Volunteer</div><div class="pcsp-section-note">관심 여부는 반드시 사람이 선택하고, 문장형 설명은 Claude가 도울 수 있습니다.</div></div><button type="button" class="btn-sm" onclick="aiDraftWorkVolunteer()">✨ AI 작성</button></div><div class="modal-input-wrap"><label>Interest</label><select class="m-select" id="p-work-interest"><option value="">선택</option><option value="work">Yes – Work Only</option><option value="volunteer">Yes – Volunteer Only</option><option value="both">Yes – Work & Volunteer</option><option value="no">No – Not Interested</option><option value="na">N/A – Participant unable</option></select></div><textarea class="m-textarea" id="p-work-opportunity" style="width:100%" placeholder="Interest / opportunity" oninput="pcspMarkConfirmFields()"></textarea><input class="m-input" id="p-work-frequency" placeholder="Frequency / schedule"><textarea class="m-textarea" id="p-work-support" style="width:100%" placeholder="Support needed / provided" oninput="pcspMarkConfirmFields()"></textarea><input class="m-input" id="p-work-transport" placeholder="Transportation"><textarea class="m-textarea" id="p-work-unable" style="width:100%" placeholder="If N/A, reason unable" oninput="pcspMarkConfirmFields()"></textarea></div>
+        </div>
+
+        <!-- 9 Rights + Review -->
+        <div class="pcsp-step" id="pstep-9" style="display:none">
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">⚖️ Modifications to Participant Rights</div><div class="pcsp-section-note">Yes인 경우 diagnosis/condition, prior positive interventions, data review method, timeframe/limits, no-harm assurance를 모두 별도로 요구합니다. Claude는 입력된 사실의 문장 정리만 합니다.</div><div id="pcsp-rights-list"></div></div>
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6">🔄 Review / Revision</div><div class="modal-date-row"><div class="modal-input-wrap"><label>Previous PCSP Date</label><input type="date" class="m-input" id="p-review-prev"></div><div class="modal-input-wrap"><label>Next Review Due</label><input class="m-input" value="기본 탭의 Next Review Due와 동일" disabled></div></div><div style="display:flex;justify-content:space-between"><label style="font-size:11px;font-weight:700">Reason for Revision</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-review-reason','Reason for PCSP revision')">✨ AI 문장정리</button></div><textarea class="m-textarea" id="p-review-reason" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea><div style="display:flex;justify-content:space-between"><label style="font-size:11px;font-weight:700">Changes since last PCSP</label><button type="button" class="btn-sm" onclick="aiDraftTextField('p-review-changes','Changes since last PCSP')">✨ AI 문장정리</button></div><textarea class="m-textarea" id="p-review-changes" style="width:100%" oninput="pcspMarkConfirmFields()"></textarea></div>
+        </div>
+
+        <!-- 10 Signature -->
+        <div class="pcsp-step" id="pstep-10" style="display:none">
+          <div class="card"><div style="font-size:13px;font-weight:700;color:#5856D6;margin-bottom:8px">✅ PCSP Acknowledgement</div><div style="font-size:11px;line-height:1.6;background:#F2F2F7;border-radius:8px;padding:10px">I agree with what is written in this person centered service plan and acknowledge that I, the participant, lead the person centered planning process. I understand my rights and/or I have someone I trust who can help me with them. This includes the right to integrate with and be a part of my community, separate from the Social Adult Day Care and Social Adult Day Services I am choosing to receive. I acknowledge that I was offered options to integrate with and be part of my community, and my decisions on goals or activities related to this are documented in this plan. I understand that my plan will be reviewed regularly, that I can ask for it to be reviewed sooner, and whom to speak to about having my plan reviewed and updated. I agree to this plan being shared with the people that need it to provide my services.</div></div>
+          <div class="card"><div style="display:flex;justify-content:space-between"><b>Participant / Designated Representative Signature</b><button type="button" onclick="clearPCSPSig()" style="font-size:10px;color:#FF3B30;background:none;border:none">지우기</button></div><div style="position:relative;border:1.5px solid #E5E5EA;border-radius:10px;overflow:hidden;background:#FAFAFA;touch-action:none;margin-top:7px"><canvas id="pcsp-sig-canvas" width="600" height="120" style="width:100%;height:120px;display:block;cursor:crosshair"></canvas><div id="pcsp-sig-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#C7C7CC;pointer-events:none">✍️ 서명하세요</div></div><div class="modal-input-wrap"><label>Signature Date</label><input type="date" class="m-input" id="p-sigdate"></div></div>
+          <div class="card" style="background:#EDE9FE"><div style="font-size:13px;font-weight:700;color:#5856D6">📄 최종 확인</div><div id="pcsp-summary" style="font-size:12px;line-height:1.7;margin-top:6px"></div></div>
+          <div style="display:flex;gap:8px"><button class="mbt mbt-cancel" onclick="pcspPrev()">← 이전</button><button id="pcsp-save-btn" class="mbt mbt-save" onclick="savePCSPFull()">💾 PCSP 저장 (Drive)</button></div>
+        </div>
+
+        <div id="pcsp-nav" style="display:flex;gap:8px;margin-top:12px"><button class="mbt mbt-cancel" id="pcsp-prev-btn" onclick="pcspPrev()" style="visibility:hidden">← 이전</button><button class="mbt mbt-save" id="pcsp-next-btn" onclick="pcspNext()">다음 →</button></div>
       </div>
 
     </div>
@@ -1490,6 +1312,7 @@ function showApp(user){
 // ── 앱 시작 시 전체 데이터 로드 (이 함수가 없어서 아무것도 안 불러와졌던 버그) ──
 function initData(){
   loadAuditFromSheets();
+  loadAuditGeneratedPDFs(false);
   loadOpStaffFromSheets();
   loadGRfromSheets();
   loadFDfromSheets();
@@ -1540,7 +1363,7 @@ function goTab(tab,el){
   if(panel)panel.classList.add('active');
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   if(el)el.classList.add('active');
-  if(tab==='audit')renderAudit();
+  if(tab==='audit'){renderAudit();loadAuditGeneratedPDFs(false);}
   if(tab==='forms'){loadFormsMemberDropdown();renderPCSPList();loadPCSPFromSheets();}
   if(tab==='staff')loadOpStaffFromSheets();
   if(tab==='grievance')loadGRfromSheets();
@@ -1640,7 +1463,7 @@ function renderAudit(){
     html+='<div class="audit-item">'
       +'<div class="audit-check'+(done?' done':'')+'" onclick="toggleAudit(\''+item.id+'\')">'+(done?'✓':'')+'</div>'
       +'<div class="audit-label'+(done?' done':'')+'">'+item.label+'</div>'
-      +(item.link?'<a href="'+item.link+'" style="font-size:10px;color:#5856D6;text-decoration:none">→ 이동</a>':'')
+      +(item.id==='a2'?'<button class="btn-sm" onclick="showAuditPCSPDocs()" style="font-size:10px;padding:4px 8px">📄 PDF 목록</button>':(item.link?'<a href="'+item.link+'" style="font-size:10px;color:#5856D6;text-decoration:none">→ 이동</a>':''))
       +'</div>';
   });
   html+='</div>';
@@ -1652,14 +1475,93 @@ function toggleAudit(id){
   renderAudit();
   apiCall({action:'upsert',sheet:'settings',key:'Key',value:'audit_done',data:{'Key':'audit_done','Value':JSON.stringify(AUDIT_DONE),'수정시각':new Date().toISOString()}}).catch(function(e){console.log('Audit 저장 실패:',e);});
 }
-
 async function loadAuditFromSheets(){
-  try{var res=await apiGet({action:'read',sheet:'settings'});var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='audit_done';});AUDIT_DONE=row&&row['Value']?JSON.parse(String(row['Value'])):{};}catch(e){AUDIT_DONE={};console.log('Audit 로드 실패:',e);}renderAudit();
+  try{
+    var res=await apiGet({action:'read',sheet:'settings'});
+    var rows=(res&&res.ok&&res.data)?res.data:[];
+    var row=rows.find(function(r){return String(r['Key']||'')==='audit_done';});
+    AUDIT_DONE=row&&row['Value']?JSON.parse(String(row['Value'])):{};
+  }catch(e){AUDIT_DONE={};console.log('Audit 로드 실패:',e);}
+  renderAudit();
+}
+
+// ── AUDIT: Drive에 생성된 PDF 바로 보기/인쇄 ──────────────
+var AUDIT_PDF_ROWS=[];
+var _auditPdfMode='pcsp';
+var _auditPdfLoadedAt=0;
+
+function setAuditPdfMode(mode,el){
+  _auditPdfMode=mode;
+  ['audit-pdf-mode-pcsp','audit-pdf-mode-all'].forEach(function(id){var b=document.getElementById(id);if(b)b.classList.remove('active');});
+  if(el)el.classList.add('active');
+  renderAuditGeneratedPDFs();
+}
+
+function showAuditPCSPDocs(){
+  _auditPdfMode='pcsp';
+  var p=document.getElementById('audit-pdf-mode-pcsp'),a=document.getElementById('audit-pdf-mode-all');
+  if(p)p.classList.add('active');if(a)a.classList.remove('active');
+  renderAuditGeneratedPDFs();
+  var box=document.getElementById('audit-generated-pdfs');if(box)box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function loadAuditGeneratedPDFs(force){
+  if(!force && _auditPdfLoadedAt && Date.now()-_auditPdfLoadedAt<15000){renderAuditGeneratedPDFs();return Promise.resolve(AUDIT_PDF_ROWS);}
+  var listEl=document.getElementById('audit-pdf-list');
+  if(listEl)listEl.innerHTML='<div class="empty-msg" style="padding:10px">PDF 목록 불러오는 중...</div>';
+  return apiGet({action:'read',sheet:'PDFLog'}).then(function(res){
+    if(!res||!res.ok||!res.data)throw new Error((res&&res.error)||'PDFLog 로드 실패');
+    // PDFLog는 append 방식이므로 뒤쪽 행이 최신이다. 같은 멤버/문서종류는 최신본만 표시한다.
+    var seen={};var rows=[];
+    res.data.slice().reverse().forEach(function(r){
+      var url=String(r['Drive링크']||'');if(!url)return;
+      var type=String(r['파일종류']||'');
+      var mid=String(r['멤버ID']||'');
+      var name=String(r['한글이름']||'');
+      var key=(mid||name)+'|'+type;
+      if(seen[key])return;seen[key]=true;
+      rows.push({memberId:mid,name:name,type:type,fileName:String(r['파일명']||''),url:url,savedAt:String(r['저장일시']||''),author:String(r['작성자']||'')});
+    });
+    AUDIT_PDF_ROWS=rows;_auditPdfLoadedAt=Date.now();renderAuditGeneratedPDFs();return rows;
+  }).catch(function(e){
+    console.error('Audit PDFLog load error:',e);
+    if(listEl)listEl.innerHTML='<div class="empty-msg" style="padding:10px;color:#FF3B30">PDF 목록 로드 실패: '+escapeAuditText(e.message)+'</div>';
+    return [];
+  });
+}
+
+function escapeAuditText(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function renderAuditGeneratedPDFs(){
+  var el=document.getElementById('audit-pdf-list');if(!el)return;
+  var q=((document.getElementById('audit-pdf-search')||{}).value||'').trim().toLowerCase();
+  var rows=AUDIT_PDF_ROWS.filter(function(r){
+    if(_auditPdfMode==='pcsp' && r.type!=='PCSP_Final')return false;
+    if(!q)return true;
+    return (r.name+' '+r.memberId+' '+r.fileName+' '+r.type).toLowerCase().includes(q);
+  });
+  var sum=document.getElementById('audit-pdf-summary');if(sum)sum.textContent=(_auditPdfMode==='pcsp'?'최신 PCSP PDF ':'최신 생성 PDF ')+rows.length+'건';
+  if(!rows.length){el.innerHTML='<div class="empty-msg" style="padding:10px">저장된 '+(_auditPdfMode==='pcsp'?'PCSP ':'')+'PDF가 없습니다.</div>';return;}
+  var html='';
+  rows.forEach(function(r){
+    var ix=AUDIT_PDF_ROWS.indexOf(r);
+    html+='<div class="log-card" style="padding:9px 10px;margin-bottom:6px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0">'
+      +'<div style="font-size:12px;font-weight:800">'+escapeAuditText(r.name||r.memberId||'문서')+'</div>'
+      +'<div style="font-size:10px;color:#8E8E93;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeAuditText(r.type)+' · '+escapeAuditText(r.savedAt||r.fileName)+'</div>'
+      +'</div><button class="btn-sm" onclick="openAuditGeneratedPDF('+ix+')" style="background:#E1F5EE;color:#0F6E56;border-color:#A7DCCB;flex-shrink:0">📄 열기 / 인쇄</button></div></div>';
+  });
+  el.innerHTML=html;
+}
+
+function openAuditGeneratedPDF(index){
+  var r=AUDIT_PDF_ROWS[index];if(!r||!r.url){alert('PDF 링크를 찾을 수 없습니다.');return;}
+  var w=window.open(r.url,'_blank');if(!w)alert('팝업을 허용해주세요.');
 }
 
 // ── GRIEVANCE ────────────────────────────────────────────
 var GR_LIST = [];
-function saveGRStorage(){}
+function saveGRStorage(){ /* 중앙 저장소 사용 */ }
 function loadGRfromSheets(){
   apiGet({action:'read',sheet:'grievance'}).then(function(res){
     if(res&&res.ok&&res.data&&res.data.length){
@@ -1971,7 +1873,7 @@ function deleteGr(id){
 
 // ── FIRE DRILL ────────────────────────────────────────────
 var FD_LIST = [];
-function saveFDStorage(){}
+function saveFDStorage(){ /* 중앙 저장소 사용 */ }
 function loadFDfromSheets(){
   apiGet({action:'read',sheet:'firedrill'}).then(function(res){
     if(res&&res.ok&&res.data&&res.data.length){
@@ -2109,7 +2011,7 @@ function deleteFD(id){
 
 // ── TEMPERATURE LOG ───────────────────────────────────────
 var TEMP_LIST = [];
-function saveTempStorage(){}
+function saveTempStorage(){ /* 중앙 저장소 사용 */ }
 function loadTempfromSheets(){
   apiGet({action:'read',sheet:'templog'}).then(function(res){
     if(res&&res.ok&&res.data&&res.data.length){
@@ -2204,7 +2106,7 @@ var DOCS_LIST = JSON.parse('['+
   '{"id":"doc_9","name":"Elevator Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""},' +
   '{"id":"doc_10","name":"Fire Inspection","cat":"시설","expiry":"2026-12-31","link":"","note":""}' +
 ']');
-function saveDocsStorage(){}
+function saveDocsStorage(){ /* 중앙 저장소 사용 */ }
 function loadDocsfromSheets(){
   apiGet({action:'read',sheet:'docs'}).then(function(res){
     if(res&&res.ok&&res.data&&res.data.length){
@@ -2288,7 +2190,7 @@ function deleteDoc(id){
 
 // ── ACTIVITY CALENDAR ─────────────────────────────────────
 var ACT_LIST = [];
-function saveActStorage(){}
+function saveActStorage(){ /* 중앙 저장소 사용 */ }
 function loadActfromSheets(){
   apiGet({action:'read',sheet:'op_activity'}).then(function(res){
     if(res&&res.ok&&res.data&&res.data.length){
@@ -2363,7 +2265,7 @@ function deleteAct(id){
   renderActivityList();
 }
 
-// ── PCSP 7단계 ───────────────────────────────────────────
+// ── PCSP v2 ──────────────────────────────────────────────
 
 
 // ── Staff (간소화) ────────────────────────────────────────
