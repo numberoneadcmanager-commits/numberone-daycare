@@ -86,6 +86,20 @@ function pcspMarkConfirmFields(){
 function pcspAutoHeight(el){ if(!el)return; el.style.height='auto'; el.style.height=Math.max(el.scrollHeight,60)+'px'; }
 function pcspToday(){ return new Date().toLocaleDateString('sv-SE'); }
 function pcspOneYearFromToday(){ var d=new Date(); d.setFullYear(d.getFullYear()+1); return d.toISOString().slice(0,10); }
+var PCSP_CENTER_LOCATION='Number One Adult Daycare, 161-22 Northern Blvd 1FL, Flushing, NY 11358';
+function applyPCSPCommonDefaults(){
+  // 센터에서 거의 매번 동일하게 적용되는 운영 기본값만 자동 입력한다.
+  // 참가자 개인의 기능/선호/권리 판단은 자동으로 선택하지 않는다.
+  if(!pcspVal('p-planning-participated'))pcspSet('p-planning-participated','Yes');
+  if(!pcspVal('p-meeting-date'))pcspSet('p-meeting-date',pcspVal('p-wdate')||pcspToday());
+  if(!pcspVal('p-meeting-location'))pcspSet('p-meeting-location',PCSP_CENTER_LOCATION);
+  if(!pcspVal('p-planning-notes'))pcspSet('p-planning-notes','Participant participated in the person-centered planning process and was given opportunities to express preferences, ask questions, and make choices regarding services, activities, and supports.');
+  ['Breakfast','Lunch','Bingo'].forEach(function(activity){
+    if(sadcFind(activity)>=0)return;
+    var preset=PCSP_SADC_PRESETS.find(function(x){return x.activity===activity;});
+    _pcspSadcActivities.push({activity:activity,category:preset?preset.category:'Daily',neededSupport:'No additional support needed',supportDetails:''});
+  });
+}
 function _pcspPdfKey(v){ return String(v||'').trim().toUpperCase(); }
 
 // ══════════════════════════════════════════════════════════════
@@ -248,6 +262,7 @@ async function selectPCSPMember(m){
   if(m['성별'])pcspSet('p-gender',String(m['성별']).toLowerCase().indexOf('m')===0?'Male':'Female');
   String(m['출석요일']||'').split(',').map(function(d){return d.trim();}).filter(Boolean).forEach(function(d){_pcspDays.add(d);});
   pcspSet('p-review-prev','');
+  applyPCSPCommonDefaults();
   initPCSPDynamicUI();pcspGoStep(0);
   await loadPCSPAuthForMember(_pcspMemberId,true);
 }
@@ -457,7 +472,7 @@ function openPCSPForm(id){
   resetPCSPState();clearPCSPFormFields();pcspSet('pcsp-edit-id',id||'');
   pcspSet('p-writer',_currentUser?(_currentUser.name||''):'');pcspSet('p-wdate',pcspToday());pcspSet('p-nextdate',pcspOneYearFromToday());pcspSet('p-type','Initial');pcspSet('p-sigdate',pcspToday());
   var p=id?PCSP_LIST.find(function(x){return x.id===id;}):null;
-  if(p&&p.version===2){restorePCSPv2(p);}else{_pcspRights=newPCSPRights();initPCSPDynamicUI();pcspGoStep(0);}
+  if(p&&p.version===2){restorePCSPv2(p);}else{_pcspRights=newPCSPRights();applyPCSPCommonDefaults();initPCSPDynamicUI();pcspGoStep(0);}
 }
 function restorePCSPv2(p){
   _pcspMemberId=String(p.memberId||'');pcspSet('p-member-id',_pcspMemberId);
