@@ -490,7 +490,12 @@ async function geocodeAllMemberAddresses() {
   try {
     var res = await SheetsAPI.geocodeAllMembers();
     if (res && res.ok) {
-      if (statusEl) statusEl.textContent = '✅ ' + (res.data && res.data.updated || 0) + '명 좌표 변환 완료!';
+      if (statusEl) {
+        var gd = res.data || {};
+        statusEl.textContent = '✅ ' + (gd.updated || 0) + '명 좌표 변환 완료'
+          + (gd.skipped ? ' · 기존좌표 ' + gd.skipped + '명 유지' : '')
+          + (gd.failed ? ' · ⚠️ 실패 ' + gd.failed + '명' : '');
+      }
       if (typeof loadFromSheets === 'function') await loadFromSheets();
       alert('좌표 변환 완료!');
     } else {
@@ -503,13 +508,19 @@ async function geocodeAllMemberAddresses() {
 
 async function _ensureCenterCoord() {
   if (window._centerCoord) return window._centerCoord;
+  window._centerCoordError = '';
   try {
     var res = await SheetsAPI.geocodeCenter();
-    if (res && res.ok && res.data && res.data.lat != null) {
-      window._centerCoord = { lat: res.data.lat, lng: res.data.lng };
+    if (res && res.ok && res.data && res.data.lat != null && res.data.lng != null) {
+      window._centerCoord = { lat: Number(res.data.lat), lng: Number(res.data.lng) };
+      return window._centerCoord;
     }
-  } catch(e) { console.log('센터 좌표 로드 실패:', e); }
-  return window._centerCoord;
+    window._centerCoordError = (res && res.data && res.data.error) || '센터 좌표 응답이 비어 있습니다.';
+  } catch(e) {
+    window._centerCoordError = e && e.message ? e.message : String(e);
+    console.log('센터 좌표 로드 실패:', e);
+  }
+  return null;
 }
 
 async function generateDispatchPlan() {
@@ -523,7 +534,7 @@ async function generateDispatchPlan() {
 
   var center = await _ensureCenterCoord();
   if (!center) {
-    statusEl.textContent = '⚠️ 센터 좌표가 없어요. 설정 탭에서 "주소 좌표 변환"을 먼저 실행해주세요.';
+    statusEl.textContent = '⚠️ 센터 좌표를 서버에서 만들지 못했어요. ' + (window._centerCoordError || 'Apps Script 최신 버전 배포를 확인해주세요.');
     return;
   }
 
