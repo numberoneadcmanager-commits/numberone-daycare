@@ -3,36 +3,16 @@
 // apps/staff_ops.js
 // ══════════════════════════════════════════════════════════
 
-var STAFF_OP = []; // Sheets가 단일 소스, localStorage는 폴백/캐시용
+var STAFF_OP = []; // Google Sheets가 단일 원본
 
 async function loadOpStaffFromSheets(){
   try {
     var res = await apiGet({ action: 'read', sheet: '스태프' });
-    if (res && res.ok && res.data && res.data.length) {
-      STAFF_OP = res.data.map(function(r){
-        var certs = [];
-        try { certs = JSON.parse(r['자격증'] || '[]'); } catch(e) {}
-        return {
-          id:      String(r['ID'] || ''),
-          nameKr:  String(r['한글이름'] || ''),
-          name:    String(r['영문이름'] || ''),
-          role:    String(r['직책'] || ''),
-          phone:   String(r['전화'] || ''),
-          email:   String(r['이메일'] || ''),
-          certs:   certs,
-          avBg:    String(r['avBg'] || '#FAECE7'),
-          avColor: String(r['avColor'] || '#993C1D'),
-        };
-      }).filter(function(s){ return s.id; });
-      localStorage.setItem('staff_data', JSON.stringify(STAFF_OP)); // 로컬 캐시 갱신
-    } else {
-      // Sheets에 없으면 기존 localStorage 캐시라도 사용
-      STAFF_OP = JSON.parse(localStorage.getItem('staff_data') || '[]');
-    }
-  } catch(e) {
-    console.log('스태프 Sheets 로드 실패:', e);
-    STAFF_OP = JSON.parse(localStorage.getItem('staff_data') || '[]');
-  }
+    STAFF_OP = (res && res.ok && res.data ? res.data : []).map(function(r){
+      var certs = []; try { certs = JSON.parse(r['자격증'] || '[]'); } catch(e) {}
+      return {id:String(r['ID']||''),nameKr:String(r['한글이름']||''),name:String(r['영문이름']||''),role:String(r['직책']||''),phone:String(r['전화']||''),email:String(r['이메일']||''),certs:certs,avBg:String(r['avBg']||'#FAECE7'),avColor:String(r['avColor']||'#993C1D')};
+    }).filter(function(x){return x.id;});
+  } catch(e) { STAFF_OP=[]; console.log('스태프 Sheets 로드 실패:', e); }
   renderOpStaff();
 }
 
@@ -176,7 +156,6 @@ async function saveStaffModal(){
     STAFF_OP.push(newStaff);
     s=newStaff;
   }
-  localStorage.setItem('staff_data',JSON.stringify(STAFF_OP));
   // Sheets 동기화 (단일 인자로 호출!)
   if(s){
     try {
@@ -195,7 +174,6 @@ async function saveStaffModal(){
 async function deleteStaff(id){
   if(!confirm('이 스태프를 삭제할까요?'))return;
   STAFF_OP=STAFF_OP.filter(function(x){return x.id!==id;});
-  localStorage.setItem('staff_data',JSON.stringify(STAFF_OP));
   try { await apiCall({action:'delete',sheet:'스태프',id:id}); } catch(e) {}
   renderOpStaff();
 }

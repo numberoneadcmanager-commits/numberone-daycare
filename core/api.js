@@ -16,16 +16,25 @@ const SheetsAPI = {
   // ── 기본 호출 ──────────────────────────────────────────────
   async get(params) {
     const qs  = new URLSearchParams(params).toString();
-    const res = await fetch(this.URL + '?' + qs);
-    return res.json();
+    const res = await fetch(this.URL + '?' + qs, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || data.ok === false) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    return data;
   },
 
   async post(body) {
     const res = await fetch(this.URL, {
       method: 'POST',
-      body:   JSON.stringify(body),
+      cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
     });
-    return res.json();
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || data.ok === false) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server save failed');
+    return data;
   },
 
   // ── 연결 테스트 ────────────────────────────────────────────

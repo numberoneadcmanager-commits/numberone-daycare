@@ -182,15 +182,7 @@ function clearSigCanvas(canvasId, emptyId, onClear) {
 
 // ── 저장소 정보 ───────────────────────────────────────────────
 function showStorageInfo() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return '저장된 데이터 없음';
-    const data = JSON.parse(raw);
-    const size = (new Blob([raw]).size / 1024).toFixed(1);
-    const dis  = Object.keys(data.memberStatus || {}).length;
-    const t    = data.savedAt ? new Date(data.savedAt).toLocaleString('ko-KR') : '알 수 없음';
-    return '마지막 저장: ' + t + ' · ' + size + 'KB · Disenrolled: ' + dis + '명';
-  } catch (e) { return '정보 없음'; }
+  return '이 기기에는 운영 데이터를 저장하지 않습니다. 데이터 원본은 Google Sheets / Drive입니다.';
 }
 
 // ── apiCall 래퍼 (SheetsAPI 위임) ────────────────────────────

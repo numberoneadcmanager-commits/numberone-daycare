@@ -6,7 +6,7 @@
 // ══════════════════════════════════════════════════════════
 // TRAINING RECORDS
 // ══════════════════════════════════════════════════════════
-var TR_SESSIONS = JSON.parse(localStorage.getItem('tr_sessions')||'[]');
+var TR_SESSIONS = [];
 var _trView = 'session';
 
 var TR_TOPICS = [
@@ -34,7 +34,7 @@ var TR_TOPICS = [
   {id:'ppd',            label:'PPD Test (TB) — Health Record',   rn:false, annual:false, expMonths:24},
 ];
 
-function saveTrStorage(){ localStorage.setItem('tr_sessions', JSON.stringify(TR_SESSIONS)); }
+function saveTrStorage() {}
 
 function loadTrFromSheets(){
   apiGet({action:'read',sheet:'training_log'}).then(function(res){
@@ -57,7 +57,7 @@ function loadTrFromSheets(){
         });
       });
       TR_SESSIONS = Object.values(sessions);
-      saveTrStorage(); renderTrSessionList();
+      renderTrSessionList();
     }
   }).catch(function(){});
 }
@@ -116,7 +116,7 @@ function openTrModal(){
   document.getElementById('tr-topics-list').innerHTML = topicHtml;
 
   // 스태프 체크박스
-  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var staff = (typeof STAFF_OP !== 'undefined' ? STAFF_OP : []);
   var staffHtml = '';
   if(!staff.length){ staffHtml='<div style="color:#8E8E93">스태프 데이터 없음 — 케어관리 앱에서 먼저 등록해주세요</div>'; }
   staff.forEach(function(s){
@@ -150,7 +150,7 @@ function saveTrSession(){
   if(needsRN && !rnName){ alert('Personal Care 관련 토픽이 선택되었습니다.\nRN 이름을 입력해주세요.'); return; }
 
   var selectedStaff = [];
-  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var staff = (typeof STAFF_OP !== 'undefined' ? STAFF_OP : []);
   staff.forEach(function(s){
     var cb = document.getElementById('trstaff-'+s.id);
     if(cb&&cb.checked) selectedStaff.push({id:s.id, name:s.nameKr||s.name});
@@ -237,15 +237,17 @@ function printTrSession(sid){
   setTimeout(function(){ w.print(); }, 800);
 }
 
-function deleteTrSession(sid){
+async function deleteTrSession(sid){
   if(!confirm('이 트레이닝 세션을 삭제할까요?'))return;
-  TR_SESSIONS = TR_SESSIONS.filter(function(s){return s.id!==sid;});
-  saveTrStorage();
-  renderTrSessionList();
+  try {
+    await apiCall({action:'deleteByField',sheet:'training_log',field:'세션ID',value:sid});
+    TR_SESSIONS = TR_SESSIONS.filter(function(s){return s.id!==sid;});
+    renderTrSessionList();
+  } catch(e) { alert('❌ 삭제 실패: ' + e.message); }
 }
 
 function loadTrStaffDropdown(){
-  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var staff = (typeof STAFF_OP !== 'undefined' ? STAFF_OP : []);
   var sel = document.getElementById('tr-staff-select');
   if(!sel)return;
   sel.innerHTML = '<option value="">— 스태프 선택 —</option>';
@@ -259,7 +261,7 @@ function renderTrStaffView(){
   var el = document.getElementById('tr-staff-detail');
   if(!sid||!el){ if(el)el.innerHTML=''; return; }
 
-  var staff = JSON.parse(localStorage.getItem('staff_data')||'[]');
+  var staff = (typeof STAFF_OP !== 'undefined' ? STAFF_OP : []);
   var s = staff.find(function(x){return x.id===sid;});
   var sName = s?(s.nameKr||s.name):sid;
 
@@ -382,7 +384,7 @@ function saveDocWithUpload(){
 function initData(){
   renderAudit();
 
-  // ── 앱 시작 시 Sheets에서 데이터 로드 (localStorage는 오프라인 fallback) ──
+  // ── 앱 시작 시 Sheets에서 데이터 로드 ──
   loadGRfromSheets();
   loadFDfromSheets();
   loadTempfromSheets();
@@ -393,9 +395,8 @@ function initData(){
   var params = new URLSearchParams(window.location.search);
   var tab = params.get('tab');
   var formType = params.get('type'); // 'Nutrition' / 'Assessment' / null(=PCSP)
-  var mid = params.get('mid') || localStorage.getItem('pcsp_prefill_mid');
+  var mid = params.get('mid');
   if(tab === 'pcsp' || tab === 'forms'){
-    localStorage.removeItem('pcsp_prefill_mid');
     // Forms 탭으로 이동
     var formsTabEl = document.querySelector('.tab[onclick*="forms"]');
     goTab('forms', formsTabEl);

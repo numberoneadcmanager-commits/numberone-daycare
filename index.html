@@ -854,14 +854,9 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         </div>
       </div>
       <div class="settings-card">
-        <div style="font-size:14px;font-weight:700;margin-bottom:6px">💾 로컬 저장소</div>
-        <div style="font-size:12px;color:#8E8E93;line-height:1.6;margin-bottom:10px">출결, 로그, 상태 데이터가 이 기기에 자동 저장됩니다.</div>
-        <div style="font-size:11px;color:#3C3C43;background:#F2F2F7;padding:8px 11px;border-radius:9px;margin-bottom:12px" id="storage-info">로딩 중...</div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button class="btn btn-secondary" style="font-size:13px;padding:10px 14px" onclick="exportData()">📥 백업 다운로드</button>
-          <button class="btn btn-secondary" style="font-size:13px;padding:10px 14px" onclick="importData()">📤 백업 불러오기</button>
-          <button class="btn" style="font-size:13px;padding:10px 14px;background:#FFEBEE;color:#900;border:none;border-radius:11px;cursor:pointer;font-weight:700" onclick="clearStorage()">🗑️ 전체 삭제</button>
-        </div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:6px">☁️ 중앙 데이터 저장</div>
+        <div style="font-size:12px;color:#8E8E93;line-height:1.6;margin-bottom:10px">운영 데이터는 이 PC/태블릿에 저장하지 않습니다. Google Sheets와 Drive가 단일 원본이며, 다른 기기에서도 동일한 최신 데이터를 불러옵니다.</div>
+        <div style="font-size:11px;color:#3C3C43;background:#F2F2F7;padding:8px 11px;border-radius:9px" id="storage-info">Google Sheets / Drive 사용</div>
       </div>
       <div class="settings-card">
         <div style="font-size:14px;font-weight:700;margin-bottom:6px">🔗 Google Sheets 연동</div>

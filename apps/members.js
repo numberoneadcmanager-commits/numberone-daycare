@@ -420,7 +420,7 @@ function renderMG() {
       <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#E6F1FB;color:#0C447C;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="openPhotoUpload('${m.id}')">📸 사진</button>
       <button style="padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#FFF3EE;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;width:100%" onclick="generateMemberChart('${m.id}')">🪪 차트</button>
     </div>
-    <a href="operations.html?tab=pcsp&mid=${m.id}" onclick="localStorage.setItem('pcsp_prefill_mid',this.getAttribute('data-mid'))" data-mid="${m.id}" style="display:block;margin-top:6px;padding:10px;background:#D85A30;color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-align:center;text-decoration:none">📋 PCSP 입력 →</a>
+    <a href="operations.html?tab=pcsp&mid=${m.id}" data-mid="${m.id}" style="display:block;margin-top:6px;padding:10px;background:#D85A30;color:#fff;border-radius:12px;font-size:13px;font-weight:700;text-align:center;text-decoration:none">📋 PCSP 입력 →</a>
     <button onclick="toggleMemberDocs('${m.id}',this)" style="width:100%;margin-top:6px;padding:9px;border-radius:10px;border:1.5px solid #E5E5EA;background:#F2F2F7;color:#3C3C43;font-size:12px;font-weight:700;cursor:pointer">📄 관련 문서 보기</button>
     <div id="docs-${m.id}" style="display:none;margin-top:8px"></div>
   </div>`).join('');
@@ -645,7 +645,6 @@ async function openPhotoUpload(mid) {
       mp[mid] = dataUrl;
       const mObj = MEMBERS.find(x => x.id === mid);
       if (mObj) mObj.photo = dataUrl;
-      saveToStorage(); // localStorage에 사진 보존 (새로고침 대비)
 
       // 2. Drive에 JSON으로 저장 (다른 기기에서 복원 가능)
       try {
@@ -1009,19 +1008,22 @@ function onHcTimeChange() {
   updateHcWeeklyTotal();
 }
 
-function getDaycareHours() {
-  var saved = localStorage.getItem('daycare_hours');
-  if (saved) { try { return JSON.parse(saved); } catch(e) {} }
-  return { start: '09:00', end: '13:00' };
+var DAYCARE_HOURS = { start:'09:00', end:'13:00' };
+function getDaycareHours() { return {start:DAYCARE_HOURS.start,end:DAYCARE_HOURS.end}; }
+async function loadDaycareHoursFromSheets() {
+  try {
+    var res=await SheetsAPI.read('settings'); var rows=(res&&res.ok&&res.data)?res.data:[];
+    var row=rows.find(function(r){return String(r['Key']||'')==='daycare_hours';});
+    if(row&&row['Value']){var v=JSON.parse(String(row['Value'])); if(v&&v.start&&v.end) DAYCARE_HOURS={start:v.start,end:v.end};}
+  } catch(e){console.log('운영시간 로드 실패:',e);} loadDaycareHoursDisplay();
 }
-
-function saveDaycareHours() {
-  var start = document.getElementById('settings-daycare-start').value || '09:00';
-  var end   = document.getElementById('settings-daycare-end').value   || '13:00';
-  localStorage.setItem('daycare_hours', JSON.stringify({ start, end }));
-  var disp = document.getElementById('settings-daycare-display');
-  if (disp) disp.textContent = start + ' ~ ' + end;
-  filterM();
+async function saveDaycareHours() {
+  var start=document.getElementById('settings-daycare-start').value||'09:00';
+  var end=document.getElementById('settings-daycare-end').value||'13:00';
+  try {
+    await SheetsAPI.upsert('settings','Key','daycare_hours',{'Key':'daycare_hours','Value':JSON.stringify({start:start,end:end}),'수정시각':new Date().toISOString()});
+    DAYCARE_HOURS={start:start,end:end}; var disp=document.getElementById('settings-daycare-display'); if(disp)disp.textContent=start+' ~ '+end; filterM();
+  } catch(e){alert('❌ 운영시간 저장 실패: '+e.message);}
 }
 
 function _timeToMin(t) {
@@ -1499,22 +1501,15 @@ async function _checkSignedBadgeInline(mid, fileType) {
 
 // PCSP 미완료/작성필요 배지 클릭 → 업무관리로 바로 이동 (기존 카드 링크와 동일 방식)
 function goToPCSPForMember(mid) {
-  localStorage.setItem('pcsp_prefill_mid', mid);
   // operations.html에서 PCSP 작성/서명 후 뒤로 돌아왔을 때 문서 상태 캐시를 새로 읽도록 표시
-  sessionStorage.setItem('pcsp_status_refresh_needed', '1');
   window.location.href = 'operations.html?tab=pcsp&mid=' + mid;
 }
 
 // 브라우저 뒤로가기는 페이지를 BFCache에서 그대로 복원할 수 있어 기존 'PCSP 작성필요' 배지가 남을 수 있음.
 // 돌아온 순간 PCSP 시트 상태를 강제로 다시 읽어 최신 배지로 갱신한다.
-window.addEventListener('pageshow', function(e){
-  if (sessionStorage.getItem('pcsp_status_refresh_needed') === '1' || e.persisted) {
-    sessionStorage.removeItem('pcsp_status_refresh_needed');
-    _docStatusLoaded = false;
-    if (typeof MEMBERS !== 'undefined' && MEMBERS && MEMBERS.length) {
-      loadDocStatusMaps(true).then(function(){ renderMG(); });
-    }
-  }
+window.addEventListener('pageshow', function(){
+  _docStatusLoaded=false;
+  if(typeof MEMBERS!=='undefined'&&MEMBERS&&MEMBERS.length){loadDocStatusMaps(true).then(function(){renderMG();});}
 });
 
 // Nutrition/Assessment 미완료 배지 클릭 → 업무관리 해당 폼으로 바로 이동

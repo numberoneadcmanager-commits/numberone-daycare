@@ -4,6 +4,8 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── Google Auth ───────────────────────────────────────────────
+try { window.localStorage.clear(); window.sessionStorage.clear(); } catch(e) {}
+
 function initGoogleAuth() {
   google.accounts.id.initialize({
     client_id: CLIENT_ID,
@@ -11,18 +13,6 @@ function initGoogleAuth() {
     auto_select: true,
     cancel_on_tap_outside: false,
   });
-
-  const saved = localStorage.getItem('noad_session');
-  if (saved) {
-    try {
-      const user = JSON.parse(saved);
-      if (user && user.email && ALLOWED_EMAILS.includes(user.email)) {
-        _currentUser = user;
-        showApp(user);
-        return;
-      }
-    } catch (e) {}
-  }
 
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
@@ -43,7 +33,6 @@ function handleCredentialResponse(response) {
     return;
   }
   _currentUser = { email, name: payload.name, picture: payload.picture };
-  localStorage.setItem('noad_session', JSON.stringify(_currentUser));
   showApp(_currentUser);
 }
 
@@ -106,7 +95,6 @@ function selectApp(type) {
 }
 
 function logout() {
-  localStorage.removeItem('noad_session');
   _currentUser = null;
   google.accounts.id.disableAutoSelect();
   location.reload();
@@ -372,7 +360,6 @@ function renderPCSPList() {
 }
 
 function openPCSPForm(mid) {
-  if (mid) localStorage.setItem('pcsp_prefill_mid', mid);
   window.location.href = 'operations.html?tab=pcsp&mid=' + (mid || '');
 }
 
@@ -532,8 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('api-url-input').value = apiUrl;
 
-  // localStorage에서 출결 외 데이터 로드
-  loadFromStorage();
+  // 운영 데이터는 로컬 저장소를 사용하지 않고 Sheets/Drive에서 로드
   setTimeout(() => { const el = document.getElementById('storage-info'); if (el) el.textContent = showStorageInfo(); }, 100);
 
   // 초기 렌더링

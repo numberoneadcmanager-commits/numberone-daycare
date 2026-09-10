@@ -421,22 +421,15 @@ var TAXI_CAPACITY = 7; // 택시도 미니밴형을 부를 수 있어서 정원 
 var FAR_DISTANCE_MILES = 6; // 이 거리(마일) 초과면 "원거리"로 분류
 var SECTOR_NAMES = ['N','NE','E','SE','S','SW','W','NW'];
 
-// ── 차량 목록 관리 (설정 화면에서 추가/수정/삭제 가능, localStorage에 저장) ──
-function getVehicleFleet() {
-  var saved = localStorage.getItem('fleet_vehicles');
-  if (saved) { try { var arr = JSON.parse(saved); if (arr && arr.length) return arr; } catch(e) {} }
-  // 기본값 (처음 한 번도 설정 안 했을 때)
-  return [
-    { label: 'Van1',     cap: 14 },
-    { label: 'Van2',     cap: 14 },
-    { label: 'Minivan1', cap: 7  },
-  ];
+// ── 차량 목록 관리 — Google Sheets settings가 단일 원본 ──
+var VEHICLE_FLEET=[{label:'Van1',cap:14},{label:'Van2',cap:14},{label:'Minivan1',cap:7}];
+function getVehicleFleet(){return VEHICLE_FLEET.map(function(v){return {label:v.label,cap:v.cap};});}
+async function loadVehicleFleetFromSheets(){
+  try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr)&&arr.length)VEHICLE_FLEET=arr;}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
 }
-
-function saveVehicleFleet(fleet) {
-  localStorage.setItem('fleet_vehicles', JSON.stringify(fleet));
+async function saveVehicleFleet(fleet){
+  await SheetsAPI.upsert('settings','Key','fleet_vehicles',{'Key':'fleet_vehicles','Value':JSON.stringify(fleet),'수정시각':new Date().toISOString()});VEHICLE_FLEET=fleet.map(function(v){return {label:v.label,cap:v.cap};});
 }
-
 function renderVehicleFleetSettings() {
   var fleet = getVehicleFleet();
   var el = document.getElementById('fleet-list');
@@ -450,26 +443,24 @@ function renderVehicleFleetSettings() {
   }).join('');
 }
 
-function _fleetUpdate(idx, field, value) {
+async function _fleetUpdate(idx, field, value) {
   var fleet = getVehicleFleet();
   fleet[idx][field] = value;
-  saveVehicleFleet(fleet);
+  try{await saveVehicleFleet(fleet);}catch(e){alert('❌ 차량 설정 저장 실패: '+e.message);}
 }
 
-function _fleetRemove(idx) {
+async function _fleetRemove(idx) {
   var fleet = getVehicleFleet();
   if (fleet.length <= 1) { alert('차량이 최소 1대는 있어야 해요'); return; }
   if (!confirm(fleet[idx].label + ' 삭제할까요?')) return;
   fleet.splice(idx, 1);
-  saveVehicleFleet(fleet);
-  renderVehicleFleetSettings();
+  try{await saveVehicleFleet(fleet);renderVehicleFleetSettings();}catch(e){alert('❌ 차량 설정 저장 실패: '+e.message);}
 }
 
-function _fleetAdd() {
+async function _fleetAdd() {
   var fleet = getVehicleFleet();
   fleet.push({ label: '새차량' + (fleet.length + 1), cap: 14 });
-  saveVehicleFleet(fleet);
-  renderVehicleFleetSettings();
+  try{await saveVehicleFleet(fleet);renderVehicleFleetSettings();}catch(e){alert('❌ 차량 설정 저장 실패: '+e.message);}
 }
 
 function _toRad(deg) { return deg * Math.PI / 180; }

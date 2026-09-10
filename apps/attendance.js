@@ -491,50 +491,20 @@ async function deleteAbsence(mid) {
   if (typeof filterM === 'function') filterM();
 }
 
-// ── 저장소 (출결은 localStorage 미사용) ───────────────────────
-function saveToStorage() {
-  try {
-    const ms = {};
-    MEMBERS.forEach(m => {
-      if (m.status === 'disenrolled')
-        ms[m.id] = { status: m.status, disenrollDate: m.disenrollDate || '', disenrollNote: m.disenrollNote || '' };
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      incidents, activities, cases,
-      memberStatus: ms, memberPhotos: mp,
-      savedAt: new Date().toISOString(),
-    }));
-  } catch (e) {}
-}
+// ── 저장소 ───────────────────────────────────────────────
+// 기존 호출 호환용 no-op. 운영 데이터는 Google Sheets/Drive만 사용.
+function saveToStorage() {}
+function loadFromStorage() { return false; }
 
-function loadFromStorage() {
+async function clearStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    // 출결(allR)은 localStorage에서 로드하지 않음 — Sheets에서 직접 로드
-    if (data.incidents)  incidents  = data.incidents;
-    if (data.activities) activities = data.activities;
-    if (data.cases)      cases      = data.cases;
-    if (data.memberPhotos) Object.keys(data.memberPhotos).forEach(id => {
-      const m = MEMBERS.find(x => x.id === id); if (m) m.photo = data.memberPhotos[id];
-    });
-    if (data.memberStatus) Object.keys(data.memberStatus).forEach(id => {
-      const s = data.memberStatus[id];
-      const m = MEMBERS.find(x => x.id === id);
-      if (m) { m.status = s.status; m.disenrollDate = s.disenrollDate || ''; m.disenrollNote = s.disenrollNote || ''; }
-    });
-    return true;
-  } catch (e) { return false; }
-}
-
-function clearStorage() {
-  if (!confirm('저장된 모든 데이터를 삭제하시겠습니까?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  allR = {}; _attCache = {};
-  incidents = []; activities = []; cases = [];
-  MEMBERS.forEach(m => { m.status = 'active'; m.disenrollDate = ''; });
-  renderDash(); loadAttFromSheets(toISO(curDate)); filterM(); alert('삭제 완료');
+    await loadFromSheets();
+    await loadAttFromSheets(toISO(curDate));
+    renderDash(); filterM();
+    alert('✅ Google Sheets / Drive의 최신 데이터로 다시 불러왔습니다.');
+  } catch (e) {
+    alert('❌ 서버 데이터 다시 불러오기 실패: ' + e.message);
+  }
 }
 
 function exportData() {
