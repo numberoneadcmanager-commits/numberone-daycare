@@ -1335,19 +1335,34 @@ async function loadDocStatusMaps(forceReload) {
     PCSP_STATUS_MAP = {};
     if (pcspRes && pcspRes.ok && pcspRes.data) {
       pcspRes.data.forEach(function(p) {
-        var mid = String(p['멤버ID']||'');
-        if (!mid) return;
+        var savedKey = String(p['멤버ID']||'').trim();
+        if (!savedKey) return;
         var wdate = String(p['작성일']||'').slice(0,10);
-        // 멤버당 최신(작성일 기준) 1건만
-        if (!PCSP_STATUS_MAP[mid] || wdate > PCSP_STATUS_MAP[mid].wdate) {
-          var nextdate = String(p['갱신예정일']||'').slice(0,10);
-          PCSP_STATUS_MAP[mid] = {
-            wdate: wdate,
-            nextdate: nextdate,
-            status: String(p['상태']||''),
-            expired: nextdate && nextdate < today,
-          };
+        var nextdate = String(p['갱신예정일']||'').slice(0,10);
+        var statusObj = {
+          wdate: wdate,
+          nextdate: nextdate,
+          status: String(p['상태']||''),
+          expired: !!(nextdate && nextdate < today),
+        };
+
+        // PCSP는 기존 코드에서 '멤버ID'에 내부 ID가 아니라 Medicaid 번호를 저장한 기록이 있음.
+        // 멤버 카드에서는 내부 ID(m.id)로 조회하므로, 둘 다 같은 PCSP 상태를 가리키도록 alias를 만든다.
+        var keys = [savedKey, savedKey.toUpperCase()];
+        var member = (typeof MEMBERS !== 'undefined' ? MEMBERS : []).find(function(m){
+          return String(m.id||'') === savedKey
+            || String(m.medicaid||'').trim().toUpperCase() === savedKey.toUpperCase();
+        });
+        if (member) {
+          keys.push(String(member.id||''));
+          if (member.medicaid) keys.push(String(member.medicaid).trim().toUpperCase());
         }
+
+        keys.filter(Boolean).forEach(function(key){
+          if (!PCSP_STATUS_MAP[key] || wdate > PCSP_STATUS_MAP[key].wdate) {
+            PCSP_STATUS_MAP[key] = statusObj;
+          }
+        });
       });
     }
 
@@ -1427,7 +1442,8 @@ function _docStatusBadgeHTML(m) {
   var html = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">';
 
   // PCSP
-  var pcsp = PCSP_STATUS_MAP[mid];
+  var pcsp = PCSP_STATUS_MAP[String(mid)]
+    || PCSP_STATUS_MAP[String(m.medicaid||'').trim().toUpperCase()];
   if (!pcsp) {
     html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ PCSP 작성필요</span>';
   } else if (pcsp.status === '서명대기') {
@@ -1484,8 +1500,22 @@ async function _checkSignedBadgeInline(mid, fileType) {
 // PCSP 미완료/작성필요 배지 클릭 → 업무관리로 바로 이동 (기존 카드 링크와 동일 방식)
 function goToPCSPForMember(mid) {
   localStorage.setItem('pcsp_prefill_mid', mid);
+  // operations.html에서 PCSP 작성/서명 후 뒤로 돌아왔을 때 문서 상태 캐시를 새로 읽도록 표시
+  sessionStorage.setItem('pcsp_status_refresh_needed', '1');
   window.location.href = 'operations.html?tab=pcsp&mid=' + mid;
 }
+
+// 브라우저 뒤로가기는 페이지를 BFCache에서 그대로 복원할 수 있어 기존 'PCSP 작성필요' 배지가 남을 수 있음.
+// 돌아온 순간 PCSP 시트 상태를 강제로 다시 읽어 최신 배지로 갱신한다.
+window.addEventListener('pageshow', function(e){
+  if (sessionStorage.getItem('pcsp_status_refresh_needed') === '1' || e.persisted) {
+    sessionStorage.removeItem('pcsp_status_refresh_needed');
+    _docStatusLoaded = false;
+    if (typeof MEMBERS !== 'undefined' && MEMBERS && MEMBERS.length) {
+      loadDocStatusMaps(true).then(function(){ renderMG(); });
+    }
+  }
+});
 
 // Nutrition/Assessment 미완료 배지 클릭 → 업무관리 해당 폼으로 바로 이동
 function goToFormForMember(mid, type) {
