@@ -133,29 +133,13 @@ async function saveStaffModal(){
   if(!nameKr||!nameEn){alert('이름은 필수입니다');return;}
   var editId=document.getElementById('staff-edit-id').value;
   var COLORS=[{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'},{bg:'#FAEEDA',color:'#854F0B'}];
-  var s;
-  if(editId){
-    var idx=STAFF_OP.findIndex(function(x){return x.id===editId;});
-    if(idx>=0){
-      STAFF_OP[idx].nameKr=nameKr;STAFF_OP[idx].name=nameEn;
-      STAFF_OP[idx].role=document.getElementById('staff-role').value;
-      STAFF_OP[idx].phone=document.getElementById('staff-phone').value.trim();
-      STAFF_OP[idx].email=document.getElementById('staff-email').value.trim();
-      STAFF_OP[idx].certs=collectCerts();
-      s=STAFF_OP[idx];
-    }
-  } else {
-    var clr=COLORS[STAFF_OP.length%COLORS.length];
-    var newStaff={
-      id:'S'+Date.now(),nameKr:nameKr,name:nameEn,
-      role:document.getElementById('staff-role').value,
-      phone:document.getElementById('staff-phone').value.trim(),
-      email:document.getElementById('staff-email').value.trim(),
-      certs:collectCerts(),avBg:clr.bg,avColor:clr.color
-    };
-    STAFF_OP.push(newStaff);
-    s=newStaff;
-  }
+  var old=STAFF_OP.find(function(x){return x.id===editId;});
+  if(editId&&!old){alert('직원 원본을 다시 불러와주세요.');return;}
+  var clr=old||COLORS[STAFF_OP.length%COLORS.length];
+  var s=Object.assign({},old||{},{id:editId||('S'+Date.now()),nameKr:nameKr,name:nameEn,
+    role:document.getElementById('staff-role').value,phone:document.getElementById('staff-phone').value.trim(),
+    email:document.getElementById('staff-email').value.trim(),certs:collectCerts(),
+    avBg:old?old.avBg:clr.bg,avColor:old?old.avColor:clr.color});
   // Sheets 동기화 (단일 인자로 호출!)
   if(s){
     try {
@@ -164,7 +148,8 @@ async function saveStaffModal(){
         '전화':s.phone||'','이메일':s.email||'','자격증':JSON.stringify(s.certs||[]),
         'avBg':s.avBg||'#FAECE7','avColor':s.avColor||'#993C1D'
       }});
-    } catch(e) { console.log('스태프 저장 실패:', e); }
+    }catch(e){alert('❌ 스태프 저장 실패: '+e.message);return;}
+    if(old)Object.assign(old,s);else STAFF_OP.push(s);
   }
   closeOv('ov-staff');
   renderOpStaff();
@@ -173,7 +158,7 @@ async function saveStaffModal(){
 
 async function deleteStaff(id){
   if(!confirm('이 스태프를 삭제할까요?'))return;
+  try{await apiCall({action:'delete',sheet:'스태프',id:id});}catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   STAFF_OP=STAFF_OP.filter(function(x){return x.id!==id;});
-  try { await apiCall({action:'delete',sheet:'스태프',id:id}); } catch(e) {}
   renderOpStaff();
 }

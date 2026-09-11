@@ -69,9 +69,6 @@ async function saveVisitor() {
     purpose: document.getElementById('vis-purpose').value,
     note:    document.getElementById('vis-note').value.trim(),
   };
-  if (editId2) { const idx = VISITOR_LIST.findIndex(x => x.id === editId2); if (idx >= 0) VISITOR_LIST[idx] = entry; else VISITOR_LIST.push(entry); }
-  else VISITOR_LIST.push(entry);
-
   try {
     await SheetsAPI.post({
       action: editId2 ? 'update' : 'append',
@@ -79,7 +76,10 @@ async function saveVisitor() {
       id: editId2 || null,
       data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '이름': entry.name, '소속': entry.org, '목적': entry.purpose, '메모': entry.note },
     });
-  } catch (e) { console.log('Visitor Sheets sync:', e); }
+  } catch(e) { alert('❌ 저장 실패: '+e.message); return; }
+
+  if (editId2) { const idx = VISITOR_LIST.findIndex(x => x.id === editId2); if (idx >= 0) VISITOR_LIST[idx] = entry; else VISITOR_LIST.push(entry); }
+  else VISITOR_LIST.push(entry);
 
   closeOv('ov-visitor'); renderVisitorList();
 }
@@ -87,8 +87,8 @@ async function saveVisitor() {
 function editVisitor(id)   { openVisitorModal(id); }
 async function deleteVisitor(id) {
   if (!confirm('삭제하시겠어요?')) return;
+  try { await SheetsAPI.post({ action: 'delete', sheet: 'visitor', id }); } catch(e) { alert('❌ 삭제 실패: '+e.message); return; }
   VISITOR_LIST = VISITOR_LIST.filter(x => x.id !== id);
-  try { await SheetsAPI.post({ action: 'delete', sheet: 'visitor', id }); } catch (e) {}
   renderVisitorList();
 }
 
@@ -162,9 +162,6 @@ async function saveCouncil() {
     next:      document.getElementById('council-next').value,
     pdfLink:   document.getElementById('council-pdf-link').value || '',
   };
-  if (editId2) { const idx = COUNCIL_LIST.findIndex(x => x.id === editId2); if (idx >= 0) COUNCIL_LIST[idx] = entry; else COUNCIL_LIST.push(entry); }
-  else COUNCIL_LIST.push(entry);
-
   try {
     await SheetsAPI.post({
       action: editId2 ? 'update' : 'append',
@@ -172,7 +169,10 @@ async function saveCouncil() {
       id: editId2 || null,
       data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '유형': entry.type, '참석자': entry.attendees, '안건': entry.agenda, '내용': entry.minutes, '다음회의': entry.next, 'PDF링크': entry.pdfLink },
     });
-  } catch (e) { console.log('Council Sheets sync:', e); }
+  } catch(e) { alert('❌ 저장 실패: '+e.message); return; }
+
+  if (editId2) { const idx = COUNCIL_LIST.findIndex(x => x.id === editId2); if (idx >= 0) COUNCIL_LIST[idx] = entry; else COUNCIL_LIST.push(entry); }
+  else COUNCIL_LIST.push(entry);
 
   closeOv('ov-council'); renderCouncilList();
 }
@@ -180,8 +180,8 @@ async function saveCouncil() {
 function editCouncil(id)   { openCouncilModal(id); }
 async function deleteCouncil(id) {
   if (!confirm('삭제하시겠어요?')) return;
+  try { await SheetsAPI.post({ action: 'delete', sheet: 'council', id }); } catch(e) { alert('❌ 삭제 실패: '+e.message); return; }
   COUNCIL_LIST = COUNCIL_LIST.filter(x => x.id !== id);
-  try { await SheetsAPI.post({ action: 'delete', sheet: 'council', id }); } catch (e) {}
   renderCouncilList();
 }
 

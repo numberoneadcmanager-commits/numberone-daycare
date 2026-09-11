@@ -5,6 +5,7 @@
 
 var PCSP_LIST = []; // 서버(Sheets/Drive)가 원본. 브라우저에는 저장하지 않음
 var PCSP_PDF_MAP = {};
+var PCSP_LEGACY_PDFS={};
 var _pcspPdfLoadedAt = 0;
 var _pcspFilter = 'all';
 var _pcspStep = 0;
@@ -21,12 +22,15 @@ var _pcspCommunity = [];
 var _pcspRights = [];
 var _pcspAuthRecords = [];
 var _pcspSelectedAuthId = '';
+var _pcspAuthSnapshot=null;
+var _pcspAuthLoadSerial=0;
+var _pcspMemberDefaults={};
 var _pcspSig = null;
 
 var PCSP_ADL_ITEMS = ['Mobility','Transfers','Toileting','Continence','Eating'];
 var PCSP_ADL_LEVELS = ['Independent','Supervision Only','Minimal Hands-On','Moderate Hands-On','Total Hands-On'];
 var PCSP_SUPPORT_LEVELS = [
-  'No additional support needed',
+  'Independent',
   'Supervision',
   'Verbal cueing',
   'Setup assistance',
@@ -72,6 +76,7 @@ function pcspEsc(v){
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+function pcspInlineString(v){return pcspEsc(JSON.stringify(String(v==null?'':v)));}
 function pcspClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 function pcspVal(id){ var el=document.getElementById(id); return el ? el.value : ''; }
 function gp(id){ return pcspVal('p-'+id); }
@@ -97,7 +102,7 @@ function applyPCSPCommonDefaults(){
   ['Breakfast','Lunch','Bingo'].forEach(function(activity){
     if(sadcFind(activity)>=0)return;
     var preset=PCSP_SADC_PRESETS.find(function(x){return x.activity===activity;});
-    _pcspSadcActivities.push({activity:activity,category:preset?preset.category:'Daily',neededSupport:'No additional support needed',supportDetails:''});
+    _pcspSadcActivities.push({activity:activity,category:preset?preset.category:'Daily',neededSupport:'Independent',supportDetails:''});
   });
 }
 function _pcspPdfKey(v){ return String(v||'').trim().toUpperCase(); }
@@ -109,22 +114,27 @@ function loadPCSPPdfLinks(force){
   if(!force && _pcspPdfLoadedAt && Date.now()-_pcspPdfLoadedAt<15000) return Promise.resolve(PCSP_PDF_MAP);
   return apiGet({action:'read',sheet:'PDFLog'}).then(function(res){
     if(!res||!res.ok||!res.data)return PCSP_PDF_MAP;
-    var map={};
+    var map={},legacy={};
     res.data.forEach(function(r){
       if(String(r['파일종류']||'')!=='PCSP_Final' || !r['Drive링크'])return;
       var obj={url:String(r['Drive링크']),fileName:String(r['파일명']||''),savedAt:String(r['저장일시']||''),memberId:String(r['멤버ID']||''),name:String(r['한글이름']||'')};
-      [_pcspPdfKey(obj.memberId),_pcspPdfKey(obj.name)].forEach(function(k){if(k)map[k]=obj;});
+      var match=obj.fileName.match(/^PCSP_Final__(.+)__\d{4}-\d{2}-\d{2}\.pdf$/);
+      if(match){try{obj.pcspId=decodeURIComponent(match[1]);map[obj.memberId+'|'+obj.pcspId]=obj;}catch(e){}}else{(legacy[obj.memberId]||(legacy[obj.memberId]=[])).push(obj);}
     });
-    PCSP_PDF_MAP=map; _pcspPdfLoadedAt=Date.now();
+    PCSP_PDF_MAP=map;PCSP_LEGACY_PDFS=legacy; _pcspPdfLoadedAt=Date.now();
     renderPCSPList();
     return map;
   }).catch(function(e){console.log('PCSP PDFLog 로드 실패:',e);return PCSP_PDF_MAP;});
 }
 function getStoredPCSPPdf(p){
   if(!p)return null;
-  var keys=[p.memberId,p.medicaid,p.nameKr,p.nameLast].map(_pcspPdfKey);
-  for(var i=0;i<keys.length;i++){ if(keys[i]&&PCSP_PDF_MAP[keys[i]]) return PCSP_PDF_MAP[keys[i]]; }
-  return null;
+  var exact=PCSP_PDF_MAP[String(p.memberId||'')+'|'+p.id];if(exact)return exact;
+  var old=PCSP_LEGACY_PDFS[String(p.memberId||'')]||[];
+  // Older v2 PDF filenames omit record IDs: show the saved documents, never regenerate or silently assign one.
+  return old.length?{choices:old}:null;
+}
+function pcspSafeDocumentURL(value){
+  try{var u=new URL(value);return u.protocol==='https:'&&(u.hostname==='drive.google.com'||u.hostname==='docs.google.com')?u.href:'';}catch(e){return '';}
 }
 async function openStoredPCSPPdf(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});
@@ -134,12 +144,16 @@ async function openStoredPCSPPdf(id){
   w.document.write('<!doctype html><html><body style="font-family:Arial,sans-serif;padding:30px">저장된 PCSP PDF 찾는 중...</body></html>');w.document.close();
   var pdf=getStoredPCSPPdf(p);
   if(!pdf){await loadPCSPPdfLinks(true);pdf=getStoredPCSPPdf(p);}
-  if(!pdf||!pdf.url){try{w.close();}catch(e){} alert('저장된 최종 PCSP PDF를 찾을 수 없습니다.');return;}
-  w.location.replace(pdf.url);
+  if(pdf&&pdf.choices){
+    var links=pdf.choices.slice().reverse().map(function(x){var url=pcspSafeDocumentURL(x.url);return url?'<p><a href="'+pcspEsc(url)+'">'+pcspEsc(x.fileName)+' — '+pcspEsc(x.savedAt)+'</a></p>':'';}).join('');
+    w.document.open();w.document.write('<!doctype html><html><head><meta charset="utf-8"></head><body><h2>저장된 PCSP PDF 선택</h2><p>기존 파일명에는 PCSP ID가 없어 날짜와 파일명을 확인해 선택해주세요.</p>'+links+'</body></html>');w.document.close();return;
+  }
+  if(!pdf||!pcspSafeDocumentURL(pdf.url)){try{w.close();}catch(e){} alert('저장된 최종 PCSP PDF를 찾을 수 없습니다.');return;}
+  w.location.replace(pcspSafeDocumentURL(pdf.url));
 }
 
 function loadPCSPFromSheets(){
-  apiGet({action:'read',sheet:'PCSP'}).then(function(res){
+  return apiGet({action:'read',sheet:'PCSP'}).then(function(res){
     if(!res||!res.ok||!res.data)return;
     PCSP_LIST=[]; // 매번 중앙 저장소 기준으로 새로 구성
     res.data.forEach(function(row){
@@ -154,7 +168,7 @@ function loadPCSPFromSheets(){
       else PCSP_LIST.push(summary);
     });
     savePCSPStorage();renderPCSPList();loadPCSPPdfLinks(false);
-  }).catch(function(e){console.log('PCSP sheet load:',e);});
+  }).catch(function(e){alert('❌ PCSP 목록 로드 실패: '+e.message);throw e;});
 }
 function savePCSPStorage(){ /* 메모리 전용: 영구 저장은 Sheets/Drive */ }
 function setPCSPFilter(f,el){
@@ -182,11 +196,11 @@ function renderPCSPList(){
       +'<div style="font-size:11px;color:#8E8E93">작성: '+pcspEsc(p.wdate||'—')+' · 다음 검토: '+pcspEsc(p.nextdate||'—')+'</div>'
       +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+pcspEsc((p.diag||'').slice(0,80))+'</div>'
       +'<div class="log-actions" style="margin-top:6px">'
-      +(pending?'<button class="btn-sm" style="background:#FF9500;color:#fff;border-color:#FF9500" onclick="signPCSP(\''+pcspEsc(p.id)+'\',\''+pcspEsc(p.memberId||'')+'\',\''+pcspEsc(p.nameKr||p.nameLast||'')+'\')">✍️ 서명하기</button>':'')
-      +'<button class="btn-sm" onclick="editPCSP(\''+pcspEsc(p.id)+'\')">✏️ 수정</button>'
-      +(pdf&&!pending?'<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="openStoredPCSPPdf(\''+pcspEsc(p.id)+'\')">📄 PDF 보기</button>':'')
-      +'<button class="btn-sm" onclick="printPCSP(\''+pcspEsc(p.id)+'\')">🔄 미리보기</button>'
-      +'<button class="btn-danger" onclick="deletePCSP(\''+pcspEsc(p.id)+'\')">삭제</button></div></div>';
+      +(pending?'<button class="btn-sm" style="background:#FF9500;color:#fff;border-color:#FF9500" onclick="signPCSP('+pcspInlineString(p.id)+','+pcspInlineString(p.memberId||'')+','+pcspInlineString(p.nameKr||p.nameLast||'')+')">✍️ 서명하기</button>':'')
+      +'<button class="btn-sm" onclick="editPCSP('+pcspInlineString(p.id)+')">✏️ 수정</button>'
+      +(pdf&&!pending?'<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="openStoredPCSPPdf('+pcspInlineString(p.id)+')">📄 PDF 보기</button>':'')
+      +'<button class="btn-sm" onclick="printPCSP('+pcspInlineString(p.id)+')">🔄 미리보기</button>'
+      +'<button class="btn-danger" onclick="deletePCSP('+pcspInlineString(p.id)+')">삭제</button></div></div>';
   });
   var el=document.getElementById('pcsp-list'); if(el)el.innerHTML=html;
 }
@@ -234,7 +248,7 @@ function resetPCSPState(){
   _pcspCommunity=[];
   _pcspRights=newPCSPRights();
   _pcspAuthRecords=[];
-  _pcspSelectedAuthId='';
+  _pcspSelectedAuthId='';_pcspAuthSnapshot=null;_pcspMemberDefaults={};_pcspAuthLoadSerial++;
   _pcspSig=null;
 }
 function clearPCSPFormFields(){
@@ -262,6 +276,8 @@ async function selectPCSPMember(m){
   pcspSet('p-medicaid',m['Medicaid']||'');pcspSet('p-ins',m['보험사']||'');pcspSet('p-phone',m['전화']||'');pcspSet('p-addr',m['주소']||'');pcspSet('p-pcpname',m['주치의']||'');pcspSet('p-dob',pcspDate(m['생년월일']));
   if(m['성별'])pcspSet('p-gender',String(m['성별']).toLowerCase().indexOf('m')===0?'Male':'Female');
   String(m['출석요일']||'').split(',').map(function(d){return d.trim();}).filter(Boolean).forEach(function(d){_pcspDays.add(d);});
+  _pcspMemberDefaults={insurer:m['보험사']||'',careManager:'',diagCode:m['진단코드']||'',days:Array.from(_pcspDays)};
+  pcspSet('p-diag-code',_pcspMemberDefaults.diagCode);
   pcspSet('p-review-prev','');
   applyPCSPCommonDefaults();
   initPCSPDynamicUI();pcspGoStep(0);
@@ -282,17 +298,20 @@ function pcspAuthIsCurrent(a){
   if(a.startDate&&a.startDate>t)return false;if(a.endDate&&a.endDate<t)return false;return true;
 }
 async function loadPCSPAuthForMember(memberId,applyBest){
+  var serial=++_pcspAuthLoadSerial;
   var summary=document.getElementById('pcsp-auth-summary');if(summary)summary.innerHTML='<div style="color:#8E8E93">⏳ AUTH 정보 불러오는 중...</div>';
   try{
-    var res=await apiGet({action:'readByMember',sheet:'auth',memberId:memberId});
+    var results=await Promise.all([apiGet({action:'readByMember',sheet:'auth',memberId:memberId}),apiGet({action:'read',sheet:'멤버'})]);
+    if(serial!==_pcspAuthLoadSerial)return;
+    var res=results[0];var master=(results[1].data||[]).find(function(m){return String(m['ID'])===String(memberId);});
+    if(master)_pcspMemberDefaults={insurer:master['보험사']||'',careManager:'',diagCode:master['진단코드']||'',days:String(master['출석요일']||'').split(',').map(function(v){return v.trim();}).filter(Boolean)};
     _pcspAuthRecords=(res&&res.ok&&res.data?res.data:[]).map(normalizeAuthRow);
     _pcspAuthRecords.sort(function(a,b){
       var ac=pcspAuthIsCurrent(a)?1:0,bc=pcspAuthIsCurrent(b)?1:0;if(ac!==bc)return bc-ac;
-      var asdc=/SDC|S5102|S5105/i.test(a.serviceType+' '+a.serviceCode)?1:0,bsdc=/SDC|S5102|S5105/i.test(b.serviceType+' '+b.serviceCode)?1:0;if(asdc!==bsdc)return bsdc-asdc;
       return String(b.startDate||'').localeCompare(String(a.startDate||''));
     });
     renderPCSPAuthSelector();
-    if(applyBest&&_pcspAuthRecords.length)applyPCSPAuth(_pcspAuthRecords[0].id,true);
+    if(applyBest){var best=_pcspAuthRecords.find(pcspAuthIsCurrent);if(best)applyPCSPAuth(best.id,true);}
   }catch(e){
     if(summary)summary.innerHTML='<div style="color:#FF3B30">AUTH 로드 실패: '+pcspEsc(e.message||e)+'</div>';
   }
@@ -306,15 +325,16 @@ function renderPCSPAuthSelector(){
   if(_pcspSelectedAuthId)sel.value=_pcspSelectedAuthId;
   renderPCSPAuthSummary();
 }
-function getSelectedPCSPAuth(){return _pcspAuthRecords.find(function(a){return a.id===_pcspSelectedAuthId;})||null;}
+function getSelectedPCSPAuth(){return _pcspAuthSnapshot||_pcspAuthRecords.find(function(a){return a.id===_pcspSelectedAuthId;})||null;}
 function applyPCSPAuth(id,overwrite){
-  _pcspSelectedAuthId=id||'';var a=getSelectedPCSPAuth();
+  _pcspSelectedAuthId=id||'';_pcspAuthSnapshot=null;var a=getSelectedPCSPAuth();if(a)_pcspAuthSnapshot=pcspClone(a);
   var sel=document.getElementById('p-auth-select');if(sel)sel.value=_pcspSelectedAuthId;
+  if(!a&&overwrite){pcspSet('p-ins',_pcspMemberDefaults.insurer||'');pcspSet('p-cm1name',_pcspMemberDefaults.careManager||'');pcspSet('p-diag-code',_pcspMemberDefaults.diagCode||'');_pcspDays=new Set(_pcspMemberDefaults.days||[]);initPCSPDayBtns();}
   if(a){
-    if(overwrite||!gp('ins'))pcspSet('p-ins',a.insurer);
-    if(overwrite||!gp('cm1name'))pcspSet('p-cm1name',a.careManager);
-    if(overwrite||!gp('diag-code'))pcspSet('p-diag-code',a.diagCode);
-    if(a.days&&a.days.length){_pcspDays=new Set(a.days);initPCSPDayBtns();}
+    if(overwrite||!gp('ins'))pcspSet('p-ins',a.insurer||_pcspMemberDefaults.insurer||'');
+    if(overwrite||!gp('cm1name'))pcspSet('p-cm1name',a.careManager||_pcspMemberDefaults.careManager||'');
+    if(overwrite||!gp('diag-code'))pcspSet('p-diag-code',a.diagCode||_pcspMemberDefaults.diagCode||'');
+    _pcspDays=new Set(a.days&&a.days.length?a.days:(_pcspMemberDefaults.days||[]));initPCSPDayBtns();
   }
   renderPCSPAuthSummary();
 }
@@ -337,8 +357,8 @@ function getPCSPAuthContext(){
 // ══════════════════════════════════════════════════════════════
 // Dynamic input renderers
 // ══════════════════════════════════════════════════════════════
-function initPCSPDynamicUI(){
-  initPCSPDayBtns();initPCSPAdlList();renderPlanningPeople();renderPCSPContacts();renderPCSPRisks();renderPCSPGoals();renderSadcActivityChips();renderSelectedSadcActivities();renderPCSPCommunity();renderPCSPRights();updatePcspCapacityUI();pcspMarkConfirmFields();
+function initPCSPDynamicUI(adl){
+  initPCSPDayBtns();initPCSPAdlList(adl);renderPlanningPeople();renderPCSPContacts();renderPCSPRisks();renderPCSPGoals();renderSadcActivityChips();renderSelectedSadcActivities();renderPCSPCommunity();renderPCSPRights();updatePcspCapacityUI();pcspMarkConfirmFields();
 }
 
 function pcspToggleConditionalBlock(id,show){
@@ -365,7 +385,7 @@ function togglePcspDay(btn,day){if(_pcspDays.has(day))_pcspDays.delete(day);else
 function initPCSPAdlList(adl){
   adl=adl||[];var el=document.getElementById('pcsp-adl-list');if(!el)return;
   el.innerHTML=PCSP_ADL_ITEMS.map(function(item,i){var x=adl.find(function(a){return a.item===item;})||{};
-    return '<div class="pcsp-adl-row"><b>'+item+'</b><select class="m-select" id="padl-level-'+i+'">'+PCSP_ADL_LEVELS.map(function(v){return '<option'+(x.level===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select><input class="m-input" id="padl-device-'+i+'" value="'+pcspEsc(x.device||'')+'" placeholder="Device / none"></div>';
+    return '<div class="pcsp-adl-row"><b>'+item+'</b><select class="m-select" id="padl-level-'+i+'"><option value="">선택</option>'+PCSP_ADL_LEVELS.map(function(v){return '<option'+(x.level===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select><input class="m-input" id="padl-device-'+i+'" value="'+pcspEsc(x.device||'')+'" placeholder="Device / none"></div>';
   }).join('');
 }
 function addPlanningPerson(){_pcspPlanningPeople.push({name:'',relationshipRole:'',participantSelected:true});renderPlanningPeople();}
@@ -410,9 +430,9 @@ function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(
 function pcspFieldTextareaHtml(label,value,oninput,rows){return '<div class="modal-input-wrap" style="margin-top:7px"><label>'+pcspEsc(label)+'</label><textarea class="m-textarea'+(pcspHasConfirm(value)?' pcsp-confirm-needed':'')+'" rows="'+(rows||2)+'" style="width:100%" oninput="'+oninput+';pcspMarkConfirmFields()">'+pcspEsc(value||'')+'</textarea></div>';}
 
 function sadcFind(activity){return _pcspSadcActivities.findIndex(function(x){return x.activity===activity;});}
-function toggleSadcActivity(activity,category){var i=sadcFind(activity);if(i>=0)_pcspSadcActivities.splice(i,1);else _pcspSadcActivities.push({activity:activity,category:category||'Other',neededSupport:'No additional support needed',supportDetails:''});renderSadcActivityChips();renderSelectedSadcActivities();}
-function toggleDailySadcPreset(){var daily=['Breakfast','Lunch','Bingo'];var all=daily.every(function(x){return sadcFind(x)>=0;});daily.forEach(function(x){var i=sadcFind(x);if(all&&i>=0)_pcspSadcActivities.splice(i,1);else if(!all&&i<0){var preset=PCSP_SADC_PRESETS.find(function(p){return p.activity===x;});_pcspSadcActivities.push({activity:x,category:preset?preset.category:'Daily',neededSupport:'No additional support needed',supportDetails:''});}});renderSadcActivityChips();renderSelectedSadcActivities();}
-function addCustomSadcActivity(){var name=pcspVal('p-sadc-custom').trim();if(!name)return;if(sadcFind(name)<0)_pcspSadcActivities.push({activity:name,category:'Other',neededSupport:'No additional support needed',supportDetails:''});pcspSet('p-sadc-custom','');renderSadcActivityChips();renderSelectedSadcActivities();}
+function toggleSadcActivity(activity,category){var i=sadcFind(activity);if(i>=0)_pcspSadcActivities.splice(i,1);else _pcspSadcActivities.push({activity:activity,category:category||'Other',neededSupport:'Independent',supportDetails:''});renderSadcActivityChips();renderSelectedSadcActivities();}
+function toggleDailySadcPreset(){var daily=['Breakfast','Lunch','Bingo'];var all=daily.every(function(x){return sadcFind(x)>=0;});daily.forEach(function(x){var i=sadcFind(x);if(all&&i>=0)_pcspSadcActivities.splice(i,1);else if(!all&&i<0){var preset=PCSP_SADC_PRESETS.find(function(p){return p.activity===x;});_pcspSadcActivities.push({activity:x,category:preset?preset.category:'Daily',neededSupport:'Independent',supportDetails:''});}});renderSadcActivityChips();renderSelectedSadcActivities();}
+function addCustomSadcActivity(){var name=pcspVal('p-sadc-custom').trim();if(!name)return;if(sadcFind(name)<0)_pcspSadcActivities.push({activity:name,category:'Other',neededSupport:'Independent',supportDetails:''});pcspSet('p-sadc-custom','');renderSadcActivityChips();renderSelectedSadcActivities();}
 function updateSadcActivity(i,k,v){if(_pcspSadcActivities[i])_pcspSadcActivities[i][k]=v;}
 function removeSadcActivity(i){_pcspSadcActivities.splice(i,1);renderSadcActivityChips();renderSelectedSadcActivities();}
 function renderSadcActivityChips(){var el=document.getElementById('pcsp-sadc-chips');if(!el)return;
@@ -490,8 +510,9 @@ function restorePCSPv2(p){
   var w=p.workVolunteer||{};pcspSet('p-work-interest',w.interest||'');pcspSet('p-work-opportunity',w.opportunity||'');pcspSet('p-work-frequency',w.frequencySchedule||'');pcspSet('p-work-support',w.supportNeededProvided||'');pcspSet('p-work-transport',w.transportation||'');pcspSet('p-work-unable',w.unableReason||'');
   var rv=p.review||{};pcspSet('p-review-prev',rv.previousDate||'');pcspSet('p-review-reason',rv.reason||'');pcspSet('p-review-changes',rv.changesSinceLast||'');
   _pcspSig=p.sig||null;pcspSet('p-sigdate',p.sigdate||pcspToday());
+  _pcspAuthSnapshot=pcspClone((p.authContext&&p.authContext.selected)||null);
   _pcspAuthRecords=pcspClone((p.authContext&&p.authContext.records)||[]);_pcspSelectedAuthId=(p.authContext&&p.authContext.selectedId)||'';
-  initPCSPDynamicUI();renderPCSPAuthSelector();pcspGoStep(0);
+  initPCSPDynamicUI(fn.adl||[]);renderPCSPAuthSelector();pcspGoStep(0);
   if(_pcspMemberId)loadPCSPAuthForMember(_pcspMemberId,false);
 }
 
@@ -538,42 +559,81 @@ function validatePCSPForSignature(e){var issues=[];
 function buildPCSPSummary(){var e=collectPCSPEntry();var issues=validatePCSPForSignature(e);var el=document.getElementById('pcsp-summary');if(!el)return;
   el.innerHTML='<div><b>Participant:</b> '+pcspEsc(e.nameLast+', '+e.nameFirst+(e.nameKr?' ('+e.nameKr+')':''))+'</div><div><b>PCSP:</b> '+pcspEsc(e.type)+' · '+pcspEsc(e.wdate)+' · Next review '+pcspEsc(e.nextdate)+'</div><div><b>AUTH:</b> '+pcspEsc((e.authContext.selected&&e.authContext.selected.authNo)||'not selected')+'</div><div><b>Goals:</b> '+e.goals.filter(function(g){return g.goal;}).length+' · <b>SADC activities:</b> '+e.sadcActivities.length+' · <b>Risks:</b> '+e.risks.length+'</div>'+(issues.length?'<div class="pcsp-validation-box"><b>⚠️ 최종 서명 전 확인 '+issues.length+'개</b><br>'+issues.map(function(x){return '• '+pcspEsc(x);}).join('<br>')+'</div>':'<div class="pcsp-valid-box">✅ 최종 저장 필수 항목 확인 완료</div>');
 }
+function pcspRequireSaved(res, label){
+  if(!res || !res.ok || !res.data || res.data.success !== true)
+    throw new Error(label+': '+((res&&res.data&&res.data.error)||(res&&res.error)||'서버에서 저장 완료를 확인하지 못했습니다.'));
+  return res.data;
+}
+async function loadPCSPRecord(id, memberId, memberName){
+  var res=await apiGet({action:'loadJSON',memberId:memberId,memberName:memberName||'',fileType:'PCSP',recordId:id});
+  if(!res||!res.ok||!res.data||!res.data.found||!res.data.data)
+    throw new Error((res&&res.data&&res.data.error)||'PCSP 전체 내용을 불러오지 못했습니다. 입력 내용은 변경하지 않았습니다.');
+  var full=res.data.data;
+  if(String(full.id||'')!==String(id))throw new Error('선택한 PCSP와 저장된 기록의 ID가 다릅니다. 다른 기록을 대신 열지 않습니다.');
+  if(String(full.memberId||'')!==String(memberId))throw new Error('선택한 회원과 저장된 PCSP의 회원 ID가 다릅니다.');
+  if(full.version!==2||!full.health||!full.functional||!full.planning)
+    throw new Error('이 PCSP는 현재 v2 양식에서 바로 열 수 없습니다. 전체 v2 원본을 확인해주세요.');
+  return full;
+}
+function cachePCSPRecord(full){
+  var ix=PCSP_LIST.findIndex(function(x){return x.id===full.id;});
+  if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);
+}
+
 async function savePCSPFull(){
   var entry=collectPCSPEntry();var hasSig=!!(_pcspSig&&_pcspSig.length>100);
   if(hasSig){var issues=validatePCSPForSignature(entry);if(issues.length){alert('⚠️ 최종 서명 저장 전에 다음 항목을 확인해주세요:\n\n'+issues.map(function(x){return '• '+x;}).join('\n'));buildPCSPSummary();return;}}
   var memberId=entry.memberId;if(!memberId){alert('멤버 ID가 없습니다. 멤버를 다시 선택해주세요.');return;}var memberName=entry.nameKr||entry.nameLast||entry.nameFirst||'Unknown';
-  var idx=PCSP_LIST.findIndex(function(x){return x.id===entry.id;});if(idx>=0)PCSP_LIST[idx]=entry;else PCSP_LIST.push(entry);savePCSPStorage();
+  // Keep the saved list unchanged until all requested writes succeed.
+  pcspSet('pcsp-edit-id',entry.id);
   var btn=document.getElementById('pcsp-save-btn');if(btn){btn.disabled=true;btn.textContent='⏳ 저장 중...';}
   try{
     if(hasSig){
+      entry.status='완료';
       var sigBase64=_pcspSig.indexOf('base64,')>=0?_pcspSig.split('base64,')[1]:_pcspSig;
       var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sigBase64,pcsp:entry});
       if(!res||!res.ok||!res.data||!res.data.success)throw new Error((res&&res.data&&res.data.error)||(res&&res.error)||'PCSP 문서 생성 오류');
-      var pdfRes=await apiCall({action:'savePDF',memberId:memberId,memberName:memberName,fileType:'PCSP_Final',base64Data:res.data.pdfBase64,author:_currentUser?(_currentUser.name||''):''});
+      var pdfRes=await apiCall({action:'savePDF',memberId:memberId,memberName:memberName,fileType:'PCSP_Final',pcspId:entry.id,base64Data:res.data.pdfBase64,author:_currentUser?(_currentUser.name||''):''});
       if(!pdfRes||!pdfRes.ok||!pdfRes.data||!pdfRes.data.success)throw new Error((pdfRes&&pdfRes.data&&pdfRes.data.error)||(pdfRes&&pdfRes.error)||'PDF 저장 오류');
-      await saveJSONtoDrive(memberId,memberName,'PCSP',entry);
-      await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'완료'}});
-      entry.status='완료';if(pdfRes.data.url){var po={url:pdfRes.data.url,fileName:pdfRes.data.fileName||'',savedAt:new Date().toISOString(),memberId:memberId,name:memberName};PCSP_PDF_MAP[_pcspPdfKey(memberId)]=po;PCSP_PDF_MAP[_pcspPdfKey(memberName)]=po;_pcspPdfLoadedAt=Date.now();}
+      pcspRequireSaved(await saveJSONtoDrive(memberId,memberName,'PCSP',entry),'PCSP 내용 저장');
+      pcspRequireSaved(await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'완료'}}),'PCSP 목록 저장');
+      entry.status='완료';if(pdfRes.data.url){var po={url:pdfRes.data.url,fileName:pdfRes.data.fileName||'',savedAt:new Date().toISOString(),memberId:memberId,name:memberName};PCSP_PDF_MAP[memberId+'|'+entry.id]=po;_pcspPdfLoadedAt=Date.now();}
       alert('✅ PCSP 최종 저장 완료\n📄 Word + PDF가 Drive에 저장되었습니다.');
     }else{
-      await saveJSONtoDrive(memberId,memberName,'PCSP',entry);
-      await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'서명대기'}});
+      entry.status='서명대기';
+      pcspRequireSaved(await saveJSONtoDrive(memberId,memberName,'PCSP',entry),'PCSP 내용 저장');
+      pcspRequireSaved(await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'서명대기'}}),'PCSP 목록 저장');
       entry.status='서명대기';alert('💾 PCSP 초안 저장 완료\n✍️ 나중에 서명하면 최종 PDF가 생성됩니다.');
     }
-    idx=PCSP_LIST.findIndex(function(x){return x.id===entry.id;});if(idx>=0)PCSP_LIST[idx]=entry;savePCSPStorage();showPCSPList();
+    cachePCSPRecord(entry);savePCSPStorage();showPCSPList();
   }catch(e){console.error('PCSP save error:',e);alert('❌ PCSP 저장 실패: '+e.message);}finally{if(btn){btn.disabled=false;btn.textContent='💾 PCSP 저장 (Drive)';}}
 }
 async function signPCSP(id,memberId,memberName){
-  try{var cached=PCSP_LIST.find(function(x){return x.id===id;});memberId=memberId||(cached&&cached.memberId)||'';memberName=memberName||(cached&&(cached.nameKr||cached.nameLast))||'';var res=await loadJSONfromDrive(memberId,memberName,'PCSP');if(!res||!res.ok||!res.data||!res.data.found||!res.data.data)throw new Error('저장된 PCSP JSON을 찾을 수 없습니다.');var full=res.data.data;var ix=PCSP_LIST.findIndex(function(x){return x.id===full.id;});if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);savePCSPStorage();openPCSPForm(full.id);setTimeout(function(){pcspGoStep(PCSP_STEP_COUNT-1);},150);}catch(e){alert('❌ 서명대기 PCSP를 불러오지 못했습니다: '+e.message);}
+  try{
+    var cached=PCSP_LIST.find(function(x){return x.id===id;});
+    memberId=memberId||(cached&&cached.memberId)||'';
+    memberName=memberName||(cached&&(cached.nameKr||cached.nameLast))||'';
+    var full=await loadPCSPRecord(id,memberId,memberName);
+    cachePCSPRecord(full);openPCSPForm(full.id);pcspGoStep(PCSP_STEP_COUNT-1);
+  }catch(e){alert('❌ 서명대기 PCSP를 불러오지 못했습니다: '+e.message);}
 }
 async function editPCSP(id){
-  var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p)return;var memberId=p.memberId||'';var memberName=p.nameKr||p.nameLast||'';
-  try{var res=await loadJSONfromDrive(memberId,memberName,'PCSP');if(res&&res.ok&&res.data&&res.data.found&&res.data.data){var full=res.data.data;var ix=PCSP_LIST.findIndex(function(x){return x.id===full.id;});if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);savePCSPStorage();openPCSPForm(full.id);return;}}catch(e){console.log(e);}openPCSPForm(id);
+  var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p)return;
+  try{
+    var full=await loadPCSPRecord(id,p.memberId||'',p.nameKr||p.nameLast||'');
+    cachePCSPRecord(full);openPCSPForm(full.id);
+  }catch(e){alert('❌ PCSP를 불러오지 못했습니다: '+e.message);}
 }
-async function deletePCSP(id){if(!confirm('삭제하시겠어요?'))return;PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});savePCSPStorage();renderPCSPList();try{await apiCall({action:'delete',sheet:'PCSP',id:id});}catch(e){console.log(e);}}
+async function deletePCSP(id){
+  if(!confirm('PCSP 목록에서 삭제하시겠어요? 저장된 원본 문서는 유지됩니다.'))return;
+  try{
+    pcspRequireSaved(await apiCall({action:'delete',sheet:'PCSP',id:id}),'PCSP 목록 삭제');
+    PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});renderPCSPList();
+  }catch(e){alert('❌ 삭제 실패: '+e.message);}
+}
 async function printPCSP(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p){alert('PCSP를 찾을 수 없어요');return;}var memberId=p.memberId||'';var memberName=p.nameKr||p.nameLast||'Unknown';var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write('<body style="font-family:Arial;padding:30px">PCSP PDF 생성 중...</body>');w.document.close();
-  try{var ld=await loadJSONfromDrive(memberId,memberName,'PCSP');if(ld&&ld.ok&&ld.data&&ld.data.found&&ld.data.data)p=ld.data.data;var sig='';if(p.sig&&p.sig.indexOf('base64,')>=0)sig=p.sig.split('base64,')[1];var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sig,pcsp:p,previewOnly:true});if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64)throw new Error((res&&res.data&&res.data.error)||'PDF 생성 실패');var binary=atob(res.data.pdfBase64),bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);var url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));w.location.replace(url);setTimeout(function(){URL.revokeObjectURL(url);},120000);}catch(e){try{w.close();}catch(x){}alert('❌ PCSP 출력 실패: '+e.message);}
+  try{p=await loadPCSPRecord(id,memberId,memberName);var sig='';if(p.sig&&p.sig.indexOf('base64,')>=0)sig=p.sig.split('base64,')[1];var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sig,pcsp:p,previewOnly:true});if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64)throw new Error((res&&res.data&&res.data.error)||'PDF 생성 실패');var binary=atob(res.data.pdfBase64),bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);var url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));w.location.replace(url);setTimeout(function(){URL.revokeObjectURL(url);},120000);}catch(e){try{w.close();}catch(x){}alert('❌ PCSP 출력 실패: '+e.message);}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -616,12 +676,12 @@ function pcspCleanAIText(v){return String(v==null?'':v).replace(/```(?:json)?/gi
 async function _callAIForJSON(promptText){var res=await apiCall({action:'aiPCSP',prompt:promptText});if(!res||!res.ok||!res.data||!res.data.success)throw new Error((res&&res.data&&res.data.error)||'AI 응답 오류');var clean=pcspCleanAIText(res.data.text||'');var firstObj=clean.indexOf('{'),lastObj=clean.lastIndexOf('}'),firstArr=clean.indexOf('['),lastArr=clean.lastIndexOf(']');var candidate=clean;if(firstObj>=0&&lastObj>firstObj)candidate=clean.slice(firstObj,lastObj+1);else if(firstArr>=0&&lastArr>firstArr)candidate=clean.slice(firstArr,lastArr+1);return JSON.parse(candidate);}
 function pcspFactsForAI(){var e=collectPCSPEntry();return {
   participant:{name:[e.nameFirst,e.nameLast].filter(Boolean).join(' '),dob:e.dob,gender:e.gender,language:e.lang},
-  auth:e.authContext,diagnosisCode:e.health.diagnosisCode,diagnoses:e.health.diagnoses,medications:e.health.medications,allergies:e.health.allergies,diet:e.health.dietaryRestrictions,
+  auth:{selected:e.authContext.selected},diagnosisCode:e.health.diagnosisCode,diagnoses:e.health.diagnoses,medications:e.health.medications,allergies:e.health.allergies,diet:e.health.dietaryRestrictions,
   pcspDates:{completionDate:e.wdate,nextReviewDue:e.nextdate,type:e.type},schedule:{days:e.days,time:e.time,transportation:e.transport},
   capacity:e.functional,selectedSadcActivities:e.sadcActivities,communityActivities:e.communityActivities,planning:e.planning,workInterest:e.workVolunteer.interest,
   existingPersonCentered:e.personCentered
 };}
-function pcspAiBaseInstruction(){return 'Use ONLY the documented facts, selected options, AUTH data, and staff-entered hints supplied. Never invent names, diagnoses, past events, risks, rights restrictions, religion, culture, housing choices, employment interests, or planning attendees. IMPORTANT: do not answer every field with CONFIRM WITH PARTICIPANT. For objective/support narrative, synthesize a useful draft from the documented facts and selected Yes/No/activity choices. Use CONFIRM WITH PARTICIPANT only when the field truly requires a personal choice or preference and there is no documented clue. If an objective field has no usable facts, return an empty string rather than inventing information. Write professional plain English, person-centered and concise.';}
+function pcspAiBaseInstruction(){return 'Use ONLY the documented facts, selected options, selected AUTH snapshot, and staff-entered hints supplied. Existing narrative drafts are not independently confirmed facts; do not turn their assumptions into new factual claims. Never invent names, diagnoses, past events, risks, rights restrictions, religion, culture, housing choices, employment interests, or planning attendees. IMPORTANT: do not answer every field with CONFIRM WITH PARTICIPANT. For objective/support narrative, synthesize a useful draft from the documented facts and selected Yes/No/activity choices. Use CONFIRM WITH PARTICIPANT only when the field truly requires a personal choice or preference and there is no documented clue. If an objective field has no usable facts, return an empty string rather than inventing information. Write professional plain English, person-centered and concise.';}
 function pcspAIFieldInstruction(targetId,label){
   var preferenceIds=['p-pc-importantTo','p-pc-personalPreferences','p-pc-servicePreferences','p-pc-staffPreferences','p-pc-settingPreferences','p-pc-housingPreferences','p-pc-culturalNeeds'];
   var isPreference=preferenceIds.indexOf(targetId)>=0;
@@ -706,11 +766,27 @@ async function aiPolishRight(i){var r=_pcspRights[i];if(!r||r.modified!=='Yes'){
 // ══════════════════════════════════════════════════════════════
 // Integration from member / assessment pages
 // ══════════════════════════════════════════════════════════════
-function prefillPCSPFromMember(mid){
-  var member=(typeof _formsMemberCache!=='undefined'?_formsMemberCache:[]).find(function(m){return String(m['ID'])===String(mid);});
-  if(!member){openPCSPMemberSelect();return;}
-  var matches=PCSP_LIST.filter(function(p){return String(p.memberId||'')===String(mid);});
-  if(!matches.length)selectPCSPMember(member);else if(matches.length===1)editPCSP(matches[0].id);else showPCSPSelectPopup(matches,member);
+async function prefillPCSPFromMember(mid){
+  try{
+    var results=await Promise.all([apiGet({action:'read',sheet:'멤버'}),loadPCSPFromSheets()]);
+    var member=results[0].data.find(function(m){return String(m['ID'])===String(mid);});
+    if(!member)throw new Error('멤버 정보를 찾을 수 없습니다.');
+    var matches=PCSP_LIST.filter(function(p){return String(p.memberId)===String(mid);});
+    if(!matches.length)await selectPCSPMember(member);
+    else if(matches.length===1)await editPCSP(matches[0].id);
+    else showPCSPSelectPopup(matches,member);
+  }catch(e){alert('❌ PCSP 열기 실패: '+e.message);}
 }
-function showPCSPSelectPopup(matches,member){matches.sort(function(a,b){return String(b.wdate||'').localeCompare(String(a.wdate||''));});window._pcspPopupMember=member;var h='<div style="padding:4px 0"><div style="font-size:13px;font-weight:700;margin-bottom:10px">'+pcspEsc(member&&member['한글이름']||'')+' — 저장된 PCSP '+matches.length+'건</div>';matches.forEach(function(p){h+='<div onclick="closeOv(\'ov-doc-viewer\');editPCSP(\''+pcspEsc(p.id)+'\')" style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer"><b>작성일: '+pcspEsc(p.wdate||'—')+'</b><div style="font-size:11px;color:#8E8E93">다음 검토: '+pcspEsc(p.nextdate||'—')+'</div></div>';});h+='<button onclick="closeOv(\'ov-doc-viewer\');selectPCSPMember(window._pcspPopupMember)" class="btn-full btn-primary">➕ 새 PCSP 작성</button></div>';var t=document.getElementById('doc-viewer-title'),b=document.getElementById('doc-viewer-body');if(t)t.textContent='PCSP 선택';if(b)b.innerHTML=h;openOv('ov-doc-viewer');}
+function showPCSPSelectPopup(matches,member){matches.sort(function(a,b){return String(b.wdate||'').localeCompare(String(a.wdate||''));});window._pcspPopupMember=member;var h='<div style="padding:4px 0"><div style="font-size:13px;font-weight:700;margin-bottom:10px">'+pcspEsc(member&&member['한글이름']||'')+' — 저장된 PCSP '+matches.length+'건</div>';matches.forEach(function(p){h+='<div onclick="closeOv(\'ov-doc-viewer\');editPCSP('+pcspInlineString(p.id)+')" style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer"><b>작성일: '+pcspEsc(p.wdate||'—')+'</b><div style="font-size:11px;color:#8E8E93">다음 검토: '+pcspEsc(p.nextdate||'—')+'</div></div>';});h+='<button onclick="closeOv(\'ov-doc-viewer\');selectPCSPMember(window._pcspPopupMember)" class="btn-full btn-primary">➕ 새 PCSP 작성</button></div>';var t=document.getElementById('doc-viewer-title'),b=document.getElementById('doc-viewer-body');if(t)t.textContent='PCSP 선택';if(b)b.innerHTML=h;openOv('ov-doc-viewer');}
 
+
+var _pcspFactsForAIBase=pcspFactsForAI;
+pcspFactsForAI=function(){
+  var facts=_pcspFactsForAIBase();var e=collectPCSPEntry();
+  facts['MEMBER FACTS']={memberId:e.memberId,nameLast:e.nameLast,nameFirst:e.nameFirst,dob:e.dob,health:e.health,functional:e.functional};
+  facts['AUTH FACTS']=e.authContext.selected;
+  facts['SELECTED SADC ACTIVITIES']=e.sadcActivities;
+  facts['STAFF / PARTICIPANT CONFIRMED FACTS']={planningParticipation:e.planning.participantParticipated,meetingDate:e.planning.meetingDate,meetingLocation:e.planning.meetingLocation,workInterest:e.workVolunteer.interest,rightsSelections:e.rights.map(function(r){return {right:r.right,modified:r.modified};})};
+  facts['EXISTING NARRATIVE DRAFTS']={personCentered:e.personCentered,risks:e.risks,goals:e.goals,planning:e.planning,workVolunteer:e.workVolunteer};
+  return facts;
+};

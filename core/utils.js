@@ -192,3 +192,7 @@ function apiCall(getParams, postBody) {
 }
 
 var apiUrl = SheetsAPI.URL;
+
+// Sheet/user text used in HTML content or quoted attributes.
+function escapeHTML(value){return String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function htmlJSArg(value){return escapeHTML(JSON.stringify(String(value==null?'':value)));}

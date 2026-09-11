@@ -12,7 +12,7 @@ function initGoogleAuth() {
     cancel_on_tap_outside: false,
   });
 
-  const saved = localStorage.getItem('noad_session');
+  const saved = null; // 로그인 세션은 브라우저 저장소에 보관하지 않습니다.
   if (saved) {
     try {
       const user = JSON.parse(saved);
@@ -43,7 +43,6 @@ function handleCredentialResponse(response) {
     return;
   }
   _currentUser = { email, name: payload.name, picture: payload.picture };
-  localStorage.setItem('noad_session', JSON.stringify(_currentUser));
   showApp(_currentUser);
 }
 
@@ -107,7 +106,6 @@ function selectApp(type) {
 }
 
 function logout() {
-  localStorage.removeItem('noad_session');
   _currentUser = null;
   google.accounts.id.disableAutoSelect();
   location.reload();
@@ -370,7 +368,7 @@ function renderPCSPList() {
 }
 
 function openPCSPForm(mid) {
-  if (mid) localStorage.setItem('pcsp_prefill_mid', mid);
+  if(mid){window.location.href='operations.html?tab=pcsp&mid='+encodeURIComponent(mid);return;}
   window.location.href = 'operations.html?tab=pcsp&mid=' + (mid || '');
 }
 

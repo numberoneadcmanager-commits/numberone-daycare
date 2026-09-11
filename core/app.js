@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── Google Auth ───────────────────────────────────────────────
-try { window.localStorage.clear(); window.sessionStorage.clear(); } catch(e) {}
+// 운영 데이터는 Google Sheets / Drive에서 읽습니다.
 
 function initGoogleAuth() {
   google.accounts.id.initialize({
@@ -167,7 +167,7 @@ async function initSheets() {
 async function loadAllData() {
   try {
     const members = await SheetsAPI.loadMembers();
-    if (members && members.length > 0) {
+    if (Array.isArray(members)) {
       MEMBERS.length = 0;
       members.forEach(m => MEMBERS.push(m));
       mFilt = [...MEMBERS];
@@ -176,9 +176,9 @@ async function loadAllData() {
     incidents  = all.incidents;
     activities = all.activities;
     cases      = all.cases;
-    if (all.authList && all.authList.length)    AUTH_LIST    = all.authList;
-    if (all.visitorList && all.visitorList.length) VISITOR_LIST = all.visitorList;
-    if (all.councilList && all.councilList.length) COUNCIL_LIST = all.councilList;
+    if (Array.isArray(all.authList))    AUTH_LIST    = all.authList;
+    if (Array.isArray(all.visitorList)) VISITOR_LIST = all.visitorList;
+    if (Array.isArray(all.councilList)) COUNCIL_LIST = all.councilList;
     renderIncidents(); renderActivities(); renderCases();
     updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
     // 멤버 select 업데이트 (Sheets에서 멤버 로드 후)
@@ -200,13 +200,12 @@ async function loadFromSheets() {
       SheetsAPI.loadAll(),
     ]);
 
-    if (members && members.length > 0) {
+    if (Array.isArray(members)) {
       MEMBERS.length = 0;
       members.forEach(m => MEMBERS.push(m));
       mFilt = [...MEMBERS];
     }
-    if (staff && staff.length > 0) { STAFF = staff; }
-    else { STAFF = DEFAULT_STAFF.slice(); uploadDefaultStaff(); }
+    STAFF = Array.isArray(staff) ? staff : []; // 빈 Sheet는 빈 목록입니다. 자동 직원 생성 금지.
 
     incidents  = all.incidents;
     activities = all.activities;
@@ -215,6 +214,7 @@ async function loadFromSheets() {
     if (all.visitorList) VISITOR_LIST = all.visitorList;
     if (all.councilList) COUNCIL_LIST = all.councilList;
 
+    await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets(),restorePhotosFromDrive(true)]);
     hideLoadingOverlay();
     return true;
   } catch (e) { hideLoadingOverlay(); console.log('Sheets load error:', e); return false; }
@@ -318,18 +318,18 @@ async function saveStaffEdit() {
     email: document.getElementById('sf-email').value.trim(),
     certs: window._staffCerts || [], avBg: clr.bg, avColor: clr.color,
   };
+  try { await SheetsAPI.saveStaff(staffData); } catch(e) { alert('❌ 스태프 저장 실패: '+e.message); return; }
   if (window._staffEditId) {
     var idx = STAFF.findIndex(function(x){ return x.id === sid; });
     if (idx >= 0) STAFF[idx] = staffData;
   } else { STAFF.push(staffData); }
-  try { await SheetsAPI.saveStaff(staffData); } catch (e) { console.log('Staff save error:', e); }
   closeOv('ov-staff-edit'); renderStaff(); alert(nameKr + ' 저장됨');
 }
 
 async function deleteStaffIdx(sid) {
   if (!confirm('스태프를 삭제하시겠습니까?')) return;
+  try { await SheetsAPI.deleteStaff(sid); } catch(e) { alert('❌ 삭제 실패: '+e.message); return; }
   STAFF = STAFF.filter(function(s){ return s.id !== sid; });
-  try { await SheetsAPI.deleteStaff(sid); } catch (e) {}
   renderStaff();
 }
 
@@ -681,3 +681,18 @@ function clearMRSig() {
   const empty = document.getElementById('mr-sig-empty'); if (empty) empty.style.display='flex';
   _mrSig = null;
 }
+
+// Returning from another PC/tablet work session refreshes central lists; never overwrite an open editor.
+var _centralRefreshRunning=false;
+async function refreshCentralLists(){
+  if(!_currentUser||_centralRefreshRunning||document.hidden||document.querySelector('.open'))return;
+  _centralRefreshRunning=true;
+  try{
+    await loadAllData();
+    await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets(),restorePhotosFromDrive(true)]);
+    if(typeof loadDocStatusMaps==='function')await loadDocStatusMaps(true);
+    if(typeof loadAttFromSheets==='function')await loadAttFromSheets(toISO(curDate));
+  }finally{_centralRefreshRunning=false;}
+}
+window.addEventListener('pageshow',function(e){if(e.persisted)refreshCentralLists();});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshCentralLists();});

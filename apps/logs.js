@@ -76,7 +76,7 @@ function openIncModal(id = null) {
   openOv('ov-inc');
 }
 
-function saveIncident() {
+async function saveIncident() {
   const mid = document.getElementById('inc-msel').value;
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
@@ -86,9 +86,11 @@ function saveIncident() {
     'DOH보고': gv('inc-doh'), '작성자': gv('inc-writer'), '작성시각': new Date().toLocaleString('ko-KR'),
   };
   if (!data['날짜'] || !data['설명']) { alert('날짜와 내용을 입력해주세요.'); return; }
-  if (editId) { const idx = incidents.findIndex(i => i['ID'] === editId); if (idx > -1) incidents[idx] = { ...incidents[idx], ...data }; }
-  else        { data['ID'] = 'INC' + Date.now(); incidents.unshift(data); }
-  syncLog('incident', data); saveToStorage(); closeOv('ov-inc'); renderIncidents(); updateDashNow();
+  data['ID']=editId||('INC'+Date.now());
+  try{await syncLog('incident',data);}catch(e){alert('❌ 저장 실패: '+e.message);return;}
+  var idx=incidents.findIndex(x=>x['ID']===data['ID']);
+  if(idx>=0)incidents[idx]={...incidents[idx],...data};else incidents.unshift(data);
+  saveToStorage(); closeOv('ov-inc'); renderIncidents(); updateDashNow();
 }
 
 // ── Activity ─────────────────────────────────────────────────
@@ -119,7 +121,7 @@ function renderActivities() {
           <div class="log-name"><span class="av av-xs" style="background:#E6F1FB;color:#185FA5">${(act['한글이름'] || '?')[0]}</span>${act['한글이름'] || '—'} ${pBadge(act['참여도'])}</div>
           <div class="log-date">${act['날짜']} · ${act['카테고리'] || '—'}</div>
         </div></div>
-        <div class="log-body"><b>${act['활동명'] || '—'}</b>${act['메모'] ? ' — ' + act['메모'] : ''}</div>
+        <div class="log-body"><b>${act['활동명'] || '—'}</b>${act['메모'] ? ' — ' + escapeHTML(act['메모']) : ''}</div>
         <div class="log-footer">
           <span class="log-meta">${act['작성자'] || '—'}</span>
           <div class="log-actions">
@@ -144,7 +146,7 @@ function openActModal(id = null) {
   openOv('ov-act');
 }
 
-function saveActivity() {
+async function saveActivity() {
   const mid = document.getElementById('act-msel').value;
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
@@ -153,9 +155,11 @@ function saveActivity() {
     '메모': gv('act-memo'), '작성자': gv('act-writer'), '작성시각': new Date().toLocaleString('ko-KR'),
   };
   if (!data['날짜'] || !data['활동명']) { alert('날짜와 활동명을 입력해주세요.'); return; }
-  if (editId) { const idx = activities.findIndex(a => a['ID'] === editId); if (idx > -1) activities[idx] = { ...activities[idx], ...data }; }
-  else        { data['ID'] = 'ACT' + Date.now(); activities.unshift(data); }
-  syncLog('activity', data); saveToStorage(); closeOv('ov-act'); renderActivities();
+  data['ID']=editId||('ACT'+Date.now());
+  try{await syncLog('activity',data);}catch(e){alert('❌ 저장 실패: '+e.message);return;}
+  var idx=activities.findIndex(x=>x['ID']===data['ID']);
+  if(idx>=0)activities[idx]={...activities[idx],...data};else activities.unshift(data);
+  saveToStorage(); closeOv('ov-act'); renderActivities();
 }
 
 // ── Case Log ─────────────────────────────────────────────────
@@ -219,7 +223,7 @@ function openCaseModal(id = null) {
   openOv('ov-case');
 }
 
-function saveCase() {
+async function saveCase() {
   const mid = document.getElementById('case-msel').value;
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
@@ -231,9 +235,11 @@ function saveCase() {
     '작성시각': new Date().toLocaleString('ko-KR'),
   };
   if (!data['날짜'] || !data['제목']) { alert('날짜와 제목을 입력해주세요.'); return; }
-  if (editId) { const idx = cases.findIndex(c => c['ID'] === editId); if (idx > -1) cases[idx] = { ...cases[idx], ...data }; }
-  else        { data['ID'] = 'CASE' + Date.now(); cases.unshift(data); }
-  syncLog('caselog', data); saveToStorage(); closeOv('ov-case'); renderCases(); updateDashNow();
+  data['ID']=editId||('CASE'+Date.now());
+  try{await syncLog('caselog',data);}catch(e){alert('❌ 저장 실패: '+e.message);return;}
+  var idx=cases.findIndex(x=>x['ID']===data['ID']);
+  if(idx>=0)cases[idx]={...cases[idx],...data};else cases.unshift(data);
+  saveToStorage(); closeOv('ov-case'); renderCases(); updateDashNow();
 }
 
 // ── 공통 수정/삭제 ────────────────────────────────────────────
@@ -243,19 +249,17 @@ function editLog(type, id) {
   if (type === 'case')     openCaseModal(id);
 }
 
-function delLog(type, id) {
-  if (!confirm('삭제하시겠습니까?')) return;
-  if (type === 'incident') incidents  = incidents.filter(i => i['ID'] !== id);
-  if (type === 'activity') activities = activities.filter(a => a['ID'] !== id);
-  if (type === 'case')     cases      = cases.filter(c => c['ID'] !== id);
-  renderIncidents(); renderActivities(); renderCases(); updateDashNow();
+async function delLog(type,id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  var sheet=type==='case'?'caselog':type;
+  try{await SheetsAPI.delete(sheet,id);}catch(e){alert('❌ 삭제 실패: '+e.message);return;}
+  if(type==='incident')incidents=incidents.filter(x=>x['ID']!==id);
+  if(type==='activity')activities=activities.filter(x=>x['ID']!==id);
+  if(type==='case')cases=cases.filter(x=>x['ID']!==id);
+  renderIncidents();renderActivities();renderCases();updateDashNow();
 }
-
-// ── Sheets 동기화 ─────────────────────────────────────────────
-async function syncLog(sheet, data) {
-  try {
-    await SheetsAPI.post({ action: editId ? 'update' : 'append', sheet, id: editId, data });
-  } catch (e) {}
+async function syncLog(sheet,data){
+  return SheetsAPI.post({action:'upsert',sheet:sheet,key:'ID',value:data['ID'],data:data});
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -396,10 +400,10 @@ async function saveDailyActivityLog() {
   if (saveBtn) saveBtn.disabled = true;
 
   for (let i = 0; i < entries.length; i++) {
-    activities.unshift(entries[i]);
     try {
-      await SheetsAPI.post({ action:'append', sheet:'activity', data: entries[i] });
-    } catch(e) { console.log('일괄 Activity 저장 실패:', e); }
+      await SheetsAPI.post({ action:'upsert', sheet:'activity', key:'ID',value:entries[i]['ID'],data:entries[i] });
+      activities.unshift(entries[i]);
+    } catch(e) { if(saveBtn)saveBtn.disabled=false;renderActivities();alert('❌ '+i+'건 저장 후 중단되었습니다: '+e.message);return; }
     if (statusEl) statusEl.textContent = '⏳ 저장 중... ' + (i+1) + '/' + entries.length;
     if (i % 8 === 7) await new Promise(r => setTimeout(r, 200));
   }
@@ -425,7 +429,7 @@ var SECTOR_NAMES = ['N','NE','E','SE','S','SW','W','NW'];
 var VEHICLE_FLEET=[{label:'Van1',cap:14},{label:'Van2',cap:14},{label:'Minivan1',cap:7}];
 function getVehicleFleet(){return VEHICLE_FLEET.map(function(v){return {label:v.label,cap:v.cap};});}
 async function loadVehicleFleetFromSheets(){
-  try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr)&&arr.length)VEHICLE_FLEET=arr;}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
+  try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr))VEHICLE_FLEET=arr;}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
 }
 async function saveVehicleFleet(fleet){
   await SheetsAPI.upsert('settings','Key','fleet_vehicles',{'Key':'fleet_vehicles','Value':JSON.stringify(fleet),'수정시각':new Date().toISOString()});VEHICLE_FLEET=fleet.map(function(v){return {label:v.label,cap:v.cap};});
@@ -926,29 +930,19 @@ async function saveDispatchToLog() {
 
   var statusEl = document.getElementById('disp-status');
 
-  // ★ 같은 날짜+방향 기록이 이미 있으면 먼저 지우고 새로 저장 (하루 한 번만 남도록 덮어쓰기)
-  statusEl.textContent = '⏳ 기존 기록 확인 중...';
-  try {
-    var existRes = await SheetsAPI.read('transportation');
-    if (existRes && existRes.ok && existRes.data) {
-      var toDelete = existRes.data.filter(function(r) {
-        return String(r['날짜']).slice(0,10) === iso && r['방향'] === direction && r['그룹'] !== '캔슬';
-      });
-      for (var d = 0; d < toDelete.length; d++) {
-        try { await SheetsAPI.post({ action: 'delete', sheet: 'transportation', id: toDelete[d]['ID'] }); }
-        catch(e) { console.log('기존 배차 삭제 실패:', e); }
-      }
+  try{
+    var existRes=await SheetsAPI.read('transportation');
+    var old=existRes.data.filter(function(r){return String(r['날짜']).slice(0,10)===iso&&r['방향']===direction&&r['그룹']!=='캔슬';});
+    for(var i=0;i<entries.length;i++){
+      await SheetsAPI.upsert('transportation','ID',entries[i]['ID'],entries[i]);
+      statusEl.textContent='⏳ 저장 중... '+(i+1)+'/'+entries.length;
     }
-  } catch(e) { console.log('기존 배차 조회 실패:', e); }
+    var newIds=new Set(entries.map(function(r){return r['ID'];}));
+    for(var previous of old){if(!newIds.has(previous['ID']))await SheetsAPI.delete('transportation',previous['ID']);}
+    statusEl.textContent='✅ '+direction+' 배차 '+entries.length+'건 저장 완료';
+    loadTransportFromSheets();
+  }catch(e){statusEl.textContent='❌ 배차 저장이 끝나지 않았습니다: '+e.message;loadTransportFromSheets();}
 
-  for (var i = 0; i < entries.length; i++) {
-    try { await SheetsAPI.post({ action: 'append', sheet: 'transportation', data: entries[i] }); }
-    catch(e) { console.log('배차 로그 저장 실패:', e); }
-    statusEl.textContent = '⏳ 저장 중... ' + (i + 1) + '/' + entries.length;
-    if (i % 8 === 7) await new Promise(function(r) { setTimeout(r, 200); });
-  }
-  statusEl.textContent = '✅ ' + direction + ' 배차 ' + entries.length + '건 저장 완료! (기존 ' + direction + ' 기록은 덮어써짐)';
-  loadTransportFromSheets();
 }
 
 // ══════════════════════════════════════════════════════════════

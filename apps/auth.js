@@ -150,15 +150,16 @@ function renderAuthList() {
 }
 
 // ── 상태 변경 ─────────────────────────────────────────────────
-function changeAuthStatus(id) {
+async function changeAuthStatus(id) {
   var a = AUTH_LIST.find(function(x){ return x.id === id; });
   if (!a) return;
   var options = ['Active', 'Hold', 'Modified', 'Expired'];
   var current = a.status || 'Active';
   var next = options[(options.indexOf(current) + 1) % options.length];
   if (!confirm(current + ' → ' + next + ' 로 변경하시겠어요?')) return;
-  a.status = next;
-  SheetsAPI.saveAuth(a, true).catch(function(e){ console.log('Auth status:', e); });
+  try{await SheetsAPI.saveAuth(Object.assign({},a,{status:next}),true);}
+  catch(e){alert('❌ AUTH 상태 저장 실패: '+e.message);return;}
+  a.status=next;
   renderAuthList();
 }
 
@@ -474,16 +475,14 @@ async function saveAuth() {
     updatedAt:   new Date().toISOString(),
   };
 
+  try{await SheetsAPI.saveAuth(entry,!!editId);}
+  catch(e){alert('❌ AUTH 저장 실패: '+e.message);return;}
   if (editId) {
     var idx = AUTH_LIST.findIndex(function(x){ return x.id === editId; });
     if (idx >= 0) AUTH_LIST[idx] = entry; else AUTH_LIST.push(entry);
   } else {
     AUTH_LIST.push(entry);
   }
-
-  try {
-    await SheetsAPI.saveAuth(entry, !!editId);
-  } catch(e) { console.log('Auth Sheets sync:', e); }
 
   closeOv('ov-auth');
   renderAuthList();
@@ -493,8 +492,8 @@ function editAuth(id)   { openAuthModal(id); }
 
 async function deleteAuth(id) {
   if (!confirm('삭제하시겠어요?')) return;
-  AUTH_LIST = AUTH_LIST.filter(function(x){ return x.id !== id; });
-  try { await SheetsAPI.delete('auth', id); } catch(e) {}
+  try{await SheetsAPI.delete('auth',id);}catch(e){alert('❌ AUTH 삭제 실패: '+e.message);return;}
+  AUTH_LIST=AUTH_LIST.filter(function(x){return x.id!==id;});
   renderAuthList();
 }
 

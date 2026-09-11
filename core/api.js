@@ -19,7 +19,8 @@ const SheetsAPI = {
     const res = await fetch(this.URL + '?' + qs, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data || data.ok === false) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
     return data;
   },
 
@@ -32,8 +33,8 @@ const SheetsAPI = {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data || data.ok === false) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
-    if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server save failed');
+    if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
     return data;
   },
 
@@ -115,7 +116,7 @@ const SheetsAPI = {
 
   async loadMembers() {
     const res = await this.read('멤버');
-    if (!res.ok || !res.data || !res.data.length) return null;
+    if (!res.ok || !Array.isArray(res.data)) throw new Error('Invalid member response');
     const COLORS = [
       { bg: '#FAECE7', color: '#993C1D' }, { bg: '#E6F1FB', color: '#185FA5' },
       { bg: '#E1F5EE', color: '#0F6E56' }, { bg: '#EEEDFE', color: '#534AB7' },
@@ -227,7 +228,7 @@ const SheetsAPI = {
 
   async loadStaff() {
     const res = await this.read('스태프');
-    if (!res.ok || !res.data || !res.data.length) return null;
+    if (!res.ok || !Array.isArray(res.data)) throw new Error('Invalid member response');
     return res.data.map(function(r) {
       var certs = [];
       try { certs = JSON.parse(r['자격증'] || '[]'); } catch (e) {}
@@ -482,20 +483,8 @@ const SheetsAPI = {
 };
 
 // ── 기존 코드 호환 래퍼 ────────────────────────────────────────
-async function apiCall(data) {
-  try {
-    const r = await fetch(SheetsAPI.URL, { method: 'POST', body: JSON.stringify(data) });
-    return r.json();
-  } catch(e) { return { ok: false, error: e.message }; }
-}
-
-async function apiGet(data) {
-  try {
-    const qs  = new URLSearchParams(data).toString();
-    const res = await fetch(SheetsAPI.URL + '?' + qs);
-    return res.json();
-  } catch(e) { return { ok: false, error: e.message }; }
-}
+async function apiCall(data){return SheetsAPI.post(data);}
+async function apiGet(data){return SheetsAPI.get(data);}
 
 async function saveJSONtoDrive(mid, mName, fileType, jsonData) {
   return SheetsAPI.saveJSON(mid, mName, fileType, jsonData);

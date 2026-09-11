@@ -98,6 +98,7 @@ function renderTrSessionList(){
 }
 
 function openTrModal(){
+  window._trainingSaveId=null;
   document.getElementById('tr-date').value = new Date().toLocaleDateString('sv-SE');
   document.getElementById('tr-hours').value = '';
   document.getElementById('tr-rn-name').value = '';
@@ -129,7 +130,7 @@ function openTrModal(){
   openOv('ov-tr');
 }
 
-function saveTrSession(){
+async function saveTrSession(){
   var date = document.getElementById('tr-date').value;
   var hours = document.getElementById('tr-hours').value;
   if(!date||!hours){ alert('날짜와 시간은 필수입니다'); return; }
@@ -157,26 +158,26 @@ function saveTrSession(){
   });
   if(!selectedStaff.length){ alert('참가 스태프를 선택해주세요'); return; }
 
-  var sid = 'tr_'+Date.now();
+  var sid = window._trainingSaveId || ('tr_'+Date.now());window._trainingSaveId=sid;
   var session = {
     id:sid, date:date, hours:hours, topics:topics,
     rnName:rnName, rnLic:document.getElementById('tr-rn-lic').value.trim(),
     supervisor:document.getElementById('tr-supervisor').value.trim(),
     staff:selectedStaff
   };
-  TR_SESSIONS.push(session);
-  saveTrStorage();
+
 
   // Sheets에 저장 (스태프별 행)
-  selectedStaff.forEach(function(st){
-    apiCall({action:'append',sheet:'training_log',data:{
+  try{for(var st of selectedStaff){
+    await apiCall({action:'upsert',sheet:'training_log',key:'ID',value:sid+'_'+st.id,data:{'ID':sid+'_'+st.id,
       '세션ID':sid, '날짜':date, '시간':hours,
       '토픽':JSON.stringify(topics),
       'RN이름':rnName, 'RN_LicenseID':document.getElementById('tr-rn-lic').value.trim(),
       '수퍼바이저':document.getElementById('tr-supervisor').value.trim(),
       '스태프ID':st.id, '스태프이름':st.name
-    }}).catch(function(){});
-  });
+    }});
+  }}catch(e){alert('❌ 일부 교육 기록이 저장되지 않았습니다. 재시도하면 동일 ID로 갱신합니다: '+e.message);return;}
+  window._trainingSaveId=null;TR_SESSIONS.push(session);saveTrStorage();
 
   closeOv('ov-tr');
   renderTrSessionList();
@@ -333,7 +334,7 @@ function saveDocWithUpload(){
   var file = fileInput&&fileInput.files&&fileInput.files[0];
   var existingLink = document.getElementById('doc-link').value.trim();
 
-  function finalize(link){
+  async function finalize(link){
     var entry = {
       id:editId||('doc_'+Date.now()), name:name,
       cat:document.getElementById('doc-cat').value,
@@ -341,13 +342,13 @@ function saveDocWithUpload(){
       expiry:document.getElementById('doc-expiry').value,
       link:link||'', note:document.getElementById('doc-note').value.trim()
     };
+    try{await apiCall({action:'upsert',sheet:'docs',key:'ID',value:entry.id,data:{
+      'ID':entry.id,'이름':entry.name,'카테고리':entry.cat,'발급일':entry.issued,
+      '만료일':entry.expiry,'Drive링크':entry.link,'메모':entry.note
+    }});}catch(e){alert('❌ 문서 정보 저장 실패: '+e.message);return;}
     if(editId){ var idx=DOCS_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)DOCS_LIST[idx]=entry;else DOCS_LIST.push(entry); }
     else DOCS_LIST.push(entry);
     saveDocsStorage();
-    apiCall({action:'upsert',sheet:'docs',key:'ID',value:entry.id,data:{
-      'ID':entry.id,'이름':entry.name,'카테고리':entry.cat,'발급일':entry.issued,
-      '만료일':entry.expiry,'Drive링크':entry.link,'메모':entry.note
-    }}).catch(function(){});
     closeOv('ov-doc'); renderDocsList();
   }
 
@@ -381,108 +382,4 @@ function saveDocWithUpload(){
 }
 
 // ── 초기화 ────────────────────────────────────────────────
-function initData(){
-  renderAudit();
-
-  // ── 앱 시작 시 Sheets에서 데이터 로드 ──
-  loadGRfromSheets();
-  loadFDfromSheets();
-  loadTempfromSheets();
-  loadDocsfromSheets();
-  loadActfromSheets();
-
-  // URL 파라미터 처리 (케어 관리 앱에서 넘어온 경우)
-  var params = new URLSearchParams(window.location.search);
-  var tab = params.get('tab');
-  var formType = params.get('type'); // 'Nutrition' / 'Assessment' / null(=PCSP)
-  var mid = params.get('mid');
-  if(tab === 'pcsp' || tab === 'forms'){
-    // Forms 탭으로 이동
-    var formsTabEl = document.querySelector('.tab[onclick*="forms"]');
-    goTab('forms', formsTabEl);
-    if(mid){
-      setTimeout(function(){
-        if(typeof loadFormsMemberDropdown === 'function') loadFormsMemberDropdown();
-        setTimeout(function(){
-          var member = (_formsMemberCache||[]).find(function(m){return String(m['ID'])===String(mid);});
-          var mName = member ? (member['한글이름']||'') : '';
-
-          if (formType === 'Nutrition' && typeof openNutritionForMember === 'function') {
-            openNutritionForMember(mid, mName);
-          } else if (formType === 'Assessment' && typeof openAssessmentForMember === 'function') {
-            openAssessmentForMember(mid, mName);
-          } else if(typeof prefillPCSPFromMember === 'function'){
-            prefillPCSPFromMember(mid);
-          } else if(typeof openPCSPForMember === 'function'){
-            openPCSPForMember(mid, '');
-          }
-        }, 800);
-      }, 300);
-    }
-  }
-}
-
-function prefillPCSPFromMember(mid){
-  // 1) 멤버 정보 + 2) 해당 멤버의 저장된 PCSP 목록을 함께 조회
-  Promise.all([
-    apiGet({action:'read',sheet:'멤버'}),
-    apiGet({action:'readByMember',sheet:'PCSP',memberId:mid})
-  ]).then(function(results){
-    var memberRes = results[0];
-    var pcspRes   = results[1];
-    var member = null;
-    if (memberRes.ok && memberRes.data) {
-      member = memberRes.data.find(function(r){ return String(r['ID']) === String(mid); });
-    }
-    var pcspRows = (pcspRes.ok && pcspRes.data) ? pcspRes.data : [];
-
-    if (!pcspRows.length) {
-      // 저장된 PCSP 없음 → 새로 작성
-      if (member) selectPCSPMember(member);
-      else openPCSPForm();
-      return;
-    }
-
-    // 작성일 최신순 정렬
-    pcspRows.sort(function(a,b){
-      return String(b['작성일']||'').localeCompare(String(a['작성일']||''));
-    });
-
-    if (pcspRows.length === 1) {
-      // PCSP 1개 → 바로 열기
-      loadPCSPFromSheets().then(function(){
-        openPCSPForm(pcspRows[0]['ID']);
-      });
-    } else {
-      // 여러 개 → 선택 팝업
-      showPCSPSelectPopup(pcspRows, member, mid);
-    }
-  }).catch(function(){ openPCSPForm(); });
-}
-
-// 멤버에 저장된 PCSP가 여러 개일 때 선택 팝업
-function showPCSPSelectPopup(pcspRows, member, mid){
-  var mName = member ? (member['한글이름']||'') : '';
-  var html = '<div style="padding:4px 0">';
-  html += '<div style="font-size:13px;font-weight:700;margin-bottom:10px">' + mName + ' — 저장된 PCSP ' + pcspRows.length + '건</div>';
-  pcspRows.forEach(function(p){
-    var date = String(p['작성일']||'').slice(0,10);
-    var exp  = String(p['갱신예정일']||'').slice(0,10);
-    var expired = exp && exp < new Date().toLocaleDateString('sv-SE');
-    html += '<div onclick="closeOv(\'ov-doc-viewer\');loadPCSPFromSheets().then(function(){openPCSPForm(\''+p['ID']+'\');})" '
-      + 'style="background:#F2F2F7;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer">'
-      + '<div style="font-size:13px;font-weight:600">작성일: ' + date + '</div>'
-      + '<div style="font-size:12px;color:' + (expired ? '#FF3B30' : '#34C759') + ';margin-top:3px">갱신예정일: ' + (exp || '—') + (expired ? ' (만료)' : '') + '</div>'
-      + '<div style="font-size:11px;color:#8E8E93;margin-top:3px">작성자: ' + (p['작성자']||'—') + '</div>'
-      + '</div>';
-  });
-  html += '<button onclick="closeOv(\'ov-doc-viewer\');' + (member ? 'selectPCSPMember(' + JSON.stringify(member).replace(/"/g,'&quot;') + ')' : 'openPCSPForm()') + '" '
-    + 'style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #D85A30;background:#FFF3EE;color:#D85A30;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px">➕ 새 PCSP 작성</button>';
-  html += '</div>';
-
-  var titleEl = document.getElementById('doc-viewer-title');
-  var bodyEl  = document.getElementById('doc-viewer-body');
-  if (titleEl) titleEl.textContent = 'PCSP 선택';
-  if (bodyEl)  bodyEl.innerHTML = html;
-  openOv('ov-doc-viewer');
-}
+// PCSP entry points and startup are owned by apps/pcsp.js and operations.html.

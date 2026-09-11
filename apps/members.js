@@ -457,18 +457,21 @@ function toggleStatusRadio() {
 }
 
 async function saveStatus() {
-  const m = MEMBERS.find(x => x.id === window._statusMid); if (!m) return;
+  const original=MEMBERS.find(x=>x.id===window._statusMid);if(!original)return;
+  const m={...original};
   if (document.getElementById('sm-disenrolled').checked) {
     m.status = 'disenrolled';
     m.disenrollDate = document.getElementById('sm-date').value || '';
     m.disenrollNote = document.getElementById('sm-note').value || '';
   } else { m.status = 'active'; m.disenrollDate = ''; m.disenrollNote = ''; }
-  document.getElementById('ov-status').classList.remove('open');
-  document.getElementById('modal-ov-status').style.display = 'none';
   // ★ 멤버 전체 필드를 함께 저장 (상태만 보내면 나머지 컬럼이 빈 값으로 덮어써짐)
   try {
     await SheetsAPI.saveMember(m);
-  } catch(e) { console.log('상태 저장 오류:', e); }
+  } catch(e) { alert('❌ 상태 저장 실패: '+e.message); return; }
+  Object.assign(original,m);
+  document.getElementById('ov-status').classList.remove('open');
+  document.getElementById('modal-ov-status').style.display = 'none';
+
   saveToStorage(); renderAtt(); filterM(); renderDash();
 }
 
@@ -569,9 +572,9 @@ async function saveMemberEdit() {
     const COLORS = [{bg:'#FAECE7',color:'#993C1D'},{bg:'#E6F1FB',color:'#185FA5'},{bg:'#E1F5EE',color:'#0F6E56'},{bg:'#EEEDFE',color:'#534AB7'}];
     const clr = COLORS[MEMBERS.length % COLORS.length];
     m = { id: newId, chartNo: newId, status: 'active', disenrollDate: '', disenrollNote: '', memo: '', avBg: clr.bg, avColor: clr.color };
-    MEMBERS.push(m);
+
   } else {
-    m = MEMBERS.find(x => x.id === window._meditMid); if (!m) return;
+    const original=MEMBERS.find(x=>x.id===window._meditMid);if(!original)return; m={...original};
   }
   const cno2 = document.getElementById('me-chartno'); if (cno2) m.chartNo = cno2.value.trim();
   m.kr       = document.getElementById('me-kr').value.trim();
@@ -605,7 +608,8 @@ async function saveMemberEdit() {
   // ★ SheetsAPI.saveMember()로 통일 — 전체 필드를 한번에 정확히 저장
   try {
     await SheetsAPI.saveMember(m);
-  } catch(e) { console.log('멤버 저장 오류:', e); }
+  } catch(e) { alert('❌ 멤버 저장 실패: '+e.message); return; }
+  if(isNew)MEMBERS.push(m);else Object.assign(MEMBERS.find(x=>x.id===m.id),m);
 
   saveToStorage(); closeOv('ov-medit'); filterM(); renderAtt();
   alert((isNew ? '새 멤버 추가: ' : '') + m.kr + ' 저장됨');
@@ -642,9 +646,6 @@ async function openPhotoUpload(mid) {
       const base64  = dataUrl.split(',')[1];
 
       // 1. 로컬 캐시 + 멤버 객체에 즉시 반영
-      mp[mid] = dataUrl;
-      const mObj = MEMBERS.find(x => x.id === mid);
-      if (mObj) mObj.photo = dataUrl;
 
       // 2. Drive에 JSON으로 저장 (다른 기기에서 복원 가능)
       try {
@@ -653,10 +654,13 @@ async function openPhotoUpload(mid) {
         await SheetsAPI.saveJSON(mid, mName, 'Photo', { photo: dataUrl, savedAt: new Date().toISOString() });
         console.log('사진 Drive 저장 완료:', mid);
       } catch(err) {
-        console.log('사진 Drive 저장 실패:', err);
+        alert('❌ 사진 저장 실패: '+err.message);return;
       }
 
       // 3. 멤버 카드 즉시 업데이트
+      mp[mid] = dataUrl;
+      const mObj = MEMBERS.find(x => x.id === mid);
+      if (mObj) mObj.photo = dataUrl;
       renderMG();
     };
     reader.readAsDataURL(file);
@@ -851,8 +855,8 @@ async function updatePendingSigCount() {
 // ══════════════════════════════════════════════════════════════
 // 멤버 사진 Drive에서 복원 (다른 기기 동기화)
 // ══════════════════════════════════════════════════════════════
-async function restorePhotosFromDrive() {
-  var msgEl = document.getElementById('api-msg');
+async function restorePhotosFromDrive(silent) {
+  var msgEl = silent?null:document.getElementById('api-msg');
   if (msgEl) msgEl.textContent = '⏳ Drive에서 사진 목록 확인 중...';
 
   try {
@@ -866,12 +870,12 @@ async function restorePhotosFromDrive() {
     photoLogs.forEach(function(l){
       var mid = String(l['멤버ID']||'');
       var at  = String(l['저장일시']||'');
-      if (!latest[mid] || at > latest[mid].at) latest[mid] = { mid: mid, name: String(l['한글이름']||''), at: at };
+      latest[mid] = { mid:mid,name:String(l['한글이름']||''),at:at }; // JSONLog append order, not locale text order
     });
 
     var targets = Object.values(latest).filter(function(t){
       var m = MEMBERS.find(function(x){ return x.id === t.mid; });
-      return m && !m.photo; // 이미 사진 있으면 스킵
+      return !!m; // 중앙 원본을 읽어 다른 기기에서 변경한 사진도 갱신
     });
 
     if (!targets.length) { if(msgEl) msgEl.textContent='✅ 복원할 사진 없음 (모두 최신)'; return; }

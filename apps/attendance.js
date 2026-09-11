@@ -183,37 +183,38 @@ async function qSet(iso, mid, st) {
   if (prev === st) {
     // 같은 상태 클릭 → 취소
     upd = { status: '', signIn: '', signOut: '', memo: (r[mid]||{}).memo||'' };
-    if (_attCache[iso]) delete _attCache[iso][mid];
-    if (allR[iso])      delete allR[iso][mid];
+
   } else {
     const ex = r[mid] || {};
     upd = { ...ex, status: st, updatedAt: now2() };
     if (past && ex.status && ex.status !== st) upd.editedAt = now2();
     if ((st === 'in' || st === 'late') && !ex.signIn && !past) upd.signIn = now2();
-    setRec(iso, mid, upd);
+
   }
 
-  renderAtt();
-
-  // Sheets에 직접 저장
   await saveAttToSheets(iso, mid, upd);
+  renderAtt();
 }
 
-function qMemo(iso, mid, val) {
-  const ex  = (getRec(iso)[mid]) || {};
-  const past = iso < todayISO;
-  const upd = { ...ex, memo: val, updatedAt: now2() };
-  if (past && ex.memo !== undefined) upd.editedAt = now2();
-  setRec(iso, mid, upd);
-  // 메모는 debounce (타이핑 중에 매번 저장 방지)
-  clearTimeout(qMemo._t);
-  qMemo._t = setTimeout(() => saveAttToSheets(iso, mid, upd), 1500);
+var _attMemoTimers=Object.create(null);
+var _attWrites=0;
+function qMemo(iso,mid,val){
+  var key=iso+'|'+mid;clearTimeout(_attMemoTimers[key]);
+  _attMemoTimers[key]=setTimeout(async function(){
+    delete _attMemoTimers[key];
+    var ex=getRec(iso)[mid]||{};
+    await saveAttToSheets(iso,mid,{...ex,memo:val,updatedAt:now2()});
+  },500);
 }
+window.addEventListener('beforeunload',function(e){
+  if(Object.keys(_attMemoTimers).length||_attWrites){e.preventDefault();e.returnValue='';}
+});
 
 // ── Sheets에 단일 출결 저장 ───────────────────────────────────
 async function saveAttToSheets(iso, mid, r) {
   const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
   const author = _currentUser ? (_currentUser.name || '') : '';
+  _attWrites++;
   try {
     await SheetsAPI.post({
       action:  'upsert',
@@ -230,13 +231,14 @@ async function saveAttToSheets(iso, mid, r) {
         '메모':     r.memo     || '',
         '시작일':   r.start    || '',
         '종료일':   r.end      || '',
-        '수정시각': new Date().toLocaleString('ko-KR'),
+        '수정시각': new Date().toISOString(),
         '작성자':   author,
       },
     });
+    setRec(iso,mid,{...r});return true;
   } catch(e) {
-    console.warn('출결 저장 실패:', mid, e);
-  }
+    alert('❌ 출결 저장 실패: '+e.message);return false;
+  } finally{_attWrites--;} 
 }
 
 // ── 출결 상세 모달 ────────────────────────────────────────────
@@ -296,19 +298,14 @@ async function saveAttModal() {
     updatedAt: now2(),
   };
   if (past && ex.status) data.editedAt = now2();
-  setRec(popDate, popId, data);
-  closeOv('ov-att');
-  renderAtt();
-  await saveAttToSheets(popDate, popId, data);
+  if(!await saveAttToSheets(popDate,popId,data))return;
+  closeOv('ov-att');renderAtt();
 }
 
-async function clearAttModal() {
-  if (!popId || !popDate) return;
-  if (_attCache[popDate]) delete _attCache[popDate][popId];
-  if (allR[popDate])      delete allR[popDate][popId];
-  closeOv('ov-att');
-  renderAtt();
-  await saveAttToSheets(popDate, popId, { status:'', signIn:'', signOut:'', memo:'' });
+async function clearAttModal(){
+  if(!popId||!popDate)return;
+  if(!await saveAttToSheets(popDate,popId,{status:'',signIn:'',signOut:'',memo:''}))return;
+  closeOv('ov-att');renderAtt();
 }
 
 // ── 부재 탭 ───────────────────────────────────────────────────
@@ -450,19 +447,21 @@ async function saveAbsence() {
   const m = MEMBERS.find(x => x.id === mid);
   const nameKr = m ? m.kr : '';
 
+  const rec = { status: type, signIn: '', signOut: '', memo, start, end, writer: (_currentUser && _currentUser.name) || '' };
+
+
+  try {
+    await SheetsAPI.syncSingleAttendance(start, mid, rec, MEMBERS);
+  } catch(e){alert('❌ 부재 등록 실패: '+e.message);return;}
+  setRec(start,mid,rec);
   // 수정 중 시작일을 바꾼 경우, 예전 행은 상태를 비워서 부재 목록에서 사라지게 함
   const orig = window._abEditOriginal;
   if (orig && orig.mid === mid && orig.start && orig.start !== start) {
     const clearRec = { status: '', signIn: '', signOut: '', memo: '', start: '', end: '', writer: (_currentUser && _currentUser.name) || '' };
-    try { await SheetsAPI.syncSingleAttendance(orig.start, mid, clearRec, MEMBERS); } catch (e) { console.log('이전 부재 행 정리 실패:', e); }
+    try { await SheetsAPI.syncSingleAttendance(orig.start, mid, clearRec, MEMBERS); } catch(e){alert('새 부재는 저장되었으나 이전 행 정리에 실패했습니다: '+e.message);return;}
   }
 
-  const rec = { status: type, signIn: '', signOut: '', memo, start, end, writer: (_currentUser && _currentUser.name) || '' };
-  setRec(start, mid, rec);
 
-  try {
-    await SheetsAPI.syncSingleAttendance(start, mid, rec, MEMBERS);
-  } catch (e) { console.log('부재 등록 저장 실패:', e); }
 
   window._abEditOriginal = null;
   closeOv('ov-absence');

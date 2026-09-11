@@ -1259,7 +1259,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────
-try { window.localStorage.clear(); window.sessionStorage.clear(); } catch(e) {}
+// 운영 데이터는 서버에서만 읽습니다. 브라우저 저장소는 사용하지 않습니다.
 
 const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com','chouung11@gmail.com','numberone.adc.lee@gmail.com','numberone.adc.kimj@gmail.com'];
 const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
@@ -1379,18 +1379,18 @@ function openOv(id){document.getElementById(id).classList.add('open');document.g
 function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
 
 // ── API Call ─────────────────────────────────────────────
+async function checkAPIResponse(r){
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  var result=await r.json();
+  if(!result||result.ok!==true||result.data&&result.data.success===false)
+    throw new Error(result&&(result.error||result.data&&result.data.error)||'서버 작업 실패');
+  return result;
+}
 async function apiCall(data){
-  try{
-    var r=await fetch(API_URL,{method:'POST',body:JSON.stringify(data)});
-    return await r.json();
-  }catch(e){return {ok:false,error:e.message};}
+  return checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)}));
 }
 async function apiGet(params){
-  try{
-    var qs=new URLSearchParams(params).toString();
-    var r=await fetch(API_URL+'?'+qs);
-    return await r.json();
-  }catch(e){return {ok:false,error:e.message};}
+  return checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'}));
 }
 // ── Drive JSON 저장/로드 ──────────────────────────────────
 async function saveJSONtoDrive(memberId,memberName,fileType,jsonData){
@@ -1470,10 +1470,11 @@ function renderAudit(){
   var el2=document.getElementById('audit-list'); if(el2)el2.innerHTML=html;
 }
 
-function toggleAudit(id){
-  AUDIT_DONE[id]=!AUDIT_DONE[id];
-  renderAudit();
-  apiCall({action:'upsert',sheet:'settings',key:'Key',value:'audit_done',data:{'Key':'audit_done','Value':JSON.stringify(AUDIT_DONE),'수정시각':new Date().toISOString()}}).catch(function(e){console.log('Audit 저장 실패:',e);});
+async function toggleAudit(id){
+  var next=Object.assign({},AUDIT_DONE);next[id]=!next[id];
+  try{await apiCall({action:'upsert',sheet:'settings',key:'Key',value:'audit_done',data:{'Key':'audit_done','Value':JSON.stringify(next),'수정시각':new Date().toISOString()}});}
+  catch(e){alert('❌ Audit 저장 실패: '+e.message);return;}
+  AUDIT_DONE=next;renderAudit();
 }
 async function loadAuditFromSheets(){
   try{
@@ -1847,28 +1848,31 @@ function openGrModal(id){
   else{document.getElementById('gr-date').value=today;document.getElementById('gr-member').value='';document.getElementById('gr-content').value='';document.getElementById('gr-action').value='';document.getElementById('gr-staff').value='';document.getElementById('gr-result').value='';}
   openOv('ov-gr');
 }
-function saveGrievance(){
+async function saveGrievance(){
   var date=document.getElementById('gr-date').value;
   var content=document.getElementById('gr-content').value.trim();
   if(!date||!content){alert('날짜와 내용은 필수입니다');return;}
   var editId=document.getElementById('gr-edit-id').value;
   var entry={id:editId||('gr_'+Date.now()),date:date,type:document.getElementById('gr-type').value,member:document.getElementById('gr-member').value.trim(),content:content,action:document.getElementById('gr-action').value.trim(),staff:document.getElementById('gr-staff').value.trim(),status:document.getElementById('gr-status').value,result:document.getElementById('gr-result').value.trim()};
+  try{
+    await apiCall({action:'upsert',sheet:'grievance',key:'ID',value:entry.id,data:{
+    'ID':entry.id,'날짜':entry.date,'유형':entry.type,'멤버':entry.member,
+    '내용':entry.content,'조치':entry.action,'담당자':entry.staff,'상태':entry.status,'결과':entry.result
+  }});
+  }catch(e){alert('❌ 저장 실패: '+e.message);return;}
   if(editId){var idx=GR_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)GR_LIST[idx]=entry;else GR_LIST.push(entry);}
   else GR_LIST.push(entry);
   saveGRStorage();
-  apiCall({action:'upsert',sheet:'grievance',key:'ID',value:entry.id,data:{
-    'ID':entry.id,'날짜':entry.date,'유형':entry.type,'멤버':entry.member,
-    '내용':entry.content,'조치':entry.action,'담당자':entry.staff,'상태':entry.status,'결과':entry.result
-  }}).catch(function(){});
+
   closeOv('ov-gr');renderGrievanceList();
 }
 function editGr(id){openGrModal(id);}
-function deleteGr(id){
+async function deleteGr(id){
   if(!confirm('삭제?'))return;
+  try{await apiCall({action:'delete',sheet:'grievance',id:id});}
+  catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   GR_LIST=GR_LIST.filter(function(x){return x.id!==id;});
-  saveGRStorage();
-  apiCall({action:'delete',sheet:'grievance',id:id}).catch(function(){});
-  renderGrievanceList();
+  saveGRStorage();renderGrievanceList();
 }
 
 // ── FIRE DRILL ────────────────────────────────────────────
@@ -1922,18 +1926,21 @@ function openFDModal(id){
   else{document.getElementById('fd-date').value=today;document.getElementById('fd-time').value='';document.getElementById('fd-count').value='';document.getElementById('fd-duration').value='';document.getElementById('fd-staff').value='';document.getElementById('fd-note').value='';document.getElementById('fd-pdf-link').value='';document.getElementById('fd-pdf-status').textContent='';}
   openOv('ov-fd');
 }
-function saveFireDrill(){
+async function saveFireDrill(){
   var date=document.getElementById('fd-date').value;
   if(!date){alert('날짜는 필수입니다');return;}
   var editId=document.getElementById('fd-edit-id').value;
   var entry={id:editId||('fd_'+Date.now()),date:date,time:document.getElementById('fd-time').value,count:document.getElementById('fd-count').value,duration:document.getElementById('fd-duration').value,type:document.getElementById('fd-type').value,staff:document.getElementById('fd-staff').value.trim(),note:document.getElementById('fd-note').value.trim(),pdfLink:document.getElementById('fd-pdf-link').value||''};
+  try{
+    await apiCall({action:'upsert',sheet:'firedrill',key:'ID',value:entry.id,data:{
+    'ID':entry.id,'날짜':entry.date,'시간':entry.time,'참석인원':entry.count,
+    '소요시간':entry.duration,'유형':entry.type,'담당자':entry.staff,'메모':entry.note,'PDF링크':entry.pdfLink
+  }});
+  }catch(e){alert('❌ 저장 실패: '+e.message);return;}
   if(editId){var idx=FD_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)FD_LIST[idx]=entry;else FD_LIST.push(entry);}
   else FD_LIST.push(entry);
   saveFDStorage();
-  apiCall({action:'upsert',sheet:'firedrill',key:'ID',value:entry.id,data:{
-    'ID':entry.id,'날짜':entry.date,'시간':entry.time,'참석인원':entry.count,
-    '소요시간':entry.duration,'유형':entry.type,'담당자':entry.staff,'메모':entry.note,'PDF링크':entry.pdfLink
-  }}).catch(function(){});
+
   closeOv('ov-fd');renderFDList();
 }
 // ── 소방훈련 서명지 인쇄 ────────────────────────────────────
@@ -2001,12 +2008,12 @@ async function uploadFDSignedPDF(input){
 }
 
 function editFD(id){openFDModal(id);}
-function deleteFD(id){
+async function deleteFD(id){
   if(!confirm('삭제?'))return;
+  try{await apiCall({action:'delete',sheet:'firedrill',id:id});}
+  catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   FD_LIST=FD_LIST.filter(function(x){return x.id!==id;});
-  saveFDStorage();
-  apiCall({action:'delete',sheet:'firedrill',id:id}).catch(function(){});
-  renderFDList();
+  saveFDStorage();renderFDList();
 }
 
 // ── TEMPERATURE LOG ───────────────────────────────────────
@@ -2072,25 +2079,28 @@ function openTempModal(){
   document.getElementById('temp-note').value='';
   openOv('ov-temp');
 }
-function saveTemp(){
+async function saveTemp(){
   var date=document.getElementById('temp-date').value;
   var value=document.getElementById('temp-value').value;
   if(!date||!value){alert('날짜와 측정값은 필수입니다');return;}
   var entry={id:'temp_'+Date.now(),date:date,time:document.getElementById('temp-time').value,type:document.getElementById('temp-type').value.split(' ')[0],value:value,unit:document.getElementById('temp-unit').value,staff:document.getElementById('temp-staff').value.trim(),note:document.getElementById('temp-note').value.trim()};
-  TEMP_LIST.push(entry);
-  saveTempStorage();
-  apiCall({action:'upsert',sheet:'templog',key:'ID',value:entry.id,data:{
+  try{
+    await apiCall({action:'upsert',sheet:'templog',key:'ID',value:entry.id,data:{
     'ID':entry.id,'날짜':entry.date,'시간':entry.time,'유형':entry.type,
     '측정값':entry.value,'단위':entry.unit,'기록자':entry.staff,'메모':entry.note
-  }}).catch(function(){});
+  }});
+  }catch(e){alert('❌ 저장 실패: '+e.message);return;}
+  TEMP_LIST.push(entry);
+  saveTempStorage();
+
   closeOv('ov-temp');renderTempList();
 }
-function deleteTemp(id){
+async function deleteTemp(id){
   if(!confirm('삭제?'))return;
+  try{await apiCall({action:'delete',sheet:'templog',id:id});}
+  catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   TEMP_LIST=TEMP_LIST.filter(function(x){return x.id!==id;});
-  saveTempStorage();
-  apiCall({action:'delete',sheet:'templog',id:id}).catch(function(){});
-  renderTempList();
+  saveTempStorage();renderTempList();
 }
 
 // ── DOCUMENT VAULT ────────────────────────────────────────
@@ -2165,27 +2175,30 @@ function openDocModal(id){
   else{document.getElementById('doc-name').value='';document.getElementById('doc-issued').value='';document.getElementById('doc-expiry').value='';document.getElementById('doc-link').value='';document.getElementById('doc-note').value='';}
   openOv('ov-doc');
 }
-function saveDoc(){
+async function saveDoc(){
   var name=document.getElementById('doc-name').value.trim();
   if(!name){alert('문서명은 필수입니다');return;}
   var editId=document.getElementById('doc-edit-id').value;
   var entry={id:editId||('doc_'+Date.now()),name:name,cat:document.getElementById('doc-cat').value,issued:document.getElementById('doc-issued').value,expiry:document.getElementById('doc-expiry').value,link:document.getElementById('doc-link').value.trim(),note:document.getElementById('doc-note').value.trim()};
+  try{
+    await apiCall({action:'upsert',sheet:'docs',key:'ID',value:entry.id,data:{
+    'ID':entry.id,'이름':entry.name,'카테고리':entry.cat,'발급일':entry.issued,
+    '만료일':entry.expiry,'Drive링크':entry.link,'메모':entry.note
+  }});
+  }catch(e){alert('❌ 저장 실패: '+e.message);return;}
   if(editId){var idx=DOCS_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)DOCS_LIST[idx]=entry;else DOCS_LIST.push(entry);}
   else DOCS_LIST.push(entry);
   saveDocsStorage();
-  apiCall({action:'upsert',sheet:'docs',key:'ID',value:entry.id,data:{
-    'ID':entry.id,'이름':entry.name,'카테고리':entry.cat,'발급일':entry.issued,
-    '만료일':entry.expiry,'Drive링크':entry.link,'메모':entry.note
-  }}).catch(function(){});
+
   closeOv('ov-doc');renderDocsList();
 }
 function editDoc(id){openDocModal(id);}
-function deleteDoc(id){
+async function deleteDoc(id){
   if(!confirm('삭제?'))return;
+  try{await apiCall({action:'delete',sheet:'docs',id:id});}
+  catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   DOCS_LIST=DOCS_LIST.filter(function(x){return x.id!==id;});
-  saveDocsStorage();
-  apiCall({action:'delete',sheet:'docs',id:id}).catch(function(){});
-  renderDocsList();
+  saveDocsStorage();renderDocsList();
 }
 
 // ── ACTIVITY CALENDAR ─────────────────────────────────────
@@ -2241,28 +2254,31 @@ function openActModal(id){
   else{document.getElementById('act-date').value=today;document.getElementById('act-time').value='';document.getElementById('act-name').value='';document.getElementById('act-staff').value='';document.getElementById('act-note').value='';}
   openOv('ov-act');
 }
-function saveActivity(){
+async function saveActivity(){
   var date=document.getElementById('act-date').value;
   var name=document.getElementById('act-name').value.trim();
   if(!date||!name){alert('날짜와 활동명은 필수입니다');return;}
   var editId=document.getElementById('act-edit-id').value;
   var entry={id:editId||('act_'+Date.now()),date:date,time:document.getElementById('act-time').value,name:name,cat:document.getElementById('act-cat').value,staff:document.getElementById('act-staff').value.trim(),note:document.getElementById('act-note').value.trim()};
+  try{
+    await apiCall({action:'upsert',sheet:'op_activity',key:'ID',value:entry.id,data:{
+    'ID':entry.id,'날짜':entry.date,'시간':entry.time,'활동명':entry.name,
+    '카테고리':entry.cat,'담당자':entry.staff,'메모':entry.note
+  }});
+  }catch(e){alert('❌ 저장 실패: '+e.message);return;}
   if(editId){var idx=ACT_LIST.findIndex(function(x){return x.id===editId;});if(idx>=0)ACT_LIST[idx]=entry;else ACT_LIST.push(entry);}
   else ACT_LIST.push(entry);
   saveActStorage();
-  apiCall({action:'upsert',sheet:'op_activity',key:'ID',value:entry.id,data:{
-    'ID':entry.id,'날짜':entry.date,'시간':entry.time,'활동명':entry.name,
-    '카테고리':entry.cat,'담당자':entry.staff,'메모':entry.note
-  }}).catch(function(){});
+
   closeOv('ov-act');renderActivityList();
 }
 function editAct(id){openActModal(id);}
-function deleteAct(id){
+async function deleteAct(id){
   if(!confirm('삭제?'))return;
+  try{await apiCall({action:'delete',sheet:'op_activity',id:id});}
+  catch(e){alert('❌ 삭제 실패: '+e.message);return;}
   ACT_LIST=ACT_LIST.filter(function(x){return x.id!==id;});
-  saveActStorage();
-  apiCall({action:'delete',sheet:'op_activity',id:id}).catch(function(){});
-  renderActivityList();
+  saveActStorage();renderActivityList();
 }
 
 // ── PCSP v2 ──────────────────────────────────────────────
@@ -2272,6 +2288,17 @@ function deleteAct(id){
 
 
 // ════════════════════════════════════════════════════════
+
+var _opsRefreshRunning=false;
+async function refreshOperationsLists(){
+  var form=document.getElementById('pcsp-form-view');
+  if(!_currentUser||document.hidden||_opsRefreshRunning||document.querySelector('.open')||(form&&form.style.display==='block'))return;
+  _opsRefreshRunning=true;
+  try{await Promise.all([loadAuditFromSheets(),loadAuditGeneratedPDFs(true),loadPCSPFromSheets()]);loadOpStaffFromSheets();loadGRfromSheets();loadFDfromSheets();loadTempfromSheets();loadDocsfromSheets();loadActfromSheets();}
+  catch(e){console.log('목록 새로고침 실패:',e);}finally{_opsRefreshRunning=false;}
+}
+window.addEventListener('pageshow',function(e){if(e.persisted)refreshOperationsLists();});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)refreshOperationsLists();});
 </script>
 
 </body>
