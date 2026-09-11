@@ -56,6 +56,7 @@ function updateCertAlert() {
 }
 
 function renderDash() {
+  refreshWorkflowDashboard(false);
   updateDashNow();
 
   const fu = cases.filter(c => c['팔로업날짜'] && c['팔로업날짜'] <= todayISO && c['상태'] !== '완료');

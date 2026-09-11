@@ -170,6 +170,8 @@ function openAssessmentForMember(mid,mName){
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
   if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
   _asmt.mid=mid;_asmt.step=0;
+  document.querySelectorAll('#frm-assessment input,#frm-assessment textarea,#frm-assessment select').forEach(function(el){if(el.type==='checkbox'||el.type==='radio')el.checked=false;else el.value='';});
+  document.getElementById('frm-assessment').inert=true;
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   document.getElementById('frm-assessment').style.display='block';
   var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
@@ -184,6 +186,7 @@ function openAssessmentForMember(mid,mName){
   var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toLocaleDateString('sv-SE');
   _asExistingCreatedBy = ''; _asExistingCreatedByEmail = ''; _asExistingCreatedAt = '';
   loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){
+    if(String(_asmt.mid)!==String(mid))return;
     if(res&&res.ok&&res.data&&res.data.found&&res.data.data){
       var d = res.data.data;
       fillAssessmentFromJSON(d);
@@ -191,7 +194,7 @@ function openAssessmentForMember(mid,mName){
       _asExistingCreatedByEmail = d.createdByEmail || d.lastEditedByEmail || '';
       _asExistingCreatedAt      = d.createdAt      || d.savedAt          || '';
     }
-  }).catch(function(){});
+  }).catch(function(e){alert('Assessment 조회 실패: '+e.message);}).finally(function(){if(String(_asmt.mid)===String(mid))document.getElementById('frm-assessment').inert=false;});
   goAssessStep(0);_ptSig=null;_asSig=null;
   initSigCanvas('pt-sig-canvas','pt-sig-empty',function(d){_ptSig=d;});
   initSigCanvas('as-sig-canvas','as-sig-empty',function(d){_asSig=d;});
@@ -214,7 +217,7 @@ function clearPtSig(){clearSigCanvas('pt-sig-canvas','pt-sig-empty');_ptSig=null
 function clearAsSig(){clearSigCanvas('as-sig-canvas','as-sig-empty');_asSig=null;}
 function collectAssessmentData(){
   var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
-  return{mid:_asmt.mid,date:gv2('as-date'),assessor:gv2('as-assessor'),medicaid:gv2('as-medicaid'),phone:gv2('as-phone'),addr:gv2('as-addr'),pcp:gv2('as-pcp'),dob:gv2('as-dob'),
+  return{formFields:collectAssessmentFields(),mid:_asmt.mid,date:gv2('as-date'),assessor:gv2('as-assessor'),medicaid:gv2('as-medicaid'),phone:gv2('as-phone'),addr:gv2('as-addr'),pcp:gv2('as-pcp'),dob:gv2('as-dob'),
     adl:{bathing:gv2('adl-bathing-st'),hygiene:gv2('adl-hygiene-st'),dressing:gv2('adl-dressing-st'),mobility:gv2('adl-mobility-st'),transfer:gv2('adl-transfer-st'),eating:gv2('adl-eating-st'),toilet:gv2('adl-toilet-st')},
     medications:[{name:gv2('med-1-name'),dose:gv2('med-1-dose'),reason:gv2('med-1-reason')},{name:gv2('med-2-name'),dose:gv2('med-2-dose'),reason:gv2('med-2-reason')},{name:gv2('med-3-name'),dose:gv2('med-3-dose'),reason:gv2('med-3-reason')},{name:gv2('med-4-name'),dose:gv2('med-4-dose'),reason:gv2('med-4-reason')},{name:gv2('med-5-name'),dose:gv2('med-5-dose'),reason:gv2('med-5-reason')}].filter(function(m){return m.name;}),
     caregiver:{name:gv2('care-name'),rel:gv2('care-rel'),phone:gv2('care-hphone')},
@@ -230,6 +233,7 @@ function collectAssessmentData(){
     savedAt:new Date().toISOString()};
 }
 function fillAssessmentFromJSON(data){
+  Object.keys(data.formFields||{}).forEach(function(id){var el=document.getElementById(id);if(!el||!el.closest('#frm-assessment'))return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!data.formFields[id];else el.value=data.formFields[id];});
   var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
   if(data.date)sv('as-date',data.date);if(data.assessor)sv('as-assessor',data.assessor);
   if(data.adl){sv('adl-bathing-st',data.adl.bathing);sv('adl-hygiene-st',data.adl.hygiene);sv('adl-dressing-st',data.adl.dressing);sv('adl-mobility-st',data.adl.mobility);sv('adl-transfer-st',data.adl.transfer);sv('adl-eating-st',data.adl.eating);sv('adl-toilet-st',data.adl.toilet);}
@@ -354,9 +358,11 @@ function setNutritionData(d){
 }
 
 async function loadNutrition(mid, mName){
+  document.getElementById('frm-nutrition').inert=true;
   var statusEl=document.getElementById('ns-status');
   try {
     var res = await loadJSONfromDrive(mid, mName||'', 'Nutrition');
+    if(String(mid)!==String(_nsMid))return;
     if(res && res.ok && res.data && res.data.found && res.data.data){
       var d = res.data.data;
       setNutritionData(d);
@@ -367,7 +373,7 @@ async function loadNutrition(mid, mName){
       var authorNote = d.createdBy ? (' · 최초 작성: ' + d.createdBy) : '';
       if(statusEl) statusEl.textContent='✅ 이전 저장 데이터 로드됨' + authorNote;
     }
-  } catch(e){ console.log('Nutrition load:', e); }
+  } catch(e){if(statusEl)statusEl.textContent='Nutrition 조회 실패: '+e.message;}finally{if(String(mid)===String(_nsMid))document.getElementById('frm-nutrition').inert=false;}
 }
 
 async function saveNutrition(){
@@ -841,3 +847,5 @@ async function saveIncidentLog(){
     if(st) st.textContent = '❌ 오류: ' + e.message;
   }
 }
+
+function collectAssessmentFields(){var fields={};document.querySelectorAll("#frm-assessment input[id],#frm-assessment textarea[id],#frm-assessment select[id]").forEach(function(el){if(el.type!=="file")fields[el.id]=el.type==="checkbox"||el.type==="radio"?el.checked:el.value;});return fields;}

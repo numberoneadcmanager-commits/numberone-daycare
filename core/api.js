@@ -21,10 +21,11 @@ const SheetsAPI = {
     const data = await res.json();
     if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
     if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
-    return data;
+    return WriteGuard.remember(params,data);
   },
 
   async post(body) {
+    body=WriteGuard.prepare(body);
     const res = await fetch(this.URL, {
       method: 'POST',
       cache: 'no-store',
@@ -35,7 +36,7 @@ const SheetsAPI = {
     const data = await res.json();
     if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
     if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
-    return data;
+    return WriteGuard.saved(body,data);
   },
 
   // ── 연결 테스트 ────────────────────────────────────────────
@@ -281,6 +282,7 @@ const SheetsAPI = {
         '상태':     r.status   || '',
         'Sign-in':  r.signIn   || '',
         'Sign-out': r.signOut  || '',
+        'SDCAUTH':r.sdcAuth, '교통AUTH':r.transportAuth, '교통횟수':r.transportCount, 'AUTH확인':r.authWarning,
         '메모':     r.memo     || '',
         '시작일':   r.start    || '',
         '종료일':   r.end      || '',
@@ -314,6 +316,7 @@ const SheetsAPI = {
         status:  r['상태']    || '',
         signIn:  r['Sign-in'] || '',
         signOut: r['Sign-out']|| '',
+        sdcAuth:r['SDCAUTH']||'',transportAuth:r['교통AUTH']||'',transportCount:r['교통횟수']==null?'':r['교통횟수'],authWarning:r['AUTH확인']||'',
         memo:    r['메모']    || '',
         start:   r['시작일']  || '',
         end:     r['종료일']  || '',

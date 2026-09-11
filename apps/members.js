@@ -1452,8 +1452,8 @@ function _docStatusBadgeHTML(m) {
     || PCSP_STATUS_MAP[String(m.medicaid||'').trim().toUpperCase()];
   if (!pcsp) {
     html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ PCSP 작성필요</span>';
-  } else if (pcsp.status === '서명대기') {
-    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFF3E0;color:#B35900;border-radius:6px;padding:3px 8px">📝 PCSP 서명대기</span>';
+  } else if (pcsp.status !== '완료') {
+    html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFF3E0;color:#B35900;border-radius:6px;padding:3px 8px">📝 PCSP ' + (typeof escapeHTML==='function'?escapeHTML(pcsp.status):'진행중') + '</span>';
   } else if (pcsp.expired) {
     html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ PCSP 갱신필요(' + pcsp.nextdate + ')</span>';
   } else {

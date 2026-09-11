@@ -662,7 +662,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PCSP 전체 목록</div>
         <div class="f-row"><div class="fpill active" onclick="setPCSPFilter('all',this)">전체</div><div class="fpill" onclick="setPCSPFilter('due',this)">⚠️ 갱신필요</div><div class="fpill" onclick="setPCSPFilter('ok',this)">✅ 완료</div></div>
         <div class="search-wrap"><span>🔍</span><input id="pcsp-search" placeholder="멤버 이름 검색" oninput="renderPCSPList()"></div>
-        <div id="pcsp-list"></div>
+        <div id="pcsp-renewal-board"></div><div id="pcsp-list"></div>
         <button class="btn-full btn-primary" style="margin-top:8px" onclick="showPCSPMemberSelect()">➕ 새 PCSP 작성</button>
       </div>
 
@@ -674,6 +674,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
       <!-- PCSP v2 11단계 폼 -->
       <div id="pcsp-form-view" style="display:none">
+<div class="card" style="padding:12px"><div id="pcsp-save-state" role="status"></div><button class="btn-sm" onclick="wfResolveConflict()">최신 원본과 비교</button><button class="btn-sm" onclick="wfImportSources()">Assessment / Nutrition 불러오기</button><label style="display:block;margin-top:8px"><input id="pcsp-keep-json" type="checkbox" checked> 최종 PDF 외에 서명된 상세 JSON도 보관 (다음 갱신 때 복사 가능)</label></div>
         <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
             <button class="btn-sm" onclick="showPCSPList()">← 목록으로</button>
@@ -1251,11 +1252,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-  <script src="apps/billing.js"></script>
-  <script src="apps/pcsp.js"></script>
-  <script src="apps/staff_ops.js"></script>
-  <script src="apps/forms_ops.js"></script>
-  <script src="apps/training_ops.js"></script>
+  <script src="core/write_guard.js?v=20260911p1"></script>
+<script src="apps/billing.js?v=20260911p1"></script>
+  <script src="apps/pcsp.js?v=20260911p1"></script>
+  <script src="apps/staff_ops.js?v=20260911p1"></script>
+  <script src="apps/forms_ops.js?v=20260911p1"></script>
+  <script src="apps/training_ops.js?v=20260911p1"></script>
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────
@@ -1325,6 +1327,7 @@ function initData(){
 
   // ── 케어 관리(index.html)에서 "PCSP 입력 →" 클릭 시 넘어온 경우 자동 처리 ──
   var params = new URLSearchParams(window.location.search);
+  if(params.get('workflow')==='pcsp'){goTab('forms',document.querySelector('.tab[onclick*=forms]'));loadPCSPFromSheets().then(showPCSPList);return;}
   var tab = params.get('tab');
   var mid = params.get('mid');
   var pcspId = params.get('pcspId');
@@ -1387,10 +1390,11 @@ async function checkAPIResponse(r){
   return result;
 }
 async function apiCall(data){
-  return checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)}));
+  data=WriteGuard.prepare(data);
+  return WriteGuard.saved(data,await checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)})));
 }
 async function apiGet(params){
-  return checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'}));
+  return WriteGuard.remember(params,await checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'})));
 }
 // ── Drive JSON 저장/로드 ──────────────────────────────────
 async function saveJSONtoDrive(memberId,memberName,fileType,jsonData){

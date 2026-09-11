@@ -318,19 +318,21 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .doc-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:.5px solid #F2F2F7;transition:background .15s;}
 .doc-row[onclick]:hover{background:#F2F2F7;}
 </style>
-<script src="core/api.js" defer></script>
+<script src="core/write_guard.js?v=20260911p1" defer></script>
+<script src="core/api.js?v=20260911p1" defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="core/state.js" defer></script>
-<script src="core/utils.js" defer></script>
+<script src="core/state.js?v=20260911p1" defer></script>
+<script src="core/utils.js?v=20260911p1" defer></script>
 <script src="data/members.js" defer></script>
-<script src="apps/dashboard.js" defer></script>
-<script src="apps/attendance.js" defer></script>
-<script src="apps/members.js" defer></script>
-<script src="apps/logs.js" defer></script>
-<script src="apps/auth.js" defer></script>
-<script src="apps/visitor.js" defer></script>
-<script src="apps/billing.js" defer></script>
-<script src="core/app.js" defer></script>
+<script src="apps/dashboard.js?v=20260911p1" defer></script>
+<script src="apps/attendance.js?v=20260911p1" defer></script>
+<script src="apps/members.js?v=20260911p1" defer></script>
+<script src="apps/logs.js?v=20260911p1" defer></script>
+<script src="apps/auth.js?v=20260911p1" defer></script>
+<script src="apps/visitor.js?v=20260911p1" defer></script>
+<script src="apps/billing.js?v=20260911p1" defer></script>
+<script src="apps/workflow.js?v=20260911p1" defer></script>
+<script src="core/app.js?v=20260911p1" defer></script>
 </head>
 <body>
 
@@ -424,6 +426,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox" style="cursor:pointer" onclick="dashGoMembers('disenrolled')"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
       <div id="ds-auth-alert" style="display:none;background:#FFF3E0;border:1.5px solid #FFB347;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600"></div>
+      <div class="card" style="padding:14px;margin-bottom:12px"><b>오늘 해야 할 일</b> <button onclick="refreshWorkflowDashboard(true)">새로고침</button><div id="workflow-tasks" role="status"></div></div>
       <div id="ds-sig-alert" style="display:none;background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600;cursor:pointer" onclick="goTab('settings',null);setTimeout(showPendingSignatures,300)"></div>
       <div id="ds-cert-alert" style="display:none;margin-bottom:10px"></div>
       <div style="margin-bottom:10px">
@@ -1158,7 +1161,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     <div class="modal-input-wrap">
       <label>단위</label>
       <select class="m-select" id="auth-qty-unit">
-        <option value="Day">Day</option>
+        <option value="date">date (SDC)</option><option value="Day">Day (기존)</option>
         <option value="Trip">Trip</option>
       </select>
     </div>
@@ -1172,12 +1175,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
   <div class="modal-input-wrap" style="margin-bottom:10px">
     <label>승인 요일 (일수/횟수 입력, 0=미승인)</label>
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Mon</div><input class="m-input" id="auth-day-mon" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Tue</div><input class="m-input" id="auth-day-tue" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Wed</div><input class="m-input" id="auth-day-wed" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Thu</div><input class="m-input" id="auth-day-thu" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Fri</div><input class="m-input" id="auth-day-fri" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
-      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Sat</div><input class="m-input" id="auth-day-sat" type="number" value="0" min="0" max="9" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Mon</div><input class="m-input" id="auth-day-mon" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Tue</div><input class="m-input" id="auth-day-tue" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Wed</div><input class="m-input" id="auth-day-wed" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Thu</div><input class="m-input" id="auth-day-thu" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Fri</div><input class="m-input" id="auth-day-fri" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
+      <div style="text-align:center"><div style="font-size:11px;font-weight:700;margin-bottom:3px">Sat</div><input class="m-input" id="auth-day-sat" type="number" value="0" min="0" step="1" style="text-align:center;padding:6px"></div>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
       <button type="button" onclick="autoFillAuthDays('sdc')" style="padding:5px 10px;border-radius:7px;border:1.5px solid #34C759;background:#E1F5EE;color:#0F6E56;font-size:11px;font-weight:700;cursor:pointer">✅ SDC 자동채우기</button>

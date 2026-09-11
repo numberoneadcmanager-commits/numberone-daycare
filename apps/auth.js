@@ -460,7 +460,7 @@ async function saveAuth() {
     startDate:   startDate,
     endDate:     endDate,
     totalQty:    gv('auth-total-qty'),
-    qtyUnit:     gv('auth-qty-unit'),
+    qtyUnit:     gv('auth-service-type')==='SDC'?'date':gv('auth-qty-unit'),
     freqPerWeek: gv('auth-freq'),
     dayMon:      gv('auth-day-mon'),
     dayTue:      gv('auth-day-tue'),
@@ -573,17 +573,10 @@ async function calcAuthUsage(authId, btn) {
     // Auth 기간의 출결 데이터 로드 (오늘까지만)
     var today = new Date().toLocaleDateString('sv-SE');
     var rangeEnd = a.endDate < today ? a.endDate : today;
-    var attData = await SheetsAPI.loadAttendanceRange(a.startDate, rangeEnd);
-
-    // 실제 출석일 카운트 (in/late만)
-    var usedDays = 0;
-    Object.keys(attData).forEach(function(dt){
-      var rec = (attData[dt]||{})[a.memberId];
-      if (rec && (rec.status === 'in' || rec.status === 'late')) usedDays++;
-    });
-
-    // 교통은 왕복 기준 (출석일 × 2)
-    var used = a.serviceType === 'Transportation' ? usedDays * 2 : usedDays;
+    var rows=(await SheetsAPI.readByRange('출결',a.startDate,rangeEnd)).data;
+    var member=MEMBERS.find(function(m){return String(m.id)===String(a.memberId)||String(m.medicaid)===String(a.memberId);})||{id:a.memberId};
+    var usage=wfUsage(rows,a,member);
+    var used=usage.used;
     var total = parseInt(a.totalQty) || 0;
     var remaining = total - used;
     var pct = total > 0 ? Math.round(used / total * 100) : 0;
@@ -599,7 +592,7 @@ async function calcAuthUsage(authId, btn) {
       el.style.display = 'block';
       el.innerHTML = '<div style="background:#F2F2F7;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:11px">'
         + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-        + '<span>사용: <b>' + used + '</b>/' + total + ' ' + unit + ' (' + pct + '%)</span>'
+        + '<span>승인 연결 확인분 (미확인 '+usage.unassigned+'일): <b>' + used + '</b>/' + total + ' ' + unit + ' (' + pct + '%)</span>'
         + '<span style="color:' + color + ';font-weight:700">남음: ' + remaining + ' ' + unit + '</span>'
         + '</div>'
         + '<div style="background:#E5E5EA;border-radius:4px;height:6px;overflow:hidden">'

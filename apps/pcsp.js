@@ -189,25 +189,32 @@ function renderPCSPList(){
   if(!list.length) html='<div class="empty-msg">PCSP 기록이 없어요</div>';
   list.forEach(function(p){
     var due=p.nextdate&&p.nextdate<=today;
-    var pending=String(p.status||'')==='서명대기';
-    var badge=pending?'<span class="badge b-warn">✍️ 서명대기</span>':(due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 완료/유효</span>');
+    var pending=['서명대기','작성중'].includes(String(p.status||''));
+    var badge=p.status==='서명완료·PDF대기'?'<span class="badge b-warn">PDF 저장 재시도 필요</span>':p.status==='작성중'?'<span class="badge b-warn">작성중</span>':pending?'<span class="badge b-warn">✍️ 서명대기</span>':(due?'<span class="badge b-warn">⚠️ 갱신필요</span>':'<span class="badge b-ok">✅ 완료/유효</span>');
     var pdf=getStoredPCSPPdf(p);
     html+='<div class="log-card"><div class="log-top"><div class="log-name">📄 '+pcspEsc(p.nameLast||'')+(p.nameFirst?', '+pcspEsc(p.nameFirst):'')+(p.nameKr?' ('+pcspEsc(p.nameKr)+')':'')+'</div>'+badge+'</div>'
       +'<div style="font-size:11px;color:#8E8E93">작성: '+pcspEsc(p.wdate||'—')+' · 다음 검토: '+pcspEsc(p.nextdate||'—')+'</div>'
       +'<div style="font-size:11px;color:#3C3C43;margin-top:3px">'+pcspEsc((p.diag||'').slice(0,80))+'</div>'
       +'<div class="log-actions" style="margin-top:6px">'
       +(pending?'<button class="btn-sm" style="background:#FF9500;color:#fff;border-color:#FF9500" onclick="signPCSP('+pcspInlineString(p.id)+','+pcspInlineString(p.memberId||'')+','+pcspInlineString(p.nameKr||p.nameLast||'')+')">✍️ 서명하기</button>':'')
-      +'<button class="btn-sm" onclick="editPCSP('+pcspInlineString(p.id)+')">✏️ 수정</button>'
+      +(pending?'<button class="btn-sm" onclick="editPCSP('+pcspInlineString(p.id)+')">✏️ 수정</button>':'<button class="btn-sm" onclick="wfRevise('+pcspInlineString(p.id)+')">새 PCSP 생성</button>')
+      +(p.status==='서명완료·PDF대기'?'<button class="btn-sm" onclick="wfRetryPDF('+pcspInlineString(p.id)+')">PDF 재시도</button>':'')
       +(pdf&&!pending?'<button class="btn-sm" style="background:#E1F5EE;color:#0F6E56" onclick="openStoredPCSPPdf('+pcspInlineString(p.id)+')">📄 PDF 보기</button>':'')
       +'<button class="btn-sm" onclick="printPCSP('+pcspInlineString(p.id)+')">🔄 미리보기</button>'
-      +'<button class="btn-danger" onclick="deletePCSP('+pcspInlineString(p.id)+')">삭제</button></div></div>';
+      +'</div></div>';
   });
   var el=document.getElementById('pcsp-list'); if(el)el.innerHTML=html;
 }
-function showPCSPList(){
+async function showPCSPList(){
+  var active=document.getElementById('pcsp-form-view');
+  if(active&&active.style.display!=='none'&&_pcspMemberId&&!_wfSavedExit){
+    if(_pcspSig&&_pcspSig.length>100){alert('서명한 내용을 먼저 최종 저장해주세요.');return;}
+    try{if(_wfBusy)await _wfBusy;if(_wfPending||wfFingerprint(wfEntry())!==_wfFingerprint)await wfPersist('draft');}catch(e){alert(e.message);return;}
+  }
+  _wfSavedExit=false;
   var a=document.getElementById('pcsp-list-view'),b=document.getElementById('pcsp-member-select'),c=document.getElementById('pcsp-form-view'),h=document.getElementById('forms-hub');
   if(a)a.style.display='block'; if(b)b.style.display='none'; if(c)c.style.display='none'; if(h)h.style.display='none';
-  renderPCSPList();loadPCSPPdfLinks(false);
+  renderPCSPList();loadPCSPPdfLinks(false);wfRenewalBoard();
 }
 function openPCSPMemberSelect(){
   var a=document.getElementById('pcsp-list-view'),b=document.getElementById('pcsp-member-select'),c=document.getElementById('pcsp-form-view');
@@ -266,6 +273,7 @@ function splitEnglishName(m){
   var parts=en.split(/\s+/).filter(Boolean);return {last:parts.shift()||'',first:parts.join(' ')};
 }
 async function selectPCSPMember(m){
+  if(_wfBusy||_wfPending){alert('진행 중인 저장을 먼저 완료해주세요.');return;}
   var list=document.getElementById('pcsp-list-view'),sel=document.getElementById('pcsp-member-select'),form=document.getElementById('pcsp-form-view');
   if(list)list.style.display='none';if(sel)sel.style.display='none';if(form)form.style.display='block';
   resetPCSPState();clearPCSPFormFields();
@@ -281,6 +289,7 @@ async function selectPCSPMember(m){
   pcspSet('p-review-prev','');
   applyPCSPCommonDefaults();
   initPCSPDynamicUI();pcspGoStep(0);
+  wfBegin(null);
   await loadPCSPAuthForMember(_pcspMemberId,true);
 }
 function normalizeAuthRow(r){
@@ -489,10 +498,12 @@ function initPCSPSignatureCanvas(){
 function clearPCSPSig(){var c=document.getElementById('pcsp-sig-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);_pcspSig=null;var e=document.getElementById('pcsp-sig-empty');if(e)e.style.display='flex';}
 
 function openPCSPForm(id){
+  if(_wfBusy||_wfPending){alert('진행 중인 저장을 먼저 완료해주세요.');return;}
   var list=document.getElementById('pcsp-list-view'),sel=document.getElementById('pcsp-member-select'),form=document.getElementById('pcsp-form-view');if(list)list.style.display='none';if(sel)sel.style.display='none';if(form)form.style.display='block';
   resetPCSPState();clearPCSPFormFields();pcspSet('pcsp-edit-id',id||'');
   pcspSet('p-writer',_currentUser?(_currentUser.name||''):'');pcspSet('p-wdate',pcspToday());pcspSet('p-nextdate',pcspOneYearFromToday());pcspSet('p-type','Initial');pcspSet('p-sigdate',pcspToday());
   var p=id?PCSP_LIST.find(function(x){return x.id===id;}):null;
+  wfBegin(p);
   if(p&&p.version===2){restorePCSPv2(p);}else{_pcspRights=newPCSPRights();applyPCSPCommonDefaults();initPCSPDynamicUI();pcspGoStep(0);}
 }
 function restorePCSPv2(p){
@@ -580,58 +591,29 @@ function cachePCSPRecord(full){
   if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);
 }
 
-async function savePCSPFull(){
-  var entry=collectPCSPEntry();var hasSig=!!(_pcspSig&&_pcspSig.length>100);
-  if(hasSig){var issues=validatePCSPForSignature(entry);if(issues.length){alert('⚠️ 최종 서명 저장 전에 다음 항목을 확인해주세요:\n\n'+issues.map(function(x){return '• '+x;}).join('\n'));buildPCSPSummary();return;}}
-  var memberId=entry.memberId;if(!memberId){alert('멤버 ID가 없습니다. 멤버를 다시 선택해주세요.');return;}var memberName=entry.nameKr||entry.nameLast||entry.nameFirst||'Unknown';
-  // Keep the saved list unchanged until all requested writes succeed.
-  pcspSet('pcsp-edit-id',entry.id);
-  var btn=document.getElementById('pcsp-save-btn');if(btn){btn.disabled=true;btn.textContent='⏳ 저장 중...';}
-  try{
-    if(hasSig){
-      entry.status='완료';
-      var sigBase64=_pcspSig.indexOf('base64,')>=0?_pcspSig.split('base64,')[1]:_pcspSig;
-      var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sigBase64,pcsp:entry});
-      if(!res||!res.ok||!res.data||!res.data.success)throw new Error((res&&res.data&&res.data.error)||(res&&res.error)||'PCSP 문서 생성 오류');
-      var pdfRes=await apiCall({action:'savePDF',memberId:memberId,memberName:memberName,fileType:'PCSP_Final',pcspId:entry.id,base64Data:res.data.pdfBase64,author:_currentUser?(_currentUser.name||''):''});
-      if(!pdfRes||!pdfRes.ok||!pdfRes.data||!pdfRes.data.success)throw new Error((pdfRes&&pdfRes.data&&pdfRes.data.error)||(pdfRes&&pdfRes.error)||'PDF 저장 오류');
-      pcspRequireSaved(await saveJSONtoDrive(memberId,memberName,'PCSP',entry),'PCSP 내용 저장');
-      pcspRequireSaved(await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'완료'}}),'PCSP 목록 저장');
-      entry.status='완료';if(pdfRes.data.url){var po={url:pdfRes.data.url,fileName:pdfRes.data.fileName||'',savedAt:new Date().toISOString(),memberId:memberId,name:memberName};PCSP_PDF_MAP[memberId+'|'+entry.id]=po;_pcspPdfLoadedAt=Date.now();}
-      alert('✅ PCSP 최종 저장 완료\n📄 Word + PDF가 Drive에 저장되었습니다.');
-    }else{
-      entry.status='서명대기';
-      pcspRequireSaved(await saveJSONtoDrive(memberId,memberName,'PCSP',entry),'PCSP 내용 저장');
-      pcspRequireSaved(await apiCall({action:'upsert',sheet:'PCSP',key:'ID',value:entry.id,data:{'ID':entry.id,'작성일':entry.wdate,'멤버ID':memberId,'한글이름':entry.nameKr,'작성자':entry.writer,'갱신예정일':entry.nextdate,'진단':entry.diag.slice(0,100),'목표1':(entry.goals[0]||{}).goal||'','목표2':(entry.goals[1]||{}).goal||'','목표3':(entry.goals[2]||{}).goal||'','상태':'서명대기'}}),'PCSP 목록 저장');
-      entry.status='서명대기';alert('💾 PCSP 초안 저장 완료\n✍️ 나중에 서명하면 최종 PDF가 생성됩니다.');
-    }
-    cachePCSPRecord(entry);savePCSPStorage();showPCSPList();
-  }catch(e){console.error('PCSP save error:',e);alert('❌ PCSP 저장 실패: '+e.message);}finally{if(btn){btn.disabled=false;btn.textContent='💾 PCSP 저장 (Drive)';}}
-}
 async function signPCSP(id,memberId,memberName){
   try{
     var cached=PCSP_LIST.find(function(x){return x.id===id;});
     memberId=memberId||(cached&&cached.memberId)||'';
     memberName=memberName||(cached&&(cached.nameKr||cached.nameLast))||'';
     var full=await loadPCSPRecord(id,memberId,memberName);
+    if(full.signed||full.status==='완료'){alert('서명된 기록입니다. 새 PCSP 생성 또는 PDF 재시도를 사용해주세요.');return;}
     cachePCSPRecord(full);openPCSPForm(full.id);pcspGoStep(PCSP_STEP_COUNT-1);
   }catch(e){alert('❌ 서명대기 PCSP를 불러오지 못했습니다: '+e.message);}
 }
 async function editPCSP(id){
   var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p)return;
+  if(p.status==='완료'){await wfRevise(id);return;}
+  if(p.status==='서명완료·PDF대기'){await wfRetryPDF(id);return;}
   try{
     var full=await loadPCSPRecord(id,p.memberId||'',p.nameKr||p.nameLast||'');
+    if(full.signed||full.status==='완료'){alert('서명된 기록입니다. 새 PCSP 생성 또는 PDF 재시도를 사용해주세요.');return;}
     cachePCSPRecord(full);openPCSPForm(full.id);
   }catch(e){alert('❌ PCSP를 불러오지 못했습니다: '+e.message);}
 }
-async function deletePCSP(id){
-  if(!confirm('PCSP 목록에서 삭제하시겠어요? 저장된 원본 문서는 유지됩니다.'))return;
-  try{
-    pcspRequireSaved(await apiCall({action:'delete',sheet:'PCSP',id:id}),'PCSP 목록 삭제');
-    PCSP_LIST=PCSP_LIST.filter(function(x){return x.id!==id;});renderPCSPList();
-  }catch(e){alert('❌ 삭제 실패: '+e.message);}
-}
+function deletePCSP(){alert('PCSP 이력은 보존합니다. 새 PCSP를 생성해주세요.');}
 async function printPCSP(id){
+  var existing=PCSP_LIST.find(function(p){return p.id===id;});if(existing&&existing.status==='완료')return openStoredPCSPPdf(id);
   var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p){alert('PCSP를 찾을 수 없어요');return;}var memberId=p.memberId||'';var memberName=p.nameKr||p.nameLast||'Unknown';var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write('<body style="font-family:Arial;padding:30px">PCSP PDF 생성 중...</body>');w.document.close();
   try{p=await loadPCSPRecord(id,memberId,memberName);var sig='';if(p.sig&&p.sig.indexOf('base64,')>=0)sig=p.sig.split('base64,')[1];var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sig,pcsp:p,previewOnly:true});if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64)throw new Error((res&&res.data&&res.data.error)||'PDF 생성 실패');var binary=atob(res.data.pdfBase64),bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);var url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));w.location.replace(url);setTimeout(function(){URL.revokeObjectURL(url);},120000);}catch(e){try{w.close();}catch(x){}alert('❌ PCSP 출력 실패: '+e.message);}
 }
@@ -771,7 +753,7 @@ async function prefillPCSPFromMember(mid){
     var results=await Promise.all([apiGet({action:'read',sheet:'멤버'}),loadPCSPFromSheets()]);
     var member=results[0].data.find(function(m){return String(m['ID'])===String(mid);});
     if(!member)throw new Error('멤버 정보를 찾을 수 없습니다.');
-    var matches=PCSP_LIST.filter(function(p){return String(p.memberId)===String(mid);});
+    var matches=PCSP_LIST.filter(function(p){return [String(mid),String(member.Medicaid||'')].includes(String(p.memberId));});
     if(!matches.length)await selectPCSPMember(member);
     else if(matches.length===1)await editPCSP(matches[0].id);
     else showPCSPSelectPopup(matches,member);
@@ -785,8 +767,126 @@ pcspFactsForAI=function(){
   var facts=_pcspFactsForAIBase();var e=collectPCSPEntry();
   facts['MEMBER FACTS']={memberId:e.memberId,nameLast:e.nameLast,nameFirst:e.nameFirst,dob:e.dob,health:e.health,functional:e.functional};
   facts['AUTH FACTS']=e.authContext.selected;
+  facts['ASSESSMENT / NUTRITION SOURCES']=(_wfMeta[e.id]||{}).importSources||[];
   facts['SELECTED SADC ACTIVITIES']=e.sadcActivities;
   facts['STAFF / PARTICIPANT CONFIRMED FACTS']={planningParticipation:e.planning.participantParticipated,meetingDate:e.planning.meetingDate,meetingLocation:e.planning.meetingLocation,workInterest:e.workVolunteer.interest,rightsSelections:e.rights.map(function(r){return {right:r.right,modified:r.modified};})};
   facts['EXISTING NARRATIVE DRAFTS']={personCentered:e.personCentered,risks:e.risks,goals:e.goals,planning:e.planning,workVolunteer:e.workVolunteer};
   return facts;
 };
+
+// Central draft autosave and per-record revisions; no browser persistence.
+var _wfSavedExit=false;
+var _wfMeta={},_wfBusy=null,_wfPending=null,_wfFingerprint='',_wfPaused=false;
+function wfNotice(text){var el=document.getElementById('pcsp-save-state');if(el)el.textContent=text;}
+function wfFingerprint(p){var c=pcspClone(p);['updatedAt','createdAt','status','_revision','_operationId','pdfUrl','keepSignedJSON'].forEach(function(k){delete c[k];});return JSON.stringify(c);}
+function wfEntry(){var id=pcspVal('pcsp-edit-id');if(!id){id='pcsp_'+crypto.randomUUID();pcspSet('pcsp-edit-id',id);}var p=collectPCSPEntry();var m=_wfMeta[id]||{};p.previousId=m.previousId||'';p.importSources=m.importSources||[];return p;}
+async function wfPersist(mode){
+  if(_wfBusy)await _wfBusy;
+  if(_wfPaused)throw new Error('저장 충돌이 있습니다. 현재 내용을 확인한 뒤 최신 기록을 다시 열어주세요.');
+  if(_wfPending)await wfSend();
+  var p=wfEntry();if(!p.memberId)throw new Error('멤버를 선택해주세요.');
+  if(mode==='finalize'){var issues=validatePCSPForSignature(p);if(issues.length)throw new Error(issues.join('\n'));}
+  _wfPending={action:'savePCSPWorkflow',pcsp:p,mode:mode,expectedRevision:(_wfMeta[p.id]||{}).revision||0,operationId:crypto.randomUUID(),keepSignedJSON:document.getElementById('pcsp-keep-json').checked};
+  return wfSend();
+}
+async function wfSend(){
+  var request=_wfPending;
+  _wfBusy=(async function(){
+    wfNotice('서버 저장 중…');
+    try{
+      var result=pcspRequireSaved(await apiCall(request),'PCSP 저장');
+      var p=request.pcsp;p._revision=result.revision;p.status=result.status;p.pdfUrl=result.url||p.pdfUrl;
+      _wfMeta[p.id]={revision:result.revision,previousId:p.previousId,importSources:p.importSources};
+      _wfFingerprint=wfFingerprint(p);_wfPending=null;cachePCSPRecord(p);
+      wfNotice(result.status+' · 서버 저장 완료 '+new Date().toLocaleTimeString());
+      return result;
+    }catch(e){if(String(e.message).includes('CONFLICT'))_wfPaused=true;wfNotice('저장 실패 — 입력은 이 화면에 남아 있습니다. '+e.message);throw e;}
+  })();
+  try{return await _wfBusy;}finally{_wfBusy=null;}
+}
+async function savePCSPFull(){
+  var btn=document.getElementById('pcsp-save-btn'),form=document.getElementById('pcsp-form-view');
+  btn.disabled=true;
+  try{
+    var signed=!!(_pcspSig&&_pcspSig.length>100);if(signed)form.inert=true;
+    var result=await wfPersist(signed?'finalize':'ready');
+    alert(result.status==='완료'?'최종 PDF와 목록 저장 완료':'서명대기로 저장했습니다. 다른 기기에서 이어서 서명할 수 있습니다.');
+    await loadPCSPFromSheets();_wfSavedExit=true;showPCSPList();
+  }catch(e){alert('저장하지 못했습니다: '+e.message+'\n서명 후 실패했다면 목록의 PDF 재시도를 이용해주세요.');}
+  finally{btn.disabled=false;form.inert=false;}
+}
+async function wfRetryPDF(id){
+  try{var summary=PCSP_LIST.find(function(p){return p.id===id;}),p=await loadPCSPRecord(id,summary.memberId,summary.nameKr);var r=pcspRequireSaved(await apiCall({action:'savePCSPWorkflow',pcsp:p,mode:'finalize',expectedRevision:p._revision||0,operationId:crypto.randomUUID()}),'PDF 재시도');await loadPCSPFromSheets();await loadPCSPPdfLinks(true);alert('최종 PDF 저장 완료');}catch(e){alert(e.message);}
+}
+async function wfRevise(id){
+  if(_wfBusy||_wfPending){alert('현재 저장을 먼저 완료해주세요.');return;}
+  var old=PCSP_LIST.find(function(x){return x.id===id;});
+  var reason=window.prompt('새 PCSP 작성 사유','전체 갱신');if(!reason)return;
+  try{
+    var rows=(await apiGet({action:'read',sheet:'멤버'})).data;
+    var m=rows.find(function(x){return [String(x.ID),String(x.Medicaid||'')].includes(String(old.memberId));});if(!m)throw new Error('멤버 정보를 찾을 수 없습니다.');
+    var res=await apiGet({action:'loadJSON',memberId:old.memberId,memberName:old.nameKr,fileType:'PCSP',recordId:id});
+    if(res.data.found){
+      var p=res.data.data;if(p.version!==2)throw new Error('v2 원본이 아닙니다.');
+      p=pcspClone(p);p.id='pcsp_'+crypto.randomUUID();p.memberId=String(m.ID);p.previousId=id;p.sig='';p.sigdate='';p.signed=false;p.status='작성중';p.pdfUrl='';p._revision=0;delete p._operationId;
+      p.type='Annual';p.wdate=pcspToday();p.nextdate=pcspOneYearFromToday();p.review=p.review||{};p.review.previousDate=old.wdate;p.review.reason=reason;p.review.nextReviewDue=p.nextdate;
+      (p.goals||[]).forEach(function(g){if(g.goal)g.needsConfirmation=true;});p.planning.meetingDate=p.wdate;p.createdAt=new Date().toISOString();p.writer=_currentUser.name||'';
+      cachePCSPRecord(p);openPCSPForm(p.id);await loadPCSPAuthForMember(p.memberId,true);
+    }else{await selectPCSPMember(m);var p=wfEntry();p.previousId=id;_wfMeta[p.id]={revision:0,previousId:id};pcspSet('p-review-prev',old.wdate);pcspSet('p-review-reason',reason);wfNotice('이전 JSON이 없어 최신 멤버/AUTH 정보로 새 초안을 만들었습니다.');}
+    var nm=splitEnglishName(m);pcspSet('p-last',nm.last);pcspSet('p-first',nm.first);pcspSet('p-kr',m['한글이름']||'');pcspSet('p-phone',m['전화']||'');pcspSet('p-addr',m['주소']||'');pcspSet('p-dob',pcspDate(m['생년월일']));pcspSet('p-pcpname',m['주치의']||'');pcspSet('p-medicaid',m.Medicaid||'');pcspSet('p-type','Annual');
+    pcspSet('p-sigdate',pcspToday());
+  }catch(e){alert('새 PCSP 생성 실패: '+e.message);}
+}
+async function wfImportSources(){
+  var id=pcspVal('pcsp-edit-id'),mid=_pcspMemberId,name=gp('kr')||gp('last');if(!mid)return;
+  try{
+    var results=await Promise.all(['Assessment','Nutrition'].map(function(t){return apiGet({action:'loadJSON',memberId:mid,memberName:name,fileType:t});}));
+    if(mid!==_pcspMemberId||id!==pcspVal('pcsp-edit-id'))return;
+    var a=results[0].data.found?results[0].data.data:null,n=results[1].data.found?results[1].data.data:null;
+    var sources=[];if(a)sources.push({type:'Assessment',date:a.date||'',savedAt:a.savedAt||'',adl:a.adl||{},healthComments:(a.formFields||{})['health-comments']||'',adlComments:(a.formFields||{})['adl-comments']||''});if(n)sources.push({type:'Nutrition',date:n.date||'',savedAt:n.savedAt||'',assessment:n.assessment||'',diet:n.diet||{},allergy:n.allergy||'',allergySpec:n.allergySpec||''});
+    if(!sources.length){alert('저장된 Assessment/Nutrition이 없습니다.');return;}
+    if(!confirm(sources.map(function(s){return s.type+' · 평가일 '+(s.date||'미기재');}).join('\n')+'\n빈 항목에만 적용합니다. 평가일과 내용을 확인해주세요.'))return;
+    function empty(field,value){if(value&&!pcspVal(field))pcspSet(field,value);}
+    if(a){empty('p-meds',(a.medications||[]).map(function(m){return [m.name,m.dose,m.reason].filter(Boolean).join(' — ');}).join('\n'));empty('p-pcpname',a.pcp);}
+    if(n){empty('p-allergy',n.allergySpec);var diet=n.diet||{};empty('p-diet',[diet.na?'Sodium restricted':'',diet.lf?'Low fat':'',diet.carb?'Carbohydrate controlled':'',diet.renal?'Renal diet':'',diet.other?diet.otherText:''].filter(Boolean).join('; '));}
+    var p=wfEntry();_wfMeta[p.id]=Object.assign({},_wfMeta[p.id],{importSources:sources});
+    wfNotice(sources.map(function(s){return s.type+' '+s.date;}).join(' / ')+' · 빈 항목에 반영됨. 개인 선호·Capacity는 직접 확인해주세요.');
+  }catch(e){alert('평가 정보 조회 실패: '+e.message);}
+}
+function wfBegin(p){_wfSavedExit=false;_wfPaused=false;_wfFingerprint='';if(p)_wfMeta[p.id]={revision:p._revision||0,previousId:p.previousId||'',importSources:p.importSources||[]};wfNotice('초안 변경은 20초 간격으로 서버에 저장됩니다.');document.getElementById('pcsp-keep-json').checked=true;}
+setInterval(function(){
+  var form=document.getElementById('pcsp-form-view');
+  if(!form||form.style.display==='none'||!_pcspMemberId||_wfBusy||_wfPaused||(_pcspSig&&_pcspSig.length>100))return;
+  var p=wfEntry();if(_wfFingerprint===wfFingerprint(p)&&!_wfPending)return;
+  wfPersist('draft').catch(function(){});
+},20000);
+window.addEventListener('beforeunload',function(e){var f=document.getElementById('pcsp-form-view');if(_wfBusy||_wfPending||(f&&f.style.display!=='none'&&_pcspMemberId&&wfFingerprint(wfEntry())!==_wfFingerprint)){e.preventDefault();e.returnValue='';}});
+
+var _wfRenewalMembers=[];
+async function wfRenewalBoard(){
+  var el=document.getElementById('pcsp-renewal-board');if(!el)return;
+  try{
+    var results=await Promise.all([apiGet({action:'read',sheet:'멤버'}),apiGet({action:'read',sheet:'settings'})]);
+    _wfRenewalMembers=results[0].data.filter(function(m){return m.ID&&!/disenroll/i.test(m['상태']||'');});
+    var setting=results[1].data.find(function(r){return r.Key==='PCSPRenewalStart';});var start=setting?String(setting.Value).slice(0,10):'';
+    el.innerHTML='<h3>전체 PCSP 갱신 진행표</h3><p>기준일 이후 작성된 PCSP로 진행 상황을 확인합니다. 이전 완료본은 보존됩니다.</p><label>갱신 작업 기준일 <input type="date" id="wf-renewal-start" value="'+pcspEsc(start)+'"></label> <button class="btn-sm" onclick="wfSaveRenewalStart()">기준일 저장</button><div id="wf-renewal-count"></div><div id="wf-renewal-rows"></div>';
+    var counts={};document.getElementById('wf-renewal-rows').innerHTML=_wfRenewalMembers.map(function(m,i){
+      var list=PCSP_LIST.filter(function(p){return [String(m.ID),String(m.Medicaid||'')].includes(String(p.memberId));}).sort(function(a,b){return String(b.wdate).localeCompare(String(a.wdate))||String(b.id).localeCompare(String(a.id));});
+      var current=list.find(function(p){return !start||p.wdate>=start;}),last=list[0],status=current?current.status:'미작성';counts[status]=(counts[status]||0)+1;
+      var action=!current?'<button onclick="wfRenewalOpen('+i+','+(last?pcspInlineString(last.id):'null')+')">새 PCSP</button>':current.status==='완료'?'<button onclick="openStoredPCSPPdf('+pcspInlineString(current.id)+')">PDF 보기</button>':current.status==='서명완료·PDF대기'?'<button onclick="wfRetryPDF('+pcspInlineString(current.id)+')">PDF 재시도</button>':'<button onclick="editPCSP('+pcspInlineString(current.id)+')">이어서 작성 / 서명</button>';
+      return '<div class="log-card"><b>'+pcspEsc(m['한글이름']||m['영문이름'])+'</b> · '+pcspEsc(status)+' '+action+'</div>';
+    }).join('');document.getElementById('wf-renewal-count').textContent=Object.keys(counts).map(function(k){return k+' '+counts[k]+'명';}).join(' · ');
+  }catch(e){el.textContent='갱신 진행표 조회 실패: '+e.message;}
+}
+async function wfSaveRenewalStart(){var date=document.getElementById('wf-renewal-start').value;if(!date)return;try{pcspRequireSaved(await apiCall({action:'upsert',sheet:'settings',key:'Key',value:'PCSPRenewalStart',data:{Key:'PCSPRenewalStart',Value:date,'수정시각':new Date().toISOString()}}),'기준일 저장');await wfRenewalBoard();}catch(e){alert(e.message);}}
+function wfRenewalOpen(i,previous){if(previous)return wfRevise(previous);return selectPCSPMember(_wfRenewalMembers[i]);}
+async function wfResolveConflict(){
+  var current=wfEntry();
+  try{
+    var latest=await loadPCSPRecord(current.id,current.memberId,current.nameKr||current.nameLast);
+    var changes=[];function compare(a,b,path){if(a&&b&&typeof a==='object'&&typeof b==='object'){Array.from(new Set(Object.keys(a).concat(Object.keys(b)))).forEach(function(k){if(!['_revision','_operationId','updatedAt'].includes(k))compare(a[k],b[k],path+'.'+k);});}else if(JSON.stringify(a)!==JSON.stringify(b))changes.push(path+'\n현재 입력: '+String(a==null?'':a)+'\n서버 원본: '+String(b==null?'':b));}compare(current,latest,'PCSP');
+    var d=document.createElement('dialog');d.style.cssText='max-width:700px;width:90%;max-height:80vh';var pre=document.createElement('pre');pre.style.cssText='white-space:pre-wrap;max-height:55vh;overflow:auto';pre.textContent=changes.join('\n\n')||'내용 차이가 없습니다.';d.appendChild(pre);
+    var reload=document.createElement('button');reload.textContent='현재 입력을 버리고 서버 원본 열기';reload.onclick=function(){if(!confirm('현재 화면의 미저장 변경을 버릴까요?'))return;_wfPending=null;_wfPaused=false;d.close();d.remove();if(latest.signed){cachePCSPRecord(latest);document.getElementById('pcsp-form-view').style.display='none';showPCSPList();}else{cachePCSPRecord(latest);openPCSPForm(latest.id);}};d.appendChild(reload);
+    var close=document.createElement('button');close.textContent='현재 입력 유지';close.onclick=function(){d.close();d.remove();};d.appendChild(close);document.body.appendChild(d);d.showModal();
+  }catch(e){alert(e.message);}
+}

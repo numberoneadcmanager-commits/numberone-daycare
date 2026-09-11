@@ -68,6 +68,7 @@ async function loadAttFromSheets(iso) {
         const mid = String(r['멤버ID'] || '');
         if (!mid) return;
         const rec = {
+          sdcAuth:r['SDCAUTH']||'',transportAuth:r['교통AUTH']||'',transportCount:r['교통횟수']==null?'':r['교통횟수'],authWarning:r['AUTH확인']||'',
           status:  String(r['상태']    || ''),
           signIn:  String(r['Sign-in'] || ''),
           signOut: String(r['Sign-out']|| ''),
@@ -128,6 +129,8 @@ function renderAtt() {
         <button class="abt ${s==='hospital' ?'s-hospital':''}" onclick="openAttModal('${iso}','${m.id}','hospital')">🏥입원</button>
         <button class="abt" onclick="openAttModal('${iso}','${m.id}',null)" style="color:#8E8E93">•••</button>
       </div>
+      <button class="btn-sm" onclick="wfRecordServices('${iso}','${m.id}')">AUTH / 교통 확인 · ${r.transportCount===''||r.transportCount==null?'횟수 미확인':r.transportCount+'회'}</button>
+      <div style="color:#B35900;font-size:11px">${wfEsc(r.authWarning||(!r.sdcAuth&&['in','late'].includes(s)?'SDC AUTH 미연결':''))}</div>
       <textarea class="memo-f" rows="1" placeholder="메모..." oninput="qMemo('${iso}','${m.id}',this.value)">${(r.memo || '').replace(/</g, '&lt;')}</textarea>
     </div>`;
   }).join('');
@@ -212,6 +215,7 @@ window.addEventListener('beforeunload',function(e){
 
 // ── Sheets에 단일 출결 저장 ───────────────────────────────────
 async function saveAttToSheets(iso, mid, r) {
+  r=Object.assign({},getRec(iso)[mid]||{},r);
   const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
   const author = _currentUser ? (_currentUser.name || '') : '';
   _attWrites++;
@@ -222,6 +226,7 @@ async function saveAttToSheets(iso, mid, r) {
       key:     '날짜',
       value:   iso + '_' + mid,
       data: {
+        'SDCAUTH':r.sdcAuth||'', '교통AUTH':r.transportAuth||'', '교통횟수':r.transportCount==null?'':r.transportCount, 'AUTH확인':r.authWarning||'',
         '날짜':     iso,
         '멤버ID':   mid,
         '한글이름': nameKr,
