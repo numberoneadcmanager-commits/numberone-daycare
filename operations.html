@@ -1256,7 +1256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="apps/billing.js?v=20260911p1"></script>
   <script src="apps/pcsp.js?v=20260911p1"></script>
   <script src="apps/staff_ops.js?v=20260911p1"></script>
-  <script src="apps/forms_ops.js?v=20260911p1"></script>
+  <script src="apps/forms_ops.js?v=20260914forms"></script>
   <script src="apps/training_ops.js?v=20260911p1"></script>
 <script>
 
@@ -1352,7 +1352,15 @@ function initData(){
           clearInterval(waitForCache);
           var member = (_formsMemberCache||[]).find(function(m){ return String(m['ID']) === String(mid); });
           var mName = member ? (member['한글이름']||'') : '';
-          openPCSPForMember(mid, mName);
+          var type=params.get('type')||'PCSP';
+          if(!member && type!=='PCSP'){alert('멤버 정보를 불러오지 못했습니다. Forms에서 멤버를 다시 선택해주세요.');return;}
+          if(member)selectFormsMember(mid);
+          if(type==='Assessment')openAssessmentForMember(mid,mName);
+          else if(type==='Nutrition')openNutritionForMember(mid,mName);
+          else if(type==='MemberRights')openMemberRightsForMember(mid,mName);
+          else if(type==='HIPAA')openHIPAAForMember(mid,mName);
+          else if(type==='Incident')openIncidentForMember(mid,mName);
+          else openPCSPForMember(mid,mName);
         }
       }, 150);
     }

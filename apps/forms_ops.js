@@ -136,6 +136,7 @@ function clearFormsSelection(){
 
 
 function closeFrmBack(){
+  _formLoads={};
   ['frm-assessment','frm-nutrition','frm-member-rights','frm-incident'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.style.display='none';
   });
@@ -166,12 +167,44 @@ function showPCSPMemberSelect(){
   renderPCSPMemberList();
 }
 
+// Only the form body waits for Drive; back/retry remain usable. Never save an unread record.
+var _formLoads = {};
+function loadOperationalForm(id, mid, name, type, applyData){
+  var form=document.getElementById(id);
+  var state={ready:false};
+  _formLoads[id]=state;
+  form.inert=false;
+  var notice=form.querySelector('[data-load-notice]');
+  if(!notice){notice=document.createElement('div');notice.setAttribute('data-load-notice','');notice.setAttribute('role','status');form.insertBefore(notice,form.children[1]);}
+  Array.from(form.children).forEach(function(el){if(el!==notice&&!el.classList.contains('back-btn'))el.inert=true;});
+  notice.textContent='⏳ 기존 기록을 불러오는 중...';
+  var timer;
+  var timeout=new Promise(function(_,reject){timer=setTimeout(function(){reject(new Error('서버 응답 시간이 초과되었습니다.'));},20000);});
+  return Promise.race([Promise.resolve().then(function(){return loadJSONfromDrive(mid,name,type);}),timeout]).then(function(res){
+    if(_formLoads[id]!==state)return;
+    if(!res||!res.ok||!res.data||typeof res.data.found!=='boolean'||(res.data.found&&!res.data.data))throw new Error('기록 조회 응답을 확인할 수 없습니다.');
+    if(!res.data.found&&res.data.error&&!/폴더 없음|파일 없음/.test(res.data.error))throw new Error(res.data.error);
+    if(res.data.found)applyData(res.data.data);
+    state.ready=true;
+    Array.from(form.children).forEach(function(el){el.inert=false;});
+    notice.textContent=res.data.found?'✅ 저장된 기록을 불러왔습니다.':'새 기록을 작성할 수 있습니다.';
+  }).catch(function(e){
+    if(_formLoads[id]!==state)return;
+    notice.textContent='조회 실패: '+e.message+' ';
+    var retry=document.createElement('button');retry.type='button';retry.textContent='다시 불러오기';
+    retry.onclick=function(){loadOperationalForm(id,mid,name,type,applyData);};notice.appendChild(retry);
+  }).finally(function(){clearTimeout(timer);});
+}
+function operationalFormReady(id){
+  if(_formLoads[id]&&_formLoads[id].ready)return true;
+  alert('기존 기록 조회를 완료한 후 저장해주세요.');return false;
+}
+
 function openAssessmentForMember(mid,mName){
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
   if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
   _asmt.mid=mid;_asmt.step=0;
   document.querySelectorAll('#frm-assessment input,#frm-assessment textarea,#frm-assessment select').forEach(function(el){if(el.type==='checkbox'||el.type==='radio')el.checked=false;else el.value='';});
-  document.getElementById('frm-assessment').inert=true;
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   document.getElementById('frm-assessment').style.display='block';
   var pv=document.getElementById('pcsp-list-view');if(pv)pv.style.display='none';
@@ -185,16 +218,12 @@ function openAssessmentForMember(mid,mName){
   var pcp=document.getElementById('as-pcp');if(pcp)pcp.value=member['주치의']||'';
   var adate=document.getElementById('as-date');if(adate)adate.value=new Date().toLocaleDateString('sv-SE');
   _asExistingCreatedBy = ''; _asExistingCreatedByEmail = ''; _asExistingCreatedAt = '';
-  loadJSONfromDrive(mid,member['한글이름']||'','Assessment').then(function(res){
-    if(String(_asmt.mid)!==String(mid))return;
-    if(res&&res.ok&&res.data&&res.data.found&&res.data.data){
-      var d = res.data.data;
-      fillAssessmentFromJSON(d);
-      _asExistingCreatedBy      = d.createdBy      || d.lastEditedBy      || '';
-      _asExistingCreatedByEmail = d.createdByEmail || d.lastEditedByEmail || '';
-      _asExistingCreatedAt      = d.createdAt      || d.savedAt          || '';
-    }
-  }).catch(function(e){alert('Assessment 조회 실패: '+e.message);}).finally(function(){if(String(_asmt.mid)===String(mid))document.getElementById('frm-assessment').inert=false;});
+  loadOperationalForm('frm-assessment',mid,member['한글이름']||'','Assessment',function(d){
+    fillAssessmentFromJSON(d);
+    _asExistingCreatedBy=d.createdBy||d.lastEditedBy||'';
+    _asExistingCreatedByEmail=d.createdByEmail||d.lastEditedByEmail||'';
+    _asExistingCreatedAt=d.createdAt||d.savedAt||'';
+  });
   goAssessStep(0);_ptSig=null;_asSig=null;
   initSigCanvas('pt-sig-canvas','pt-sig-empty',function(d){_ptSig=d;});
   initSigCanvas('as-sig-canvas','as-sig-empty',function(d){_asSig=d;});
@@ -242,6 +271,7 @@ function fillAssessmentFromJSON(data){
   if(data.personal){sv('ph-work',data.personal.work);sv('ph-edu',data.personal.edu);sv('ph-hobbies',data.personal.hobbies);sv('ph-religion',data.personal.religion);sv('ph-hopes',data.personal.hopes);}
 }
 function saveAssessment(){
+  if(!operationalFormReady('frm-assessment'))return;
   if(!_asmt.mid){alert('멤버가 선택되지 않았습니다');return;}
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_asmt.mid);});
   var mName=member?(member['한글이름']||''):'';
@@ -260,7 +290,7 @@ function openNutritionForMember(mid,mName){
   _nsExistingCreatedBy = ''; _nsExistingCreatedByEmail = ''; _nsExistingCreatedAt = '';
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
   var el=document.getElementById('frm-nutrition');if(el)el.style.display='block';
-  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(mid);}) : null;
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
   var nn=document.getElementById('ns-name');
   if(nn) nn.textContent = mName || '';
   var nd=document.getElementById('ns-dob');
@@ -357,30 +387,21 @@ function setNutritionData(d){
   if(d.diet){sc('ns-diet-na',d.diet.na);sc('ns-diet-lf',d.diet.lf);sc('ns-diet-carb',d.diet.carb);sc('ns-diet-renal',d.diet.renal);sc('ns-diet-other-chk',d.diet.other);sv('ns-diet-other',d.diet.otherText||'');}
 }
 
-async function loadNutrition(mid, mName){
-  document.getElementById('frm-nutrition').inert=true;
-  var statusEl=document.getElementById('ns-status');
-  try {
-    var res = await loadJSONfromDrive(mid, mName||'', 'Nutrition');
-    if(String(mid)!==String(_nsMid))return;
-    if(res && res.ok && res.data && res.data.found && res.data.data){
-      var d = res.data.data;
-      setNutritionData(d);
-      // 원작성자 정보 보존 (최초 작성자는 바뀌지 않도록)
-      _nsExistingCreatedBy      = d.createdBy      || d.lastEditedBy      || '';
-      _nsExistingCreatedByEmail = d.createdByEmail || d.lastEditedByEmail || '';
-      _nsExistingCreatedAt      = d.createdAt      || d.savedAt          || '';
-      var authorNote = d.createdBy ? (' · 최초 작성: ' + d.createdBy) : '';
-      if(statusEl) statusEl.textContent='✅ 이전 저장 데이터 로드됨' + authorNote;
-    }
-  } catch(e){if(statusEl)statusEl.textContent='Nutrition 조회 실패: '+e.message;}finally{if(String(mid)===String(_nsMid))document.getElementById('frm-nutrition').inert=false;}
+function loadNutrition(mid, mName){
+  return loadOperationalForm('frm-nutrition',mid,mName||'','Nutrition',function(d){
+    setNutritionData(d);
+    _nsExistingCreatedBy=d.createdBy||d.lastEditedBy||'';
+    _nsExistingCreatedByEmail=d.createdByEmail||d.lastEditedByEmail||'';
+    _nsExistingCreatedAt=d.createdAt||d.savedAt||'';
+  });
 }
 
 async function saveNutrition(){
+  if(!operationalFormReady('frm-nutrition'))return;
   if(!_nsMid){ alert('멤버를 선택해주세요'); return; }
   var statusEl=document.getElementById('ns-status');
   if(statusEl) statusEl.textContent='⏳ 저장 중...';
-  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(_nsMid);}) : null;
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
   var mName = member ? (member['한글이름']||'') : '';
   try {
     var data = getNutritionData();
@@ -396,8 +417,9 @@ async function saveNutrition(){
 }
 
 function printNutrition(){
+  if(!operationalFormReady('frm-nutrition'))return;
   if(!_nsMid){ alert('멤버를 선택해주세요'); return; }
-  var member = currentMembers ? currentMembers.find(function(m){return String(m['ID'])===String(_nsMid);}) : null;
+  var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
   var mName = member ? (member['한글이름']+' ('+member['영문이름']+')') : '';
   var d = getNutritionData();
   function ck(v){ return v ? '☒' : '☐'; }
