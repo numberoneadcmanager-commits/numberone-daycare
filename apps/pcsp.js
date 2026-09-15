@@ -199,6 +199,7 @@ async function showPCSPList(){
     try{if(_wfBusy)await _wfBusy;if(_wfPending||wfFingerprint(wfEntry())!==_wfFingerprint)await wfPersist('draft');}catch(e){alert(e.message);return;}
   }
   _wfSavedExit=false;
+  if(typeof _docContext!=='undefined'&&_docContext&&_docContext.type==='PCSP'){var context=_docContext;await showDocumentHistory(context.mid,context.name,context.type);return;}
   var a=document.getElementById('pcsp-list-view'),b=document.getElementById('pcsp-member-select'),c=document.getElementById('pcsp-form-view'),h=document.getElementById('forms-hub');
   if(a)a.style.display='block'; if(b)b.style.display='none'; if(c)c.style.display='none'; if(h)h.style.display='none';
   renderPCSPList();loadPCSPPdfLinks(false);wfRenewalBoard();

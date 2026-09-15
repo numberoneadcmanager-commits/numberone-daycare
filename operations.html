@@ -218,6 +218,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="panel" id="panel-forms">
 
       <!-- 멤버 검색 허브 -->
+      <div id="document-history" style="display:none"></div>
       <div id="forms-hub">
         <div class="search-wrap">
           <span>🔍</span>
@@ -389,7 +390,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
             <div class="modal-input-wrap"><div class="fl">Relationship (관계)</div><input class="fi" id="mr-rep-rel" placeholder="예: Daughter, POA"></div>
           </div>
 
-          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">💾 저장 및 PDF 출력</button>
+          <button class="btn-full btn-primary" onclick="generateMemberRightsPDF()" style="padding:14px;font-size:14px">💾 저장 / 서명 완료</button>
         </div>
       </div>
 
@@ -398,6 +399,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="frm-nutrition" style="display:none">
         <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
         <button class="back-btn" onclick="goOperationalSign('Nutrition')">✍️ 서명란으로</button>
+        <button class="back-btn" onclick="printNutrition()">🖨️ 인쇄</button>
         <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
           <div style="font-size:15px;font-weight:700;margin-bottom:12px">🥗 Nutrition Screening</div>
 
@@ -1256,9 +1258,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <script src="core/write_guard.js?v=20260911p1"></script>
 <script src="apps/billing.js?v=20260911p1"></script>
-  <script src="apps/pcsp.js?v=20260915sign"></script>
+  <script src="apps/pcsp.js?v=20260915history"></script>
   <script src="apps/staff_ops.js?v=20260911p1"></script>
-  <script src="apps/forms_ops.js?v=20260915sign"></script>
+  <script src="apps/forms_ops.js?v=20260915history"></script>
+  <script src="apps/documents.js?v=20260915history"></script>
   <script src="apps/training_ops.js?v=20260911p1"></script>
 <script>
 
@@ -1357,12 +1360,7 @@ function initData(){
           var type=params.get('type')||'PCSP';
           if(!member && type!=='PCSP'){alert('멤버 정보를 불러오지 못했습니다. Forms에서 멤버를 다시 선택해주세요.');return;}
           if(member)selectFormsMember(mid);
-          if(type==='Assessment')openAssessmentForMember(mid,mName);
-          else if(type==='Nutrition')openNutritionForMember(mid,mName);
-          else if(type==='MemberRights')openMemberRightsForMember(mid,mName);
-          else if(type==='HIPAA')openHIPAAForMember(mid,mName);
-          else if(type==='Incident')openIncidentForMember(mid,mName);
-          else openPCSPForMember(mid,mName);
+          showDocumentHistory(mid,mName,type);
         }
       }, 150);
     }

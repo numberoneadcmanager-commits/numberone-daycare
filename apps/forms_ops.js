@@ -89,12 +89,7 @@ function renderFormsList(member){
     el.querySelectorAll('[data-fkey]').forEach(function(div){
       div.addEventListener('click',function(){
         var key=this.getAttribute('data-fkey');
-        if(key==='PCSP')          openPCSPForMember(mid,mName);
-        else if(key==='Assessment')    openAssessmentForMember(mid,mName);
-        else if(key==='Nutrition')     openNutritionForMember(mid,mName);
-        else if(key==='MemberRights')  openMemberRightsForMember(mid,mName);
-        else if(key==='HIPAA')         openHIPAAForMember(mid,mName);
-        else if(key==='Incident')      openIncidentForMember(mid,mName);
+        showDocumentHistory(mid,mName,key);
       });
     });
   }
@@ -105,11 +100,11 @@ function renderFormsList(member){
   ];
   var idHtml='';
   idForms.forEach(function(f){
-    idHtml+='<div onclick="uploadMemberID(\''+mid+'\',\''+mName+'\',\''+f.key+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer">'
+    idHtml+='<div onclick="showDocumentHistory(\''+mid+'\',\''+mName+'\',\''+f.key+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer">'
       +'<div style="display:flex;align-items:center;gap:10px">'
       +'<div style="width:38px;height:38px;border-radius:10px;background:#F2F2F7;display:flex;align-items:center;justify-content:center;font-size:18px">'+f.icon+'</div>'
       +'<div style="font-size:13px;font-weight:600">'+f.label+'</div>'
-      +'</div><span style="font-size:11px;color:#5856D6;font-weight:600">📎 업로드</span></div>';
+      +'</div><span style="font-size:11px;color:#5856D6;font-weight:600">📁 이력 / 업로드</span></div>';
   });
   var idEl=document.getElementById('forms-id-list');if(idEl)idEl.innerHTML=idHtml;
 }
@@ -136,6 +131,7 @@ function clearFormsSelection(){
 
 
 function closeFrmBack(){
+  if(typeof docBack==='function'&&docBack())return;
   _formLoads={};
   ['frm-assessment','frm-nutrition','frm-member-rights','frm-incident'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.style.display='none';
@@ -180,7 +176,7 @@ function loadOperationalForm(id, mid, name, type, applyData){
   notice.textContent='⏳ 기존 기록을 불러오는 중...';
   var timer;
   var timeout=new Promise(function(_,reject){timer=setTimeout(function(){reject(new Error('서버 응답 시간이 초과되었습니다.'));},20000);});
-  return Promise.race([Promise.resolve().then(function(){return loadJSONfromDrive(mid,name,type);}),timeout]).then(async function(res){
+  return Promise.race([Promise.resolve().then(function(){return docLoadForm(mid,name,type);}),timeout]).then(async function(res){
     if(_formLoads[id]!==state)return;
     if(!res||!res.ok||!res.data||typeof res.data.found!=='boolean'||(res.data.found&&!res.data.data))throw new Error('기록 조회 응답을 확인할 수 없습니다.');
     if(!res.data.found&&res.data.error&&!/폴더 없음|파일 없음/.test(res.data.error))throw new Error(res.data.error);
@@ -190,6 +186,7 @@ function loadOperationalForm(id, mid, name, type, applyData){
     Array.from(form.children).forEach(function(el){el.inert=false;});
     notice.textContent=res.data.found?'✅ 저장된 기록을 불러왔습니다. 서명 후 저장 버튼을 눌러주세요.':'새 기록을 작성할 수 있습니다.';
     var params=new URLSearchParams(window.location.search);
+    docApplyReadonly(id);
     if(params.get('sign')==='1'&&params.get('type')===type)goOperationalSign(type);
   }).catch(function(e){
     if(_formLoads[id]!==state)return;
@@ -199,7 +196,7 @@ function loadOperationalForm(id, mid, name, type, applyData){
   }).finally(function(){clearTimeout(timer);});
 }
 function operationalFormReady(id){
-  if(_formLoads[id]&&_formLoads[id].ready)return true;
+  if(_formLoads[id]&&_formLoads[id].ready&&!_formLoads[id].readOnly)return true;
   alert('기존 기록 조회를 완료한 후 저장해주세요.');return false;
 }
 
@@ -284,7 +281,7 @@ function saveAssessment(){
   var data=collectAssessmentData();
   var author=_currentUser?(_currentUser.name||''):'';
   // Assessment는 Drive JSON/JSONLog로 관리한다. PCSP 시트 상태를 덮어쓰지 않는다.
-  saveJSONtoDrive(_asmt.mid,mName,'Assessment',data).then(function(res){
+  docSaveForm(_asmt.mid,mName,'Assessment',data).then(function(res){
     if(res&&res.ok&&res.data&&res.data.success){alert('✅ Assessment 저장 완료!\n'+mName);closeFrmBack();}
     else alert('❌ Drive 저장 실패');
   }).catch(function(){alert('❌ 네트워크 오류');});
@@ -409,7 +406,7 @@ async function saveNutrition(){
   var mName = member ? (member['한글이름']||'') : '';
   try {
     var data = getNutritionData();
-    var res = await saveJSONtoDrive(_nsMid, mName, 'Nutrition', data);
+    var res = await docSaveForm(_nsMid, mName, 'Nutrition', data);
     if(res && res.ok && res.data && res.data.success){
       if(statusEl) statusEl.textContent=data.signed?'✅ 두 서명이 포함된 기록을 Drive에 저장했습니다.':'✅ 저장됨 · 서명대기: 회원과 직원 서명 후 다시 저장해주세요.';
     } else {
@@ -421,7 +418,7 @@ async function saveNutrition(){
 }
 
 function printNutrition(){
-  if(!operationalFormReady('frm-nutrition'))return;
+  if(!_formLoads['frm-nutrition']||!_formLoads['frm-nutrition'].ready)return;
   if(!_nsMid){ alert('멤버를 선택해주세요'); return; }
   var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
   var mName = member ? (member['한글이름']+' ('+member['영문이름']+')') : '';
@@ -496,9 +493,11 @@ function openMemberRightsForMember(mid,mName){
   var md=document.getElementById('mr-dob');if(md)md.textContent=(member['생년월일']||'').slice(0,10);
   var mdate=document.getElementById('mr-date');if(mdate)mdate.value=new Date().toLocaleDateString('sv-SE');
   _mrSig=null;clearSigCanvas('mr-sig-canvas','mr-sig-empty');initSigCanvas('mr-sig-canvas','mr-sig-empty',function(d){_mrSig=d;});
+  ['mr-rep','mr-rep-rel'].forEach(function(id){document.getElementById(id).value='';});
+  loadOperationalForm('frm-member-rights',mid,mName,'MemberRights',function(d){document.getElementById('mr-date').value=d.date||'';document.getElementById('mr-rep').value=d.rep||'';document.getElementById('mr-rep-rel').value=d.repRel||'';_mrSig=signatureData(d.memberSig);return restoreFormSignature('mr-sig-canvas','mr-sig-empty',_mrSig);});
 }
 function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null;}
-function generateMemberRightsPDF(){
+function printMemberRights(){
   if(!_mrMid){alert('멤버가 선택되지 않았습니다');return;}
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_mrMid);});
   var mName=member?(member['영문이름']||''):'';
@@ -626,7 +625,7 @@ function uploadMemberID(mid, mName, docType){
       }).then(function(res){
         if(res&&res.ok&&res.data&&res.data.success){
           alert('✅ '+docType+' 업로드 완료!\n'+mName);
-          renderFormsHub();
+          if(_docContext)showDocumentHistory(mid,mName,docType);else selectFormsMember(mid);
         } else {
           alert('❌ 업로드 실패. Drive 연결을 확인해주세요.');
         }
@@ -823,6 +822,7 @@ async function saveHIPAAWithSig(){
         if(statusEl) statusEl.textContent = '✅ 저장 완료!';
         setTimeout(function(){
           closeOv('ov-hipaa');
+          if(_docContext)showDocumentHistory(mid,mName,'HIPAA');
           alert('✅ HIPAA Form (OCA-960) 저장 완료!\n'+mName);
         }, 800);
       } else {
@@ -898,7 +898,7 @@ async function saveIncidentLog(){
   };
 
   try {
-    var res = await apiCall({ action:'append', sheet:'incident', data:data });
+    var res = await docSaveIncident(data);
     if(res && res.ok){
       if(st) st.textContent = '✅ 저장 완료!';
       setTimeout(function(){ closeFrmBack(); }, 800);
@@ -911,3 +911,9 @@ async function saveIncidentLog(){
 }
 
 function collectAssessmentFields(){var fields={};document.querySelectorAll("#frm-assessment input[id],#frm-assessment textarea[id],#frm-assessment select[id]").forEach(function(el){if(el.type!=="file")fields[el.id]=el.type==="checkbox"||el.type==="radio"?el.checked:el.value;});return fields;}
+
+async function generateMemberRightsPDF(){
+  if(!operationalFormReady('frm-member-rights'))return;
+  var m=_formsMemberCache.find(function(m){return String(m.ID)===String(_mrMid);});
+  try{await docSaveForm(_mrMid,m['한글이름']||'','MemberRights',{mid:_mrMid,date:document.getElementById('mr-date').value,rep:document.getElementById('mr-rep').value,repRel:document.getElementById('mr-rep-rel').value,memberSig:_mrSig||'',signed:!!_mrSig,savedAt:new Date().toISOString()});alert(_mrSig?'서명 완료 문서를 저장했습니다.':'미서명 초안을 저장했습니다.');closeFrmBack();}catch(e){alert(e.message);}
+}
