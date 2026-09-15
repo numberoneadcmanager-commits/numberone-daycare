@@ -233,6 +233,7 @@ function newPCSPRights(){
   });
 }
 function resetPCSPState(){
+  clearSigCanvas('pcsp-sig-canvas','pcsp-sig-empty');
   _pcspDays=new Set();
   _pcspContacts=[{},{},{}];
   _pcspPlanningPeople=[];
@@ -474,11 +475,9 @@ function pcspPrev(){var i=PCSP_STEP_ORDER.indexOf(_pcspStep);if(i>0)pcspGoStep(P
 function initPCSPSignatureCanvas(){
   if(typeof initSigCanvas!=='function')return;
   initSigCanvas('pcsp-sig-canvas','pcsp-sig-empty',function(d){_pcspSig=d;});
-  if(_pcspSig&&_pcspSig.indexOf('data:image')===0){
-    var canvas=document.getElementById('pcsp-sig-canvas');if(!canvas)return;var img=new Image();img.onload=function(){var ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);var empty=document.getElementById('pcsp-sig-empty');if(empty)empty.style.display='none';};img.src=_pcspSig;
-  }
+  restoreFormSignature('pcsp-sig-canvas','pcsp-sig-empty',_pcspSig).catch(function(e){alert(e.message);});
 }
-function clearPCSPSig(){var c=document.getElementById('pcsp-sig-canvas');if(c)c.getContext('2d').clearRect(0,0,c.width,c.height);_pcspSig=null;var e=document.getElementById('pcsp-sig-empty');if(e)e.style.display='flex';}
+function clearPCSPSig(){clearSigCanvas('pcsp-sig-canvas','pcsp-sig-empty');_pcspSig=null;}
 
 function openPCSPForm(id){
   if(_wfBusy||_wfPending){alert('진행 중인 저장을 먼저 완료해주세요.');return;}

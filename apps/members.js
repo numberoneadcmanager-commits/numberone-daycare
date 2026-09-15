@@ -123,6 +123,9 @@ async function viewDriveDoc(mid, fileType) {
     }
     var d = res.data.data;
     var html = '<div style="padding:12px">';
+    if((fileType==='Nutrition'||fileType==='Assessment')&&!d.signed){
+      html+='<a href="operations.html?tab=forms&amp;mid='+encodeURIComponent(mid)+'&amp;type='+encodeURIComponent(fileType)+'&amp;sign=1" style="display:block;padding:12px;background:#FFF3E0;border-radius:8px;margin-bottom:12px;text-align:center">✍️ 이 문서 서명하기</a>';
+    }
     // Nutrition 전용 뷰
     if (fileType==='Nutrition') {
       html += nsView(d);
@@ -795,7 +798,7 @@ async function showPendingSignatures() {
               icon: fileType === 'Nutrition' ? '🥗' : '📋',
               date: String(l['저장일시']||'').slice(0,10),
               onclick: "closeOv('ov-doc-viewer');"
-                + "window.location.href='operations.html?tab=forms&mid="+mid+"&type="+fileType+"'"
+                + "window.location.href='operations.html?tab=forms&mid="+mid+"&type="+fileType+"&sign=1'"
             });
           }
         }

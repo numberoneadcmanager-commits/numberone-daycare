@@ -180,14 +180,17 @@ function loadOperationalForm(id, mid, name, type, applyData){
   notice.textContent='⏳ 기존 기록을 불러오는 중...';
   var timer;
   var timeout=new Promise(function(_,reject){timer=setTimeout(function(){reject(new Error('서버 응답 시간이 초과되었습니다.'));},20000);});
-  return Promise.race([Promise.resolve().then(function(){return loadJSONfromDrive(mid,name,type);}),timeout]).then(function(res){
+  return Promise.race([Promise.resolve().then(function(){return loadJSONfromDrive(mid,name,type);}),timeout]).then(async function(res){
     if(_formLoads[id]!==state)return;
     if(!res||!res.ok||!res.data||typeof res.data.found!=='boolean'||(res.data.found&&!res.data.data))throw new Error('기록 조회 응답을 확인할 수 없습니다.');
     if(!res.data.found&&res.data.error&&!/폴더 없음|파일 없음/.test(res.data.error))throw new Error(res.data.error);
-    if(res.data.found)applyData(res.data.data);
+    if(res.data.found)await applyData(res.data.data);
+    if(_formLoads[id]!==state)return;
     state.ready=true;
     Array.from(form.children).forEach(function(el){el.inert=false;});
-    notice.textContent=res.data.found?'✅ 저장된 기록을 불러왔습니다.':'새 기록을 작성할 수 있습니다.';
+    notice.textContent=res.data.found?'✅ 저장된 기록을 불러왔습니다. 서명 후 저장 버튼을 눌러주세요.':'새 기록을 작성할 수 있습니다.';
+    var params=new URLSearchParams(window.location.search);
+    if(params.get('sign')==='1'&&params.get('type')===type)goOperationalSign(type);
   }).catch(function(e){
     if(_formLoads[id]!==state)return;
     notice.textContent='조회 실패: '+e.message+' ';
@@ -223,8 +226,11 @@ function openAssessmentForMember(mid,mName){
     _asExistingCreatedBy=d.createdBy||d.lastEditedBy||'';
     _asExistingCreatedByEmail=d.createdByEmail||d.lastEditedByEmail||'';
     _asExistingCreatedAt=d.createdAt||d.savedAt||'';
+    _ptSig=signatureData(d.ptSig);_asSig=signatureData(d.asSig);
+    return Promise.all([restoreFormSignature('pt-sig-canvas','pt-sig-empty',_ptSig),restoreFormSignature('as-sig-canvas','as-sig-empty',_asSig)]);
   });
   goAssessStep(0);_ptSig=null;_asSig=null;
+  clearSigCanvas('pt-sig-canvas','pt-sig-empty');clearSigCanvas('as-sig-canvas','as-sig-empty');
   initSigCanvas('pt-sig-canvas','pt-sig-empty',function(d){_ptSig=d;});
   initSigCanvas('as-sig-canvas','as-sig-empty',function(d){_asSig=d;});
 }
@@ -300,12 +306,8 @@ function openNutritionForMember(mid,mName){
 
   // 서명 캔버스 초기화
   _nsMemberSig=null; _nsStaffSig=null;
-  ['ns-member-canvas','ns-staff-canvas'].forEach(function(id){
-    var c=document.getElementById(id); if(c){c._sigInit=false;}
-  });
-  ['ns-member-empty','ns-staff-empty'].forEach(function(id){
-    var e=document.getElementById(id); if(e) e.style.display='flex';
-  });
+  clearSigCanvas('ns-member-canvas','ns-member-empty');
+  clearSigCanvas('ns-staff-canvas','ns-staff-empty');
   initSigCanvas('ns-member-canvas','ns-member-empty',function(d){_nsMemberSig=d;});
   initSigCanvas('ns-staff-canvas','ns-staff-empty',function(d){_nsStaffSig=d;});
 
@@ -393,6 +395,8 @@ function loadNutrition(mid, mName){
     _nsExistingCreatedBy=d.createdBy||d.lastEditedBy||'';
     _nsExistingCreatedByEmail=d.createdByEmail||d.lastEditedByEmail||'';
     _nsExistingCreatedAt=d.createdAt||d.savedAt||'';
+    _nsMemberSig=signatureData(d.memberSig);_nsStaffSig=signatureData(d.staffSig);
+    return Promise.all([restoreFormSignature('ns-member-canvas','ns-member-empty',_nsMemberSig),restoreFormSignature('ns-staff-canvas','ns-staff-empty',_nsStaffSig)]);
   });
 }
 
@@ -407,7 +411,7 @@ async function saveNutrition(){
     var data = getNutritionData();
     var res = await saveJSONtoDrive(_nsMid, mName, 'Nutrition', data);
     if(res && res.ok && res.data && res.data.success){
-      if(statusEl) statusEl.textContent='✅ Drive에 저장됨!';
+      if(statusEl) statusEl.textContent=data.signed?'✅ 두 서명이 포함된 기록을 Drive에 저장했습니다.':'✅ 저장됨 · 서명대기: 회원과 직원 서명 후 다시 저장해주세요.';
     } else {
       if(statusEl) statusEl.textContent='❌ 저장 실패';
     }
@@ -422,10 +426,15 @@ function printNutrition(){
   var member = _formsMemberCache.find(function(m){return String(m['ID'])===String(_nsMid);});
   var mName = member ? (member['한글이름']+' ('+member['영문이름']+')') : '';
   var d = getNutritionData();
+  mName=formPrintText(mName);
+  ['date','height','weight','bmi','allergySpec'].forEach(function(k){d[k]=formPrintText(d[k]);});
+  if(d.diet)d.diet.otherText=formPrintText(d.diet.otherText);
+  d.memberSig=signatureData(d.memberSig);d.staffSig=signatureData(d.staffSig);
   function ck(v){ return v ? '☒' : '☐'; }
   function rk(val, opt){ return val===opt ? '● ' : 'O '; }
 
   var w = window.open('','_blank');
+  if(!w){alert('인쇄 창을 열 수 없습니다. 팝업을 허용해주세요.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nutrition Screening - '+mName+'</title>'
     +'<style>body{font-family:Arial,sans-serif;font-size:10px;margin:0.5in}h1{font-size:14px;text-align:center;margin-bottom:4px}'
     +'.center{text-align:center;}.logo{font-size:18px;font-weight:900;} '
@@ -437,7 +446,7 @@ function printNutrition(){
     +'<div class="center"><div class="logo">NUMBER ONE ADULT DAYCARE</div>'
     +'<h1>Nutrition Screening</h1></div>'
     +'<div class="row"><div class="lbl">Name:</div><div>'+mName+'</div>'
-    +'<div class="lbl">DOB:</div><div>'+(member?member['생년월일']:'')+'</div>'
+    +'<div class="lbl">DOB:</div><div>'+formPrintText(member?member['생년월일']:'')+'</div>'
     +'<div class="lbl">Date:</div><div>'+d.date+'</div></div>'
     +'<div class="row"><div class="lbl">Gender:</div><div>'+rk(d.gender,'Male')+'Male &nbsp;'+rk(d.gender,'Female')+'Female</div>'
     +'<div class="lbl">Height:</div><div>'+d.height+'in</div>'
@@ -463,9 +472,16 @@ function printNutrition(){
     +(d.memberSig?'<div><img src="'+d.memberSig+'" style="height:50px"><div style="border-top:1px solid #000;font-size:9px">Member Signature (회원 서명)</div></div>':'<div><div class="sig"></div><div style="font-size:9px">Member Signature (회원 서명)</div></div>')
     +(d.staffSig?'<div><img src="'+d.staffSig+'" style="height:50px"><div style="border-top:1px solid #000;font-size:9px">Completed by / Staff Signature</div></div>':'<div><div class="sig"></div><div style="font-size:9px">Completed by / Staff Signature</div></div>')
     +'</div>'
-    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'<button onclick="window.print()">인쇄</button><div id="print-error"></div>'
     +'</body></html>');
   w.document.close();
+  var images=Array.from(w.document.images);
+  Promise.all(images.map(function(img){return new Promise(function(resolve,reject){
+    if(img.complete){if(img.naturalWidth)resolve();else reject(new Error('서명 이미지 로드 실패'));return;}
+    img.onload=resolve;img.onerror=function(){reject(new Error('서명 이미지 로드 실패'));};
+  });})).then(function(){if(!w.closed){w.focus();w.print();}}).catch(function(e){
+    if(!w.closed)w.document.getElementById('print-error').textContent=e.message+' — 창을 닫고 다시 시도해주세요.';
+  });
 }
 
 
@@ -479,7 +495,7 @@ function openMemberRightsForMember(mid,mName){
   var mn=document.getElementById('mr-name');if(mn)mn.textContent=member['한글이름']+' ('+member['영문이름']+')';
   var md=document.getElementById('mr-dob');if(md)md.textContent=(member['생년월일']||'').slice(0,10);
   var mdate=document.getElementById('mr-date');if(mdate)mdate.value=new Date().toLocaleDateString('sv-SE');
-  _mrSig=null;initSigCanvas('mr-sig-canvas','mr-sig-empty',function(d){_mrSig=d;});
+  _mrSig=null;clearSigCanvas('mr-sig-canvas','mr-sig-empty');initSigCanvas('mr-sig-canvas','mr-sig-empty',function(d){_mrSig=d;});
 }
 function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null;}
 function generateMemberRightsPDF(){
@@ -549,20 +565,44 @@ function generateMemberRightsPDF(){
   w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
 }
 
+function signatureData(value){
+  var v=String(value||'');return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v)?v:'';
+}
+function formPrintText(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function initSigCanvas(canvasId,emptyId,onSave){
-  var canvas=document.getElementById(canvasId);if(!canvas||canvas._sigInit)return;canvas._sigInit=true;
-  var ctx=canvas.getContext('2d');ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
-  var drawing=false,lx=0,ly=0;
-  function getPos(e){var rect=canvas.getBoundingClientRect();var sx=canvas.width/rect.width,sy=canvas.height/rect.height;if(e.touches)return{x:(e.touches[0].clientX-rect.left)*sx,y:(e.touches[0].clientY-rect.top)*sy};return{x:(e.clientX-rect.left)*sx,y:(e.clientY-rect.top)*sy};}
-  function start(e){e.preventDefault();drawing=true;var p=getPos(e);lx=p.x;ly=p.y;var em=document.getElementById(emptyId);if(em)em.style.display='none';}
-  function draw(e){if(!drawing)return;e.preventDefault();var p=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;}
-  function stop(){if(!drawing)return;drawing=false;if(onSave)onSave(canvas.toDataURL('image/png'));}
+  var canvas=document.getElementById(canvasId);if(!canvas)return;
+  canvas._sigOnSave=onSave;canvas._sigEmptyId=emptyId;
+  if(canvas._sigBound)return;
+  canvas._sigBound=true;canvas._sigInit=true;
+  var ctx=canvas.getContext('2d'),drawing=false,ink=false,lx=0,ly=0;
+  canvas._sigCancel=function(){drawing=false;ink=false;};
+  function pos(e){var r=canvas.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return {x:(t.clientX-r.left)*canvas.width/r.width,y:(t.clientY-r.top)*canvas.height/r.height};}
+  function start(e){if(e.button!=null&&e.button!==0)return;e.preventDefault();canvas._sigVersion=(canvas._sigVersion||0)+1;drawing=true;ink=false;var p=pos(e);lx=p.x;ly=p.y;}
+  function draw(e){if(!drawing)return;e.preventDefault();var p=pos(e);ctx.strokeStyle='#1a1a1a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;ink=true;var empty=document.getElementById(canvas._sigEmptyId);if(empty)empty.style.display='none';}
+  function stop(){if(!drawing)return;drawing=false;if(ink&&canvas._sigOnSave)canvas._sigOnSave(canvas.toDataURL('image/png'));}
   canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',draw);canvas.addEventListener('mouseup',stop);canvas.addEventListener('mouseleave',stop);
-  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',draw,{passive:false});canvas.addEventListener('touchend',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',draw,{passive:false});canvas.addEventListener('touchend',stop);canvas.addEventListener('touchcancel',stop);
 }
 function clearSigCanvas(canvasId,emptyId){
-  var canvas=document.getElementById(canvasId);if(canvas){canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);canvas._sigInit=false;}
-  var em=document.getElementById(emptyId);if(em)em.style.display='flex';
+  var canvas=document.getElementById(canvasId);
+  if(canvas){canvas._sigVersion=(canvas._sigVersion||0)+1;if(canvas._sigCancel)canvas._sigCancel();canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}
+  var empty=document.getElementById(emptyId);if(empty)empty.style.display='flex';
+}
+function restoreFormSignature(canvasId,emptyId,data){
+  clearSigCanvas(canvasId,emptyId);
+  var canvas=document.getElementById(canvasId),src=signatureData(data);
+  if(!canvas||!src)return Promise.resolve();
+  var version=canvas._sigVersion;
+  return new Promise(function(resolve,reject){
+    var img=new Image();img.onload=function(){
+      if(canvas._sigVersion===version){canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);var empty=document.getElementById(emptyId);if(empty)empty.style.display='none';}resolve();
+    };img.onerror=function(){reject(new Error('저장된 서명 이미지를 불러오지 못했습니다.'));};img.src=src;
+  });
+}
+function goOperationalSign(type){
+  if(type==='Assessment')goAssessStep(6);
+  var canvas=document.getElementById(type==='Assessment'?'pt-sig-canvas':'ns-member-canvas');
+  if(canvas)canvas.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 // ── 멤버별 ID 업로드 ──────────────────────────────────────

@@ -397,6 +397,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <!-- Nutrition Screening 폼 -->
       <div id="frm-nutrition" style="display:none">
         <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <button class="back-btn" onclick="goOperationalSign('Nutrition')">✍️ 서명란으로</button>
         <div style="background:#fff;border-radius:13px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)">
           <div style="font-size:15px;font-weight:700;margin-bottom:12px">🥗 Nutrition Screening</div>
 
@@ -537,7 +538,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <!-- 저장/인쇄 버튼 -->
           <div id="ns-status" style="font-size:12px;color:#8E8E93;text-align:center;margin-bottom:8px"></div>
           <div style="display:flex;gap:8px">
-            <button class="btn-full btn-primary" onclick="saveNutrition()" style="flex:2;padding:14px;font-size:14px">💾 저장 (Drive)</button>
+            <button class="btn-full btn-primary" onclick="saveNutrition()" style="flex:2;padding:14px;font-size:14px">💾 저장 / 서명 완료</button>
             <button class="btn-full" onclick="printNutrition()" style="flex:1;padding:14px;font-size:13px;background:#F2F2F7;color:#3C3C43;border:none;border-radius:12px;cursor:pointer">🖨️ 인쇄</button>
           </div>
         </div>
@@ -545,6 +546,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
       <div id="frm-assessment" style="display:none">
         <button class="back-btn" onclick="closeFrmBack()">← 목록으로</button>
+        <button class="back-btn" onclick="goOperationalSign('Assessment')">✍️ 서명란으로</button>
         <div style="background:#fff;border-radius:13px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07)">
           <div style="height:3px;background:#E5E5EA"><div id="as-pf" style="height:3px;background:#D85A30;transition:width .3s;width:14%"></div></div>
           <div style="display:flex;overflow-x:auto;border-bottom:.5px solid #E5E5EA;-webkit-overflow-scrolling:touch">
@@ -672,7 +674,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <div id="pcsp-member-list" style="max-height:60dvh;overflow-y:auto"></div>
       </div>
 
-      <!-- PCSP v2 11단계 폼 -->
+      <!-- PCSP v2 template form -->
       <div id="pcsp-form-view" style="display:none">
 <div class="card" style="padding:12px"><div id="pcsp-save-state" role="status"></div><button class="btn-sm" onclick="wfResolveConflict()">최신 원본과 비교</button><button class="btn-sm" onclick="wfImportSources()">Assessment / Nutrition 불러오기</button><label style="display:block;margin-top:8px"><input id="pcsp-keep-json" type="checkbox" checked> 최종 PDF 외에 서명된 상세 JSON도 보관 (다음 갱신 때 복사 가능)</label></div>
         <div style="background:#fff;border-radius:12px;padding:12px;margin-bottom:10px">
@@ -1223,7 +1225,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div id="hipaa-save-status" style="font-size:11px;color:#8E8E93;text-align:center;margin-bottom:6px;min-height:16px"></div>
   <div class="modal-btns">
     <button class="mbt mbt-cancel" onclick="closeOv('ov-hipaa')">취소</button>
-    <button class="mbt mbt-save" onclick="saveHIPAAWithSig()">💾 저장 (Drive)</button>
+    <button class="mbt mbt-save" onclick="saveHIPAAWithSig()">💾 저장 / 서명 완료</button>
   </div>
 </div>
 
@@ -1254,9 +1256,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <script src="core/write_guard.js?v=20260911p1"></script>
 <script src="apps/billing.js?v=20260911p1"></script>
-  <script src="apps/pcsp.js?v=20260915sample"></script>
+  <script src="apps/pcsp.js?v=20260915sign"></script>
   <script src="apps/staff_ops.js?v=20260911p1"></script>
-  <script src="apps/forms_ops.js?v=20260914forms"></script>
+  <script src="apps/forms_ops.js?v=20260915sign"></script>
   <script src="apps/training_ops.js?v=20260911p1"></script>
 <script>
 
