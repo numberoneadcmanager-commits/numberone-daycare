@@ -9,7 +9,8 @@ var PCSP_LEGACY_PDFS={};
 var _pcspPdfLoadedAt = 0;
 var _pcspFilter = 'all';
 var _pcspStep = 0;
-var PCSP_STEP_COUNT = 11;
+var PCSP_STEP_ORDER = [0,2,3,4,6,5,7,8,9,10];
+var PCSP_STEP_COUNT = 11; // Stable DOM IDs; visible order follows PCSP Sample.
 
 var _pcspMemberId = '';
 var _pcspDays = new Set();
@@ -59,17 +60,7 @@ var HCBS_RIGHTS = [
   {right:'Freedom and support to control their own schedules and activities.', group:'HCBS'},
   {right:'Freedom to have visitors of their choosing at any time.', group:'HCBS'}
 ];
-var OTHER_RIGHTS = [
-  'Freedom of movement within the setting',
-  'Physical accessibility of all areas of the setting',
-  'Privacy (phone calls, mail, personal space)',
-  'Choice of roommate or those with whom they share a unit',
-  'Ability to furnish and decorate their personal space',
-  'Right to lock their own space',
-  'Community access and participation in community life',
-  'Freedom to control their own funds',
-  'Independence to interact with whom they choose'
-].map(function(r){ return {right:r, group:'Other'}; });
+var OTHER_RIGHTS = [{right:'',group:'Other'},{right:'',group:'Other'}];
 
 function pcspEsc(v){
   return String(v == null ? '' : v)
@@ -95,10 +86,6 @@ var PCSP_CENTER_LOCATION='Number One Adult Daycare, 161-22 Northern Blvd 1FL, Fl
 function applyPCSPCommonDefaults(){
   // 센터에서 거의 매번 동일하게 적용되는 운영 기본값만 자동 입력한다.
   // 참가자 개인의 기능/선호/권리 판단은 자동으로 선택하지 않는다.
-  if(!pcspVal('p-planning-participated'))pcspSet('p-planning-participated','Yes');
-  if(!pcspVal('p-meeting-date'))pcspSet('p-meeting-date',pcspVal('p-wdate')||pcspToday());
-  if(!pcspVal('p-meeting-location'))pcspSet('p-meeting-location',PCSP_CENTER_LOCATION);
-  if(!pcspVal('p-planning-notes'))pcspSet('p-planning-notes','Participant participated in the person-centered planning process and was given opportunities to express preferences, ask questions, and make choices regarding services, activities, and supports.');
   ['Breakfast','Lunch','Bingo'].forEach(function(activity){
     if(sadcFind(activity)>=0)return;
     var preset=PCSP_SADC_PRESETS.find(function(x){return x.activity===activity;});
@@ -426,14 +413,8 @@ function renderPCSPGoals(){var el=document.getElementById('pcsp-goals-list');if(
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div><b>🎯 Goal '+(i+1)+'</b>'+(g.needsConfirmation?'<span class="pcsp-confirm-badge">참여자 확인 필요</span>':'')+'</div><div><button type="button" class="btn-sm" onclick="aiDraftGoalItem('+i+')">✨ AI 작성</button> '+(g.needsConfirmation?'<button type="button" class="btn-sm" onclick="confirmPcspGoal('+i+')">✓ 확인완료</button> ':'')+'<button type="button" class="btn-danger" onclick="removePcspGoal('+i+')">삭제</button></div></div>'
     +pcspFieldTextareaHtml('Goal',g.goal,'updatePcspGoal('+i+',\'goal\',this.value)',2)
     +pcspFieldTextareaHtml('Outcome Criteria',g.outcome,'updatePcspGoal('+i+',\'outcome\',this.value)',2)
-    +'<div class="modal-date-row"><div class="modal-input-wrap"><label>Target Date</label><input type="date" class="m-input" value="'+pcspEsc(g.targetDate||'')+'" onchange="updatePcspGoal('+i+',\'targetDate\',this.value)"></div><div class="modal-input-wrap"><label>Frequency</label><input class="m-input" value="'+pcspEsc(g.frequency||'')+'" oninput="updatePcspGoal('+i+',\'frequency\',this.value)" placeholder="e.g. 3x/week"></div></div>'
     +pcspFieldTextareaHtml('Actions and/or Steps',g.actions,'updatePcspGoal('+i+',\'actions\',this.value)',2)
     +pcspFieldTextareaHtml('Related Activity(s)',g.activities,'updatePcspGoal('+i+',\'activities\',this.value)',2)
-    +pcspFieldTextareaHtml('Responsible Person / Support',g.responsiblePerson,'updatePcspGoal('+i+',\'responsiblePerson\',this.value)',2)
-    +pcspFieldTextareaHtml('Natural Support',g.naturalSupport,'updatePcspGoal('+i+',\'naturalSupport\',this.value)',2)
-    +pcspFieldTextareaHtml('Paid / SADC Support',g.paidSupport,'updatePcspGoal('+i+',\'paidSupport\',this.value)',2)
-    +pcspFieldTextareaHtml('Staff Responsibility',g.staffResponsibility,'updatePcspGoal('+i+',\'staffResponsibility\',this.value)',2)
-    +pcspFieldTextareaHtml('Progress / Review Method',g.progressReviewMethod,'updatePcspGoal('+i+',\'progressReviewMethod\',this.value)',2)
     +'</div>';}).join(''):'<div class="empty-msg" style="padding:8px">목표를 추가하거나 AI 목표 초안을 생성하세요.</div>';
 }
 function pcspFieldTextareaHtml(label,value,oninput,rows){return '<div class="modal-input-wrap" style="margin-top:7px"><label>'+pcspEsc(label)+'</label><textarea class="m-textarea'+(pcspHasConfirm(value)?' pcsp-confirm-needed':'')+'" rows="'+(rows||2)+'" style="width:100%" oninput="'+oninput+';pcspMarkConfirmFields()">'+pcspEsc(value||'')+'</textarea></div>';}
@@ -462,23 +443,25 @@ function renderPCSPCommunity(){var el=document.getElementById('pcsp-community-li
   el.innerHTML=_pcspCommunity.length?_pcspCommunity.map(function(c,i){return '<div class="pcsp-comm-item"><div style="display:flex;justify-content:space-between;align-items:center"><b>🌍 Community Activity '+(i+1)+'</b><div><button type="button" class="btn-sm" onclick="aiFillCommunityItem('+i+')">✨ AI 문장</button> <button type="button" class="btn-danger" onclick="removePcspCommunity('+i+')">삭제</button></div></div><div class="modal-input-wrap"><label>Activity</label><input class="m-input" value="'+pcspEsc(c.activity||'')+'" oninput="updatePcspCommunity('+i+',\'activity\',this.value)"></div>'+pcspFieldTextareaHtml('Details',c.details,'updatePcspCommunity('+i+',\'details\',this.value)',2)+'<div class="modal-date-row"><div class="modal-input-wrap"><label>Location</label><input class="m-input" value="'+pcspEsc(c.location||'')+'" oninput="updatePcspCommunity('+i+',\'location\',this.value)"></div><div class="modal-input-wrap"><label>Day / Time / Frequency</label><input class="m-input" value="'+pcspEsc(c.schedule||'')+'" oninput="updatePcspCommunity('+i+',\'schedule\',this.value)"></div></div><div class="modal-date-row"><div class="modal-input-wrap"><label>Materials</label><input class="m-input" value="'+pcspEsc(c.materials||'')+'" oninput="updatePcspCommunity('+i+',\'materials\',this.value)"></div><div class="modal-input-wrap"><label>Transportation</label><input class="m-input" value="'+pcspEsc(c.transportation||'')+'" oninput="updatePcspCommunity('+i+',\'transportation\',this.value)"></div></div>'+pcspFieldTextareaHtml('Supports Needed',c.supports,'updatePcspCommunity('+i+',\'supports\',this.value)',2)+'</div>';}).join(''):'<div class="empty-msg" style="padding:8px">지역사회 활동이 없더라도 PDF에는 빈 기본 표가 유지됩니다.</div>';
 }
 function renderPCSPRights(){var el=document.getElementById('pcsp-rights-list');if(!el)return;
+  while(_pcspRights.filter(function(r){return r.group==='Other'&&(!r.right||r.modified);}).length<2)_pcspRights.push({right:'',group:'Other',modified:''});
   var h='<div class="pcsp-chip-label">HCBS Final Rule Rights</div>';
   _pcspRights.forEach(function(r,i){if(r.group!=='HCBS')return;h+=pcspRightCard(r,i);});
   h+='<div class="pcsp-chip-label" style="margin-top:12px">Other Participant Rights</div>';
-  _pcspRights.forEach(function(r,i){if(r.group!=='Other')return;h+=pcspRightCard(r,i);});el.innerHTML=h;
+  _pcspRights.forEach(function(r,i){if(r.group!=='Other')return;if(r.right&&!r.modified)return;h+=pcspRightCard(r,i);});h+='<button type="button" class="btn-sm" onclick="addPcspOtherRight()">➕ Other right</button>';el.innerHTML=h;
 }
-function pcspRightCard(r,i){var yes=r.modified==='Yes';return '<div class="pcsp-right-row"><div style="font-size:12px;font-weight:700">'+pcspEsc(r.right)+'</div><div class="modal-input-wrap" style="margin-top:5px"><label>Modification Needed?</label><select class="m-select" onchange="updatePcspRight('+i+',\'modified\',this.value);renderPCSPRights()"><option value=""'+(!r.modified?' selected':'')+'>선택</option><option'+(r.modified==='No'?' selected':'')+'>No</option><option'+(r.modified==='Yes'?' selected':'')+'>Yes</option></select></div>'+(yes?'<div class="pcsp-right-detail"><div style="display:flex;justify-content:flex-end"><button type="button" class="btn-sm" onclick="aiPolishRight('+i+')">✨ 입력내용 문장 정리</button></div>'+pcspFieldTextareaHtml('Description of modification',r.description,'updatePcspRight('+i+',\'description\',this.value)',2)+pcspFieldTextareaHtml('Related diagnosis / condition',r.diagnosisCondition,'updatePcspRight('+i+',\'diagnosisCondition\',this.value)',2)+pcspFieldTextareaHtml('Positive interventions/supports tried first',r.priorInterventions,'updatePcspRight('+i+',\'priorInterventions\',this.value)',2)+pcspFieldTextareaHtml('Data collection / review method',r.dataReviewMethod,'updatePcspRight('+i+',\'dataReviewMethod\',this.value)',2)+pcspFieldTextareaHtml('Review timeframe / limits',r.reviewTimeframe,'updatePcspRight('+i+',\'reviewTimeframe\',this.value)',2)+pcspFieldTextareaHtml('No-harm assurance',r.noHarmAssurance,'updatePcspRight('+i+',\'noHarmAssurance\',this.value)',2)+'</div>':'')+'</div>';}
+function pcspRightCard(r,i){var yes=r.modified==='Yes';return '<div class="pcsp-right-row"><div style="font-size:12px;font-weight:700">'+(r.group==='Other'?'<input class="m-input" placeholder="Participant right (if applicable)" value="'+pcspEsc(r.right)+'" oninput="updatePcspRight('+i+',\'right\',this.value)">':pcspEsc(r.right))+'</div><div class="modal-input-wrap" style="margin-top:5px"><label>Modification Needed?</label><select class="m-select" onchange="updatePcspRight('+i+',\'modified\',this.value);renderPCSPRights()"><option value=""'+(!r.modified?' selected':'')+'>선택</option><option'+(r.modified==='No'?' selected':'')+'>No</option><option'+(r.modified==='Yes'?' selected':'')+'>Yes</option></select></div>'+(yes?'<div class="pcsp-right-detail"><div style="display:flex;justify-content:flex-end"><button type="button" class="btn-sm" onclick="aiPolishRight('+i+')">✨ 입력내용 문장 정리</button></div>'+pcspFieldTextareaHtml('Description of modification',r.description,'updatePcspRight('+i+',\'description\',this.value)',2)+pcspFieldTextareaHtml('Related diagnosis / condition',r.diagnosisCondition,'updatePcspRight('+i+',\'diagnosisCondition\',this.value)',2)+pcspFieldTextareaHtml('Positive interventions/supports tried first',r.priorInterventions,'updatePcspRight('+i+',\'priorInterventions\',this.value)',2)+pcspFieldTextareaHtml('Data collection / review method',r.dataReviewMethod,'updatePcspRight('+i+',\'dataReviewMethod\',this.value)',2)+pcspFieldTextareaHtml('Review timeframe / limits',r.reviewTimeframe,'updatePcspRight('+i+',\'reviewTimeframe\',this.value)',2)+pcspFieldTextareaHtml('No-harm assurance',r.noHarmAssurance,'updatePcspRight('+i+',\'noHarmAssurance\',this.value)',2)+'</div>':'')+'</div>';}
+function addPcspOtherRight(){_pcspRights.push({right:'',group:'Other',modified:''});renderPCSPRights();}
 function updatePcspRight(i,k,v){if(_pcspRights[i])_pcspRights[i][k]=v;}
 
 // ══════════════════════════════════════════════════════════════
 // Navigation / restore
 // ══════════════════════════════════════════════════════════════
 function pcspGoStep(s){
-  s=Math.max(0,Math.min(PCSP_STEP_COUNT-1,s));_pcspStep=s;
+  var position=PCSP_STEP_ORDER.indexOf(s);if(position<0){s=0;position=0;}_pcspStep=s;
   document.querySelectorAll('.pcsp-step').forEach(function(p){p.style.display='none';});var step=document.getElementById('pstep-'+s);if(step)step.style.display='block';
   for(var i=0;i<PCSP_STEP_COUNT;i++){var tab=document.getElementById('ptab-'+i);if(tab)tab.classList.toggle('active',i===s);}
-  var label=document.getElementById('pcsp-step-label');if(label)label.textContent=(s+1)+' / '+PCSP_STEP_COUNT;
-  var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((s+1)/PCSP_STEP_COUNT*100)+'%';
+  var label=document.getElementById('pcsp-step-label');if(label)label.textContent=(position+1)+' / '+PCSP_STEP_ORDER.length;
+  var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((position+1)/PCSP_STEP_ORDER.length*100)+'%';
   var nav=document.getElementById('pcsp-nav');if(nav)nav.style.display=s===PCSP_STEP_COUNT-1?'none':'flex';
   var prev=document.getElementById('pcsp-prev-btn');if(prev)prev.style.visibility=s===0?'hidden':'visible';
   if(s===3)setTimeout(initMedAutocomplete,80);
@@ -486,8 +469,8 @@ function pcspGoStep(s){
   if(s===PCSP_STEP_COUNT-1){buildPCSPSummary();setTimeout(initPCSPSignatureCanvas,100);}
   var content=document.querySelector('.content');if(content)content.scrollTop=0;pcspMarkConfirmFields();
 }
-function pcspNext(){if(_pcspStep<PCSP_STEP_COUNT-1)pcspGoStep(_pcspStep+1);}
-function pcspPrev(){if(_pcspStep>0)pcspGoStep(_pcspStep-1);}
+function pcspNext(){var i=PCSP_STEP_ORDER.indexOf(_pcspStep);if(i<PCSP_STEP_ORDER.length-1)pcspGoStep(PCSP_STEP_ORDER[i+1]);}
+function pcspPrev(){var i=PCSP_STEP_ORDER.indexOf(_pcspStep);if(i>0)pcspGoStep(PCSP_STEP_ORDER[i-1]);}
 function initPCSPSignatureCanvas(){
   if(typeof initSigCanvas!=='function')return;
   initSigCanvas('pcsp-sig-canvas','pcsp-sig-empty',function(d){_pcspSig=d;});
@@ -554,17 +537,25 @@ function collectPCSPEntry(){
     updatedAt:new Date().toISOString(),lastEditedBy:_currentUser?(_currentUser.name||''):'',lastEditedByEmail:_currentUser?(_currentUser.email||''):''
   };
   var old=PCSP_LIST.find(function(x){return x.id===entry.id;});entry.createdAt=(old&&old.createdAt)||new Date().toISOString();entry.createdBy=(old&&old.createdBy)||(_currentUser?(_currentUser.name||''):'');
-  entry.diag=entry.health.diagnoses||entry.health.diagnosisCode||'';return entry;
+  entry.templateLayout='sample-1';entry.diag=entry.health.diagnoses||entry.health.diagnosisCode||'';return entry;
 }
 function findUnconfirmedPaths(obj,path,out){out=out||[];path=path||'';if(obj==null)return out;if(typeof obj==='string'){if(pcspHasConfirm(obj))out.push(path||'field');return out;}if(Array.isArray(obj)){obj.forEach(function(v,i){findUnconfirmedPaths(v,path+'['+i+']',out);});return out;}if(typeof obj==='object'){Object.keys(obj).forEach(function(k){findUnconfirmedPaths(obj[k],path?(path+'.'+k):k,out);});}return out;}
+function pcspSampleContent(e){
+  var h=pcspClone(e.health||{});delete h.nutritionAccommodated;delete h.nutritionAccommodationDetails;
+  var pc=e.personCentered||{};
+  return {health:h,functional:e.functional,contacts:e.contacts,
+    preferences:pc.personalPreferences,strengths:pc.strengthsAbilities,needs:pc.medicalNeeds,
+    risks:e.risks,goals:(e.goals||[]).map(function(g){return {goal:g.goal,outcome:g.outcome,actions:g.actions,activities:g.activities};}),
+    sadcActivities:e.sadcActivities,communityActivities:e.communityActivities,workVolunteer:e.workVolunteer,
+    rights:(e.rights||[]).filter(function(r){return r.modified==='Yes';})};
+}
 function validatePCSPForSignature(e){var issues=[];
   if(!e.nameLast&&!e.nameFirst)issues.push('Participant name');if(!e.wdate)issues.push('PCSP completion date');if(!e.type)issues.push('PCSP type');
-  if(!e.planning.participantParticipated)issues.push('Participant participated?');if(!e.planning.meetingDate)issues.push('Planning meeting date');if(!e.planning.meetingLocation)issues.push('Planning meeting location');
-  if(!e.personCentered.importantTo)issues.push('What is important TO');if(!e.personCentered.importantFor)issues.push('What is important FOR');
-  var goals=e.goals.filter(function(g){return g&&g.goal;});if(!goals.length)issues.push('At least one Goal');goals.forEach(function(g,i){if(!g.outcome)issues.push('Goal '+(i+1)+' Outcome Criteria');if(!g.staffResponsibility&&!g.responsiblePerson)issues.push('Goal '+(i+1)+' responsibility/support');if(g.needsConfirmation)issues.push('Goal '+(i+1)+' participant confirmation');});
+  ['personalPreferences','strengthsAbilities','medicalNeeds'].forEach(function(k){if(!e.personCentered[k])issues.push({personalPreferences:'Preferences',strengthsAbilities:'Strengths',medicalNeeds:'Needs'}[k]);});
+  var goals=e.goals.filter(function(g){return g&&g.goal;});if(!goals.length)issues.push('At least one Goal');goals.forEach(function(g,i){if(!g.outcome)issues.push('Goal '+(i+1)+' Outcome Criteria');if(!g.actions)issues.push('Goal '+(i+1)+' Actions and/or Steps');if(g.needsConfirmation)issues.push('Goal '+(i+1)+' participant confirmation');});
   if(!e.nextdate)issues.push('Next Review Due');
-  e.rights.forEach(function(r){if(r.modified==='Yes'){['description','diagnosisCondition','priorInterventions','dataReviewMethod','reviewTimeframe','noHarmAssurance'].forEach(function(k){if(!String(r[k]||'').trim())issues.push('Rights modification: '+r.right+' — '+k);});}});
-  findUnconfirmedPaths(e,'',issues);
+  e.rights.forEach(function(r){if(r.modified==='Yes'){if(!String(r.right||'').trim())issues.push('Participant right');['description','diagnosisCondition','priorInterventions','dataReviewMethod','reviewTimeframe','noHarmAssurance'].forEach(function(k){if(!String(r[k]||'').trim())issues.push('Rights modification: '+r.right+' — '+k);});}});
+  findUnconfirmedPaths(pcspSampleContent(e),'',issues);
   if(!e.sigdate)issues.push('Signature date');return Array.from(new Set(issues));
 }
 function buildPCSPSummary(){var e=collectPCSPEntry();var issues=validatePCSPForSignature(e);var el=document.getElementById('pcsp-summary');if(!el)return;
@@ -615,7 +606,7 @@ function deletePCSP(){alert('PCSP 이력은 보존합니다. 새 PCSP를 생성�
 async function printPCSP(id){
   var existing=PCSP_LIST.find(function(p){return p.id===id;});if(existing&&existing.status==='완료')return openStoredPCSPPdf(id);
   var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p){alert('PCSP를 찾을 수 없어요');return;}var memberId=p.memberId||'';var memberName=p.nameKr||p.nameLast||'Unknown';var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write('<body style="font-family:Arial;padding:30px">PCSP PDF 생성 중...</body>');w.document.close();
-  try{p=await loadPCSPRecord(id,memberId,memberName);var sig='';if(p.sig&&p.sig.indexOf('base64,')>=0)sig=p.sig.split('base64,')[1];var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sig,pcsp:p,previewOnly:true});if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64)throw new Error((res&&res.data&&res.data.error)||'PDF 생성 실패');var binary=atob(res.data.pdfBase64),bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);var url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));w.location.replace(url);setTimeout(function(){URL.revokeObjectURL(url);},120000);}catch(e){try{w.close();}catch(x){}alert('❌ PCSP 출력 실패: '+e.message);}
+  try{p=await loadPCSPRecord(id,memberId,memberName);if(!p.signed)p.templateLayout='sample-1';var sig='';if(p.sig&&p.sig.indexOf('base64,')>=0)sig=p.sig.split('base64,')[1];var res=await apiCall({action:'fillPCSP',memberId:memberId,memberName:memberName,sigBase64:sig,pcsp:p,previewOnly:true});if(!res||!res.ok||!res.data||!res.data.success||!res.data.pdfBase64)throw new Error((res&&res.data&&res.data.error)||'PDF 생성 실패');var binary=atob(res.data.pdfBase64),bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);var url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));w.location.replace(url);setTimeout(function(){URL.revokeObjectURL(url);},120000);}catch(e){try{w.close();}catch(x){}alert('❌ PCSP 출력 실패: '+e.message);}
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -702,16 +693,16 @@ async function aiDraftWholePCSP(){
   var btn=document.getElementById('pcsp-ai-all-btn');if(btn){btn.disabled=true;btn.textContent='⏳ 전체 초안 생성 중...';}
   try{var facts=pcspFactsForAI();var aiPrompt=`You are drafting a NYS SADC Person-Centered Service Plan. ${pcspAiBaseInstruction()}
 FACTS:\n${JSON.stringify(facts)}\n\nReturn ONLY valid JSON with this exact shape:
-{"personCentered":{"importantTo":"","importantFor":"","strengthsAbilities":"","interests":"","personalPreferences":"","servicePreferences":"","staffPreferences":"","settingPreferences":"","medicalNeeds":"","behavioralNeeds":"","socialNeeds":"","communityNeeds":"","transportationNeeds":"","housingPreferences":"","culturalNeeds":"","linguisticNeeds":"","communicationNeeds":""},"goals":[{"goal":"","outcome":"","targetDate":"","frequency":"","actions":"","activities":"","responsiblePerson":"","naturalSupport":"","paidSupport":"","staffResponsibility":"","progressReviewMethod":""}]}
-For personCentered fields, maximize useful drafting from documented facts. Objective/support fields (importantFor, strengthsAbilities, medicalNeeds, behavioralNeeds, socialNeeds, communityNeeds, transportationNeeds, linguisticNeeds, communicationNeeds) should be drafted from available evidence and should be empty, not CONFIRM WITH PARTICIPANT, when there is no evidence. Interests may use selected SADC/community activities as documented participation. Only direct preference fields (importantTo, personalPreferences, servicePreferences, staffPreferences, settingPreferences, housingPreferences, culturalNeeds) should use CONFIRM WITH PARTICIPANT when genuinely unknown.\nCreate 2-3 reasonable draft goals only from documented health/support facts and selected activities. Goals are proposals and require participant confirmation. Never invent a natural support person; if none is documented, leave naturalSupport blank rather than filling every goal with CONFIRM WITH PARTICIPANT.`;
-    var obj=await _callAIForJSON(aiPrompt);if(obj.personCentered){Object.keys(obj.personCentered).forEach(function(k){if(document.getElementById('p-pc-'+k))pcspSet('p-pc-'+k,obj.personCentered[k]);});}
+{"personCentered":{"personalPreferences":"","strengthsAbilities":"","medicalNeeds":""},"goals":[{"goal":"","outcome":"","actions":"","activities":""}]}
+Use only the three narrative fields in PCSP Sample: Preferences (personalPreferences), Strengths (strengthsAbilities), and Needs (medicalNeeds, covering all documented needs, not just medical needs). Do not create TO/FOR or separate life-domain questions. Preferences require documented participant choices; if genuinely unknown, mark CONFIRM WITH PARTICIPANT. Draft Strengths and Needs from documented facts, leaving them empty if no facts exist. Draft 2-3 goal proposals using only the four template fields. Outcome criteria must be measurable; include relevant timing/support details within the existing fields only when supported. Goals require participant confirmation.`;
+    var obj=await _callAIForJSON(aiPrompt);if(obj.personCentered){['personalPreferences','strengthsAbilities','medicalNeeds'].forEach(function(k){if(document.getElementById('p-pc-'+k))pcspSet('p-pc-'+k,obj.personCentered[k]);});}
     if(Array.isArray(obj.goals)){_pcspGoals=obj.goals.slice(0,3).map(function(g){var x=Object.assign(emptyGoal(),g||{});x.needsConfirmation=true;return x;});renderPCSPGoals();}
     pcspMarkConfirmFields();alert('✅ Claude 전체 초안을 만들었습니다.\n노란색 항목과 Goal은 참여자 확인 후 수정/확인해주세요.');
   }catch(e){alert('❌ AI 전체 초안 실패: '+e.message);}finally{if(btn){btn.disabled=false;btn.textContent='✨ Claude 전체 문장 초안';}}
 }
 async function aiDraftPersonCentered(){
   var btn=document.getElementById('pcsp-ai-pc-btn');if(btn){btn.disabled=true;btn.textContent='⏳ 작성 중...';}
-  try{var facts=pcspFactsForAI();var aiPrompt=`You are drafting the person-centered narrative section of a NYS SADC PCSP. ${pcspAiBaseInstruction()}\nFACTS:\n${JSON.stringify(facts)}\n\nField rules:\n- importantFor, strengthsAbilities, medicalNeeds, behavioralNeeds, socialNeeds, communityNeeds, transportationNeeds, linguisticNeeds, communicationNeeds: create useful drafts from documented facts when possible. Do NOT default these to CONFIRM WITH PARTICIPANT. If no evidence exists, use an empty string.\n- interests: selected SADC/community activities may be used as documented participation/interests, without exaggerating preference.\n- importantTo, personalPreferences, servicePreferences, staffPreferences, settingPreferences, housingPreferences, culturalNeeds: these require a genuine participant preference. Use existing documented preference/activity/hint evidence when available; otherwise return CONFIRM WITH PARTICIPANT.\nReturn ONLY valid JSON with keys: importantTo, importantFor, strengthsAbilities, interests, personalPreferences, servicePreferences, staffPreferences, settingPreferences, medicalNeeds, behavioralNeeds, socialNeeds, communityNeeds, transportationNeeds, housingPreferences, culturalNeeds, linguisticNeeds, communicationNeeds.`;var obj=await _callAIForJSON(aiPrompt);Object.keys(obj||{}).forEach(function(k){if(document.getElementById('p-pc-'+k))pcspSet('p-pc-'+k,obj[k]);});pcspMarkConfirmFields();}
+  try{var facts=pcspFactsForAI();var aiPrompt=`You are drafting the person-centered narrative section of a NYS SADC PCSP. ${pcspAiBaseInstruction()}\nFACTS:\n${JSON.stringify(facts)}\nReturn ONLY JSON with keys personalPreferences, strengthsAbilities, medicalNeeds. They are the template's Preferences, Strengths, and Needs. Needs covers all documented support needs. Draft from documented facts. Personal preferences require participant evidence; only mark CONFIRM WITH PARTICIPANT when such evidence is missing. Leave objective fields empty if no evidence is available. Do not add other questions or headings.`;var obj=await _callAIForJSON(aiPrompt);['personalPreferences','strengthsAbilities','medicalNeeds'].forEach(function(k){if(document.getElementById('p-pc-'+k))pcspSet('p-pc-'+k,obj[k]);});pcspMarkConfirmFields();}
   catch(e){alert('❌ AI 작성 실패: '+e.message);}finally{if(btn){btn.disabled=false;btn.textContent='✨ 이 섹션 전체 작성';}}
 }
 async function aiDraftGoals(){
@@ -719,8 +710,7 @@ async function aiDraftGoals(){
 FACTS:
 ${JSON.stringify(facts)}
 Participant/staff goal hints: ${hint||'none provided'}
-Use documented selected activities, functional support needs, health information, and SADC service context to create useful proposals. Do not fill goal fields with CONFIRM WITH PARTICIPANT. These goals are already flagged in the UI for participant review. If a natural support person is not documented, leave naturalSupport blank. If no specific responsible person is documented, use "SADC staff" where appropriate. Use the PCSP nextReviewDue as targetDate when it is a reasonable goal review date.
-Return ONLY valid JSON: {"goals":[{"goal":"","outcome":"","targetDate":"YYYY-MM-DD or blank","frequency":"","actions":"","activities":"","responsiblePerson":"","naturalSupport":"","paidSupport":"","staffResponsibility":"","progressReviewMethod":""}]}. Do not claim that the participant chose or approved a goal unless the hint/facts support it.`;var obj=await _callAIForJSON(aiPrompt);if(Array.isArray(obj.goals)){obj.goals.forEach(function(g){var x=Object.assign(emptyGoal(),g||{});x.needsConfirmation=true;_pcspGoals.push(x);});renderPCSPGoals();}}
+Use documented selected activities, health and functional support needs to propose goals. Goals require participant confirmation. Return ONLY JSON {"goals":[{"goal":"","outcome":"","actions":"","activities":""}]}. Include measurable timing in outcome criteria where supported, and supports in actions where relevant. Do not add extra fields or invent participant approval.`;var obj=await _callAIForJSON(aiPrompt);if(Array.isArray(obj.goals)){obj.goals.forEach(function(g){var x=Object.assign(emptyGoal(),g||{});x.needsConfirmation=true;_pcspGoals.push(x);});renderPCSPGoals();}}
   catch(e){alert('❌ AI 목표 생성 실패: '+e.message);}
 }
 async function aiDraftGoalItem(i){var g=_pcspGoals[i];if(!g)return;try{var hint=window.prompt('이 Goal에 반영할 참여자/직원 확인 키워드가 있으면 입력하세요.','');if(hint===null)return;var aiPrompt=`Complete one SMART goal PROPOSAL in a NYS SADC PCSP. ${pcspAiBaseInstruction()}
@@ -729,7 +719,7 @@ ${JSON.stringify(pcspFactsForAI())}
 Current goal:
 ${JSON.stringify(g)}
 Hint: ${hint||'none'}
-Do not use CONFIRM WITH PARTICIPANT inside goal fields; the UI already flags this proposal for participant review. Leave unknown naturalSupport blank. Use SADC staff for responsible/staff support when appropriate and supported by the service context. Return ONLY one JSON object with keys goal,outcome,targetDate,frequency,actions,activities,responsiblePerson,naturalSupport,paidSupport,staffResponsibility,progressReviewMethod.`;var obj=await _callAIForJSON(aiPrompt);_pcspGoals[i]=Object.assign(emptyGoal(),g,obj||{});_pcspGoals[i].needsConfirmation=true;renderPCSPGoals();}catch(e){alert('❌ AI Goal 작성 실패: '+e.message);}}
+Return ONLY one JSON object with keys goal,outcome,actions,activities. Use the four fields from the template. Include measurable outcome criteria and concrete actions based on the documented facts. The goal is a proposal requiring participant confirmation.`;var obj=await _callAIForJSON(aiPrompt);_pcspGoals[i]=Object.assign(emptyGoal(),g,obj||{});_pcspGoals[i].needsConfirmation=true;renderPCSPGoals();}catch(e){alert('❌ AI Goal 작성 실패: '+e.message);}}
 async function aiDraftTextField(targetId,label){var el=document.getElementById(targetId);if(!el)return;var hint=window.prompt(label+'에 반영할 사실/키워드가 있으면 짧게 입력하세요.\n비워도 AUTH·멤버·선택 정보로 작성 가능한 항목은 Claude가 초안을 만듭니다.','');if(hint===null)return;try{var aiPrompt=`Write the "${label}" field for a NYS SADC PCSP. ${pcspAiBaseInstruction()}\n${pcspAIFieldInstruction(targetId,label)}\nFACTS:\n${JSON.stringify(pcspFactsForAI())}\nExisting field text: ${el.value||''}\nAdditional confirmed hint: ${hint||'none'}\nWrite 1-4 concise sentences. Return ONLY the field text, no heading, no markdown.`;var res=await apiCall({action:'aiPCSP',prompt:aiPrompt});if(!res||!res.ok||!res.data||!res.data.success)throw new Error((res&&res.data&&res.data.error)||'AI response error');el.value=pcspCleanAIText(res.data.text);pcspAutoHeight(el);pcspMarkConfirmFields();}catch(e){alert('❌ AI 작성 실패: '+e.message);}}
 async function aiFillRiskItem(i){var r=_pcspRisks[i];if(!r)return;if(!String(r.risk||'').trim()){alert('먼저 실제로 확인된 Risk를 입력해주세요.');return;}try{var aiPrompt=`Draft supporting risk-management wording for a NYS SADC PCSP. ${pcspAiBaseInstruction()}
 FACTS:
