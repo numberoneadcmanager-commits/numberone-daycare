@@ -301,6 +301,7 @@ async function loadPCSPAuthForMember(memberId,applyBest){
   try{
     var results=await Promise.all([apiGet({action:'readByMember',sheet:'auth',memberId:memberId}),apiGet({action:'read',sheet:'멤버'})]);
     if(serial!==_pcspAuthLoadSerial)return;
+    if(results.some(function(r){return !r||!r.ok||!Array.isArray(r.data);}))throw new Error('AUTH / 멤버 서버 조회 실패');
     var res=results[0];var master=(results[1].data||[]).find(function(m){return String(m['ID'])===String(memberId);});
     if(master)_pcspMemberDefaults={insurer:master['보험사']||'',careManager:'',diagCode:master['진단코드']||'',days:String(master['출석요일']||'').split(',').map(function(v){return v.trim();}).filter(Boolean)};
     _pcspAuthRecords=(res&&res.ok&&res.data?res.data:[]).map(normalizeAuthRow);
@@ -308,10 +309,12 @@ async function loadPCSPAuthForMember(memberId,applyBest){
       var ac=pcspAuthIsCurrent(a)?1:0,bc=pcspAuthIsCurrent(b)?1:0;if(ac!==bc)return bc-ac;
       return String(b.startDate||'').localeCompare(String(a.startDate||''));
     });
+    var reviewMeta=_wfMeta[pcspVal('pcsp-edit-id')];if(reviewMeta&&reviewMeta.renewalReview)reviewMeta.renewalReview.authLoadFailed=false;
     renderPCSPAuthSelector();
-    if(applyBest){var best=_pcspAuthRecords.find(pcspAuthIsCurrent);if(best)applyPCSPAuth(best.id,true);}
+    if(applyBest){applyPCSPAuth('',true);var best=_pcspAuthRecords.find(pcspAuthIsCurrent);if(best)applyPCSPAuth(best.id,true);}
   }catch(e){
     if(summary)summary.innerHTML='<div style="color:#FF3B30">AUTH 로드 실패: '+pcspEsc(e.message||e)+'</div>';
+    if(typeof _wfMeta!=='undefined'){var meta=_wfMeta[pcspVal('pcsp-edit-id')];if(meta&&meta.renewalReview)meta.renewalReview.authLoadFailed=true;}
   }
 }
 function renderPCSPAuthSelector(){
@@ -537,7 +540,7 @@ function collectPCSPEntry(){
     updatedAt:new Date().toISOString(),lastEditedBy:_currentUser?(_currentUser.name||''):'',lastEditedByEmail:_currentUser?(_currentUser.email||''):''
   };
   var old=PCSP_LIST.find(function(x){return x.id===entry.id;});entry.createdAt=(old&&old.createdAt)||new Date().toISOString();entry.createdBy=(old&&old.createdBy)||(_currentUser?(_currentUser.name||''):'');
-  entry.templateLayout='sample-1';entry.diag=entry.health.diagnoses||entry.health.diagnosisCode||'';return entry;
+  entry.renewalReview=(_wfMeta[entry.id]||{}).renewalReview||null;entry.templateLayout='sample-1';entry.diag=entry.health.diagnoses||entry.health.diagnosisCode||'';return entry;
 }
 function findUnconfirmedPaths(obj,path,out){out=out||[];path=path||'';if(obj==null)return out;if(typeof obj==='string'){if(pcspHasConfirm(obj))out.push(path||'field');return out;}if(Array.isArray(obj)){obj.forEach(function(v,i){findUnconfirmedPaths(v,path+'['+i+']',out);});return out;}if(typeof obj==='object'){Object.keys(obj).forEach(function(k){findUnconfirmedPaths(obj[k],path?(path+'.'+k):k,out);});}return out;}
 function pcspSampleContent(e){
@@ -549,7 +552,7 @@ function pcspSampleContent(e){
     sadcActivities:e.sadcActivities,communityActivities:e.communityActivities,workVolunteer:e.workVolunteer,
     rights:(e.rights||[]).filter(function(r){return r.modified==='Yes';})};
 }
-function validatePCSPForSignature(e){var issues=[];
+function validatePCSPForSignature(e){var issues=typeof docReviewIssues==='function'?docReviewIssues(e.renewalReview):[];
   if(!e.nameLast&&!e.nameFirst)issues.push('Participant name');if(!e.wdate)issues.push('PCSP completion date');if(!e.type)issues.push('PCSP type');
   ['personalPreferences','strengthsAbilities','medicalNeeds'].forEach(function(k){if(!e.personCentered[k])issues.push({personalPreferences:'Preferences',strengthsAbilities:'Strengths',medicalNeeds:'Needs'}[k]);});
   var goals=e.goals.filter(function(g){return g&&g.goal;});if(!goals.length)issues.push('At least one Goal');goals.forEach(function(g,i){if(!g.outcome)issues.push('Goal '+(i+1)+' Outcome Criteria');if(!g.actions)issues.push('Goal '+(i+1)+' Actions and/or Steps');if(g.needsConfirmation)issues.push('Goal '+(i+1)+' participant confirmation');});
@@ -786,7 +789,7 @@ async function wfSend(){
     try{
       var result=pcspRequireSaved(await apiCall(request),'PCSP 저장');
       var p=request.pcsp;p._revision=result.revision;p.status=result.status;p.pdfUrl=result.url||p.pdfUrl;
-      _wfMeta[p.id]={revision:result.revision,previousId:p.previousId,importSources:p.importSources};
+      _wfMeta[p.id]={revision:result.revision,previousId:p.previousId,importSources:p.importSources,renewalReview:p.renewalReview||null};
       _wfFingerprint=wfFingerprint(p);_wfPending=null;cachePCSPRecord(p);
       wfNotice(result.status+' · 서버 저장 완료 '+new Date().toLocaleTimeString());
       return result;
@@ -810,22 +813,12 @@ async function wfRetryPDF(id){
 }
 async function wfRevise(id){
   if(_wfBusy||_wfPending){alert('현재 저장을 먼저 완료해주세요.');return;}
-  var old=PCSP_LIST.find(function(x){return x.id===id;});
-  var reason=window.prompt('새 PCSP 작성 사유','전체 갱신');if(!reason)return;
-  try{
-    var rows=(await apiGet({action:'read',sheet:'멤버'})).data;
-    var m=rows.find(function(x){return [String(x.ID),String(x.Medicaid||'')].includes(String(old.memberId));});if(!m)throw new Error('멤버 정보를 찾을 수 없습니다.');
-    var res=await apiGet({action:'loadJSON',memberId:old.memberId,memberName:old.nameKr,fileType:'PCSP',recordId:id});
-    if(res.data.found){
-      var p=res.data.data;if(p.version!==2)throw new Error('v2 원본이 아닙니다.');
-      p=pcspClone(p);p.id='pcsp_'+crypto.randomUUID();p.memberId=String(m.ID);p.previousId=id;p.sig='';p.sigdate='';p.signed=false;p.status='작성중';p.pdfUrl='';p._revision=0;delete p._operationId;
-      p.type='Annual';p.wdate=pcspToday();p.nextdate=pcspOneYearFromToday();p.review=p.review||{};p.review.previousDate=old.wdate;p.review.reason=reason;p.review.nextReviewDue=p.nextdate;
-      (p.goals||[]).forEach(function(g){if(g.goal)g.needsConfirmation=true;});p.planning.meetingDate=p.wdate;p.createdAt=new Date().toISOString();p.writer=_currentUser.name||'';
-      cachePCSPRecord(p);openPCSPForm(p.id);await loadPCSPAuthForMember(p.memberId,true);
-    }else{await selectPCSPMember(m);var p=wfEntry();p.previousId=id;_wfMeta[p.id]={revision:0,previousId:id};pcspSet('p-review-prev',old.wdate);pcspSet('p-review-reason',reason);wfNotice('이전 JSON이 없어 최신 멤버/AUTH 정보로 새 초안을 만들었습니다.');}
-    var nm=splitEnglishName(m);pcspSet('p-last',nm.last);pcspSet('p-first',nm.first);pcspSet('p-kr',m['한글이름']||'');pcspSet('p-phone',m['전화']||'');pcspSet('p-addr',m['주소']||'');pcspSet('p-dob',pcspDate(m['생년월일']));pcspSet('p-pcpname',m['주치의']||'');pcspSet('p-medicaid',m.Medicaid||'');pcspSet('p-type','Annual');
-    pcspSet('p-sigdate',pcspToday());
-  }catch(e){alert('새 PCSP 생성 실패: '+e.message);}
+  var old=PCSP_LIST.find(function(x){return x.id===id;});if(!old)return;
+  try{var res=await apiGet({action:'read',sheet:'멤버'});if(!res.ok||!Array.isArray(res.data))throw new Error('멤버 조회 실패');
+    var m=res.data.find(function(x){return [String(x.ID),String(x.Medicaid||'')].includes(String(old.memberId));});if(!m)throw new Error('멤버 정보를 찾을 수 없습니다.');
+    await showDocumentHistory(String(m.ID),m['한글이름']||'','PCSP');
+    var i=_docRows.findIndex(function(d){return d.type==='PCSP'&&String(d.recordId)===String(id);});if(i<0)throw new Error('원본 문서를 찾을 수 없습니다.');await docCopy(i);
+  }catch(e){alert(e.message);}
 }
 async function wfImportSources(){
   var id=pcspVal('pcsp-edit-id'),mid=_pcspMemberId,name=gp('kr')||gp('last');if(!mid)return;
@@ -843,7 +836,7 @@ async function wfImportSources(){
     wfNotice(sources.map(function(s){return s.type+' '+s.date;}).join(' / ')+' · 빈 항목에 반영됨. 개인 선호·Capacity는 직접 확인해주세요.');
   }catch(e){alert('평가 정보 조회 실패: '+e.message);}
 }
-function wfBegin(p){_wfSavedExit=false;_wfPaused=false;_wfFingerprint='';if(p)_wfMeta[p.id]={revision:p._revision||0,previousId:p.previousId||'',importSources:p.importSources||[]};wfNotice('초안 변경은 20초 간격으로 서버에 저장됩니다.');document.getElementById('pcsp-keep-json').checked=true;}
+function wfBegin(p){_wfSavedExit=false;_wfPaused=false;_wfFingerprint='';if(p)_wfMeta[p.id]={revision:p._revision||0,previousId:p.previousId||'',importSources:p.importSources||[],renewalReview:p.renewalReview||null};if(typeof docRenderReview==='function')docRenderReview('pcsp-form-view',p&&p.renewalReview);wfNotice('초안 변경은 20초 간격으로 서버에 저장됩니다.');document.getElementById('pcsp-keep-json').checked=true;}
 setInterval(function(){
   var form=document.getElementById('pcsp-form-view');
   if(!form||form.style.display==='none'||!_pcspMemberId||_wfBusy||_wfPaused||(_pcspSig&&_pcspSig.length>100))return;

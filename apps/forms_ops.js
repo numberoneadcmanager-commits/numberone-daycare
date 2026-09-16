@@ -66,47 +66,7 @@ function selectFormsMember(mid){
 }
 
 function renderFormsList(member){
-  var mid=member['ID'], mName=member['한글이름']||'';
-  var officialForms=[
-    {key:'PCSP',        label:'PCSP',               icon:'📋', color:'#E6F1FB', tc:'#185FA5'},
-    {key:'Assessment',  label:'Assessment',          icon:'📝', color:'#E1F5EE', tc:'#0F6E56'},
-    {key:'Nutrition',   label:'Nutrition Screening', icon:'🥗', color:'#EEEDFE', tc:'#534AB7'},
-    {key:'MemberRights',label:'Member Rights',       icon:'⚖️', color:'#FFF3EE', tc:'#D85A30'},
-    {key:'HIPAA',       label:'HIPAA Authorization', icon:'🔐', color:'#FBEAF0', tc:'#72243E'},
-    {key:'Incident',label:'Incident Log',icon:'🚨'}
-  ];
-  var html='';
-  officialForms.forEach(function(f){
-    html+='<div data-fkey="'+f.key+'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer">'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="width:38px;height:38px;border-radius:10px;background:'+f.color+';color:'+f.tc+';display:flex;align-items:center;justify-content:center;font-size:18px">'+f.icon+'</div>'
-      +'<div style="font-size:13px;font-weight:600">'+f.label+'</div>'
-      +'</div><span style="color:#C7C7CC;font-size:20px">›</span></div>';
-  });
-  var el=document.getElementById('forms-official-list');
-  if(el){
-    el.innerHTML=html;
-    el.querySelectorAll('[data-fkey]').forEach(function(div){
-      div.addEventListener('click',function(){
-        var key=this.getAttribute('data-fkey');
-        showDocumentHistory(mid,mName,key);
-      });
-    });
-  }
-  var idForms=[
-    {key:'Medicaid_Card',label:'Medicaid Card',icon:'🪪'},
-    {key:'Medicare_Card',label:'Medicare Card',icon:'🪪'},
-    {key:'Photo_ID',label:'Photo ID',icon:'🪪'},
-  ];
-  var idHtml='';
-  idForms.forEach(function(f){
-    idHtml+='<div onclick="showDocumentHistory(\''+mid+'\',\''+mName+'\',\''+f.key+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border-radius:12px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer">'
-      +'<div style="display:flex;align-items:center;gap:10px">'
-      +'<div style="width:38px;height:38px;border-radius:10px;background:#F2F2F7;display:flex;align-items:center;justify-content:center;font-size:18px">'+f.icon+'</div>'
-      +'<div style="font-size:13px;font-weight:600">'+f.label+'</div>'
-      +'</div><span style="font-size:11px;color:#5856D6;font-weight:600">📁 이력 / 업로드</span></div>';
-  });
-  var idEl=document.getElementById('forms-id-list');if(idEl)idEl.innerHTML=idHtml;
+  showDocumentHistory(member.ID,member['한글이름']||'');
 }
 
 function clearFormsSearch(){
