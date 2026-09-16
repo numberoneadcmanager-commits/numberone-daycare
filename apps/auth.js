@@ -21,10 +21,42 @@ function authStatus(endDate, manualStatus) {
   return 'active';
 }
 
+// Display-only replacement detection. Never changes stored AUTH status or usage.
+function authReplacementDate(value) {
+  var day=_cleanAuthDate(value);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return '';
+  var parsed=new Date(day+'T00:00:00Z');
+  return !isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===day?day:'';
+}
+function authReplacementKey(value){return String(value==null?'':value).trim().replace(/\s+/g,' ').toLowerCase();}
+function authReplacementMember(value) {
+  var id=String(value==null?'':value).trim();if(!id)return '';
+  var matches=(typeof MEMBERS!=='undefined'?MEMBERS:[]).filter(function(m){return [String(m.id),String(m.medicaid||'')].includes(id);});
+  // Ambiguous aliases must not silence a warning.
+  if(matches.length>1)return '';
+  return matches.length?'member:'+String(matches[0].id):'id:'+id;
+}
+function authCurrentReplacement(a,rows,day) {
+  day=day||new Date().toLocaleDateString('sv-SE');
+  var start=authReplacementDate(a.startDate),end=authReplacementDate(a.endDate),member=authReplacementMember(a.memberId);
+  var keys=['insurer','serviceType','serviceCode'];
+  if(!start||!end||end>=day||!member||keys.some(function(k){return !authReplacementKey(a[k]);}))return null;
+  return (rows||[]).filter(function(next){
+    if(next===a||(a.id&&String(next.id)===String(a.id)))return false;
+    if(authReplacementMember(next.memberId)!==member||keys.some(function(k){return authReplacementKey(next[k])!==authReplacementKey(a[k]);}))return false;
+    var status=authReplacementKey(next.status),from=authReplacementDate(next.startDate),to=authReplacementDate(next.endDate);
+    return (!status||status==='active')&&from&&to&&from>start&&from<=day&&to>=day;
+  }).sort(function(x,y){return authReplacementDate(y.startDate).localeCompare(authReplacementDate(x.startDate));})[0]||null;
+}
+function authDisplayStatus(a) {
+  var status=authStatus(a.endDate,a.status);
+  return status==='expired'&&authCurrentReplacement(a,AUTH_LIST)?'replaced':status;
+}
 function authStatusBadge(a) {
-  var s    = authStatus(a.endDate, a.status);
+  var s    = authDisplayStatus(a);
   var cleanEnd = _cleanAuthDate(a.endDate);
   var diff = Math.floor((new Date(cleanEnd+'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
+  if (s === 'replaced') return '<span class="badge" style="background:#F1F4F8;color:#617087">새 AUTH로 대체됨 · 이전 이력</span>';
   if (s === 'hold')     return '<span class="badge b-warn">⏸️ Hold</span>';
   if (s === 'modified') return '<span class="badge b-warn">🔄 Modified</span>';
   if (s === 'expired')  return '<span class="badge b-red">❌ 만료됨</span>';
@@ -62,14 +94,15 @@ function renderAuthList() {
     var m     = MEMBERS.find(function(x){ return x.id === a.memberId; });
     var name  = m ? (m.kr + ' ' + m.en) : '';
     var match = !q || name.toLowerCase().includes(q) || (a.authNo || '').includes(q);
-    var s     = authStatus(a.endDate, a.status);
+    var s     = authDisplayStatus(a);
     return match && (_authFilter === 'all' || _authFilter === s);
   });
 
   // 통계
   var counts = { active:0, hold:0, soon:0, expired:0 };
   AUTH_LIST.forEach(function(a) {
-    var s = authStatus(a.endDate, a.status);
+    var s = authDisplayStatus(a);
+    if(s==='replaced')return;
     if (counts[s] !== undefined) counts[s]++;
     else counts.active++;
   });
@@ -90,14 +123,14 @@ function renderAuthList() {
   list.forEach(function(a) {
     var m      = MEMBERS.find(function(x){ return x.id === a.memberId; });
     var mname  = m ? (m.kr + ' ' + m.en) : '(알 수 없음)';
-    var s      = authStatus(a.endDate, a.status);
+    var s      = authDisplayStatus(a);
     var border = s === 'expired' ? 'border:1.5px solid #FF3B30' :
                  s === 'soon'    ? 'border:1.5px solid #FF9500' :
                  s === 'hold'    ? 'border:1.5px solid #5856D6' : '';
 
     // 출석요일 vs Auth요일 불일치 체크
     var dayWarn = '';
-    if (m && m.days && a.serviceType === 'SDC') {
+    if (s !== 'replaced' && m && m.days && a.serviceType === 'SDC') {
       var authDays = [];
       if (a.dayMon !== '0') authDays.push('Mon');
       if (a.dayTue !== '0') authDays.push('Tue');
