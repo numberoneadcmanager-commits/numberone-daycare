@@ -503,11 +503,10 @@ function updateAuthAlert(soon, expired) {
   if (!el) return;
   if (!soon && !expired) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  var msgs = [];
-  if (expired) msgs.push('<span style="color:#FF3B30">❌ 만료 ' + expired + '건</span>');
-  if (soon)    msgs.push('<span style="color:#FF9500">⚠️ 30일내 만료 ' + soon + '건</span>');
-  el.innerHTML = '🔑 Auth 알림: ' + msgs.join(' &nbsp;·&nbsp; ')
-    + ' &nbsp;<a href="#" onclick="goTab(\'authorization\',null);return false;" style="font-size:11px;color:#185FA5">확인 →</a>';
+  el.innerHTML = '<div class="dt-alert-title"><span class="dt-icon dt-amber" aria-hidden="true">🔑</span><strong>AUTH 알림</strong><button type="button" class="dt-button dt-link" onclick="goTab(\'authorization\',null)">전체 보기 ↗</button></div>'
+    + '<div class="dt-alert-counts">'
+    + '<button type="button" class="dt-alert-item dt-red" onclick="goTab(\'authorization\',null)"><span>만료</span><strong>'+Number(expired||0)+'<small>건</small></strong><span aria-hidden="true">›</span></button>'
+    + '<button type="button" class="dt-alert-item dt-amber" onclick="goTab(\'authorization\',null)"><span>30일 내 만료</span><strong>'+Number(soon||0)+'<small>건</small></strong><span aria-hidden="true">›</span></button></div>';
 }
 
 // ── 요일 자동채우기 ───────────────────────────────────────────

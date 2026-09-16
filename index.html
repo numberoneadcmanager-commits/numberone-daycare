@@ -324,15 +324,16 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 <script src="core/state.js?v=20260911p1" defer></script>
 <script src="core/utils.js?v=20260911p1" defer></script>
 <script src="data/members.js" defer></script>
-<script src="apps/dashboard.js?v=20260911p1" defer></script>
+<script src="apps/dashboard.js?v=20260916design" defer></script>
 <script src="apps/attendance.js?v=20260911p1" defer></script>
 <script src="apps/members.js?v=20260915sign" defer></script>
 <script src="apps/logs.js?v=20260911p1" defer></script>
-<script src="apps/auth.js?v=20260911p1" defer></script>
+<script src="apps/auth.js?v=20260916design" defer></script>
 <script src="apps/visitor.js?v=20260911p1" defer></script>
 <script src="apps/billing.js?v=20260911p1" defer></script>
-<script src="apps/workflow.js?v=20260911p1" defer></script>
+<script src="apps/workflow.js?v=20260916design" defer></script>
 <script src="core/app.js?v=20260911p1" defer></script>
+<link rel="stylesheet" href="apps/dashboard.css?v=20260916design">
 </head>
 <body>
 
@@ -425,8 +426,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
         <div class="sbox" style="cursor:pointer" onclick="dashGoMembers('all')"><div class="sv" id="ds-total">0</div><div class="sl">전체멤버</div></div>
         <div class="sbox" style="cursor:pointer" onclick="dashGoMembers('disenrolled')"><div class="sv c-red" id="ds-dis">0</div><div class="sl">Disenrolled</div></div>
       </div>
-      <div id="ds-auth-alert" style="display:none;background:#FFF3E0;border:1.5px solid #FFB347;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600"></div>
-      <div class="card" style="padding:14px;margin-bottom:12px"><b>오늘 해야 할 일</b> <button onclick="refreshWorkflowDashboard(true)">새로고침</button><div id="workflow-tasks" role="status"></div></div>
+      <div id="ds-auth-alert" class="dt-panel dt-alert" style="display:none"></div>
+      <section class="dt-panel dt-work"><header class="dt-header"><div><span class="dt-kicker">TODAY’S TASKS</span><h2>오늘 해야 할 일</h2></div><button type="button" class="dt-button dt-refresh" onclick="refreshWorkflowDashboard(true)">↻ 새로고침</button></header><div id="workflow-tasks" role="status"></div></section>
       <div id="ds-sig-alert" style="display:none;background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;font-weight:600;cursor:pointer" onclick="goTab('settings',null);setTimeout(showPendingSignatures,300)"></div>
       <div id="ds-cert-alert" style="display:none;margin-bottom:10px"></div>
       <div style="margin-bottom:10px">

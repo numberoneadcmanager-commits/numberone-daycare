@@ -41,18 +41,14 @@ function updateCertAlert() {
   });
   if (!expired.length && !soon.length) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  let html = '';
-  if (expired.length) html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;margin-bottom:6px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
-    + '<div style="font-size:13px;font-weight:700;color:#900">❌ 만료된 자격증 ' + expired.length + '건</div>'
-    + expired.slice(0, 3).map(x => '<div style="font-size:11px;color:#3C3C43;margin-top:3px">' + x.staff + ' · ' + x.cert + '</div>').join('')
-    + (expired.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 ' + (expired.length - 3) + '건...</div>' : '')
-    + '</div>';
-  if (soon.length) html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer" onclick="window.location.href=\'operations.html\'">'
-    + '<div style="font-size:13px;font-weight:700;color:#B35900">⚠️ 90일내 만료 자격증 ' + soon.length + '건</div>'
-    + soon.slice(0, 3).map(x => '<div style="font-size:11px;color:#3C3C43;margin-top:3px">' + x.staff + ' · ' + x.cert + ' (' + x.diff + '일)</div>').join('')
-    + (soon.length > 3 ? '<div style="font-size:11px;color:#8E8E93">외 ' + (soon.length - 3) + '건...</div>' : '')
-    + '</div>';
-  el.innerHTML = html;
+  const previous=el.querySelector('details'),wasOpen=!!(previous&&previous.open);
+  let html='<details class="dt-panel dt-cert"'+(wasOpen?' open':'')+'><summary><span class="dt-icon dt-peach" aria-hidden="true">🎖️</span><span class="dt-cert-title"><strong>직원 자격증</strong><small>갱신이 필요한 자격증을 확인하세요</small></span><span class="dt-cert-badges">';
+  if(expired.length)html+='<span class="dt-pill dt-red">만료 '+expired.length+'건</span>';
+  if(soon.length)html+='<span class="dt-pill dt-amber">90일 내 '+soon.length+'건</span>';
+  html+='</span><span class="dt-chevron" aria-hidden="true">⌄</span></summary><div class="dt-cert-list">';
+  expired.concat(soon).forEach(function(x){html+='<div class="dt-license"><span>'+wfEsc(x.staff)+'</span><strong>'+wfEsc(x.cert)+'</strong><span class="dt-pill '+(x.diff==null?'dt-red':'dt-amber')+'">'+(x.diff==null?'만료':x.diff+'일 남음')+'</span></div>';});
+  html+='<a class="dt-button dt-outline" href="operations.html">자격증 관리 열기 ↗</a></div></details>';
+  el.innerHTML=html;
 }
 
 function renderDash() {
@@ -93,20 +89,7 @@ function renderDash() {
   document.getElementById('dash-fu-list').innerHTML = fuHtml || '<div class="empty-msg">팔로업 없음</div>';
 }
 
-// ── Auth 알림 ─────────────────────────────────────────────────
-function updateAuthAlert(soon, expired) {
-  const el = document.getElementById('ds-auth-alert'); if (!el) return;
-  if (soon === 0 && expired === 0) { el.style.display = 'none'; return; }
-  el.style.display = 'block';
-  let html = '';
-  if (expired > 0) html += '<div class="card" style="border:1.5px solid #FF3B30;padding:10px 14px;cursor:pointer" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
-    + '<span style="font-size:13px;font-weight:700;color:#900">❌ 만료된 Auth ' + expired + '건</span>'
-    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 갱신 필요</span></div>';
-  if (soon > 0) html += '<div class="card" style="border:1.5px solid #FF9500;padding:10px 14px;cursor:pointer;margin-top:6px" onclick="goTab(\'authorization\',document.querySelector(\'.tab[onclick*=authorization]\'))">'
-    + '<span style="font-size:13px;font-weight:700;color:#B35900">⚠️ 30일내 만료 Auth ' + soon + '건</span>'
-    + '<span style="font-size:11px;color:#8E8E93;margin-left:8px">→ 확인하세요</span></div>';
-  el.innerHTML = html;
-}
+// AUTH alert renderer is shared from apps/auth.js.
 
 // ── 보고서 ────────────────────────────────────────────────────
 function renderReport() {
