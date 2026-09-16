@@ -4,7 +4,20 @@ function docResult(res){if(!res||!res.ok||!res.data||res.data.success===false)th
 function docHideForms(){['forms-hub','frm-assessment','frm-nutrition','frm-member-rights','frm-incident','pcsp-list-view','pcsp-member-select','pcsp-form-view'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}
 var _docMember=null,_docExpanded={},_docTrash={},_docReview=null;
 var DOC_TYPES=[['PCSP','PCSP'],['Assessment','Assessment'],['Nutrition','Nutrition Screening'],['MemberRights','Member Rights'],['HIPAA','HIPAA Authorization'],['Incident','Incident Log'],['Medicaid_Card','Medicaid Card'],['Medicare_Card','Medicare Card'],['Photo_ID','Photo ID']];
-function docButton(label,fn,parent){var b=document.createElement('button');b.type='button';b.className='btn-sm';b.textContent=label;b.onclick=function(e){e.stopPropagation();fn();};parent.appendChild(b);return b;}
+function docButton(label,fn,parent){
+  var b=document.createElement('button');b.type='button';
+  var style=label==='삭제'?'danger':label.indexOf('복사')>=0?'copy':label.indexOf('PDF')>=0?'pdf':/이어서|서명하기/.test(label)?'primary':/새로 작성|새로고침|작성 이력|삭제한 문서/.test(label)?'text':'quiet';
+  b.className='doc-button doc-button-'+style;b.textContent=label;
+  b.onclick=function(e){e.stopPropagation();fn();};parent.appendChild(b);return b;
+}
+function docDisplayStatus(d){
+  if(d.deletedAt)return {text:'삭제됨',tone:'gray'};
+  if(d.status==='서명완료·PDF대기')return {text:'PDF 대기',tone:'orange'};
+  if(d.signed)return {text:'✓ 완료',tone:'green'};
+  if(d.status==='서명대기')return {text:'서명대기',tone:'orange'};
+  return {text:d.status||'작성중',tone:'gray'};
+}
+function docDateLabel(d){return String(d.date||d.updatedAt||'').slice(0,10).replace(/-/g,'.')||'날짜 미상';}
 function docChoose(type){_docContext={mid:_docMember.mid,name:_docMember.name,type:type};}
 async function showDocumentHistory(mid,name,type){
   if(_docBusy){alert('저장 중입니다. 잠시 기다려주세요.');return;}
@@ -25,23 +38,41 @@ function renderDocumentHistory(state,error){
     var type=t[0],root=document.getElementById(n<6?'forms-official-list':'forms-id-list'),wrap=document.createElement('section');wrap.className='doc-group';root.appendChild(wrap);
     var rows=_docRows.map(function(d,i){return {d:d,i:i};}).filter(function(x){return x.d.type===type&&!x.d.deletedAt;}).sort(function(a,b){return String(b.d.date||b.d.updatedAt).localeCompare(String(a.d.date||a.d.updatedAt));});
     var head=document.createElement('div');head.className='doc-heading';wrap.appendChild(head);
-    var toggle=docButton((_docExpanded[type]?'▾ ':'▸ ')+t[1],function(){_docExpanded[type]=!_docExpanded[type];renderDocumentHistory(state,error);},head);toggle.setAttribute('aria-expanded',String(!!_docExpanded[type]));
-    var status=document.createElement('span');status.className='doc-status';status.textContent=state==='loading'?'불러오는 중…':state==='error'?'조회 실패':rows.length?rows[0].d.date+' · '+(rows[0].d.signed?'서명 완료':rows[0].d.status||'작성중')+' · 총 '+rows.length+'건':'작성 기록 없음';head.appendChild(status);
-    if(state==='error'){docButton('다시 불러오기',function(){showDocumentHistory(_docMember.mid,_docMember.name,type);},head);var err=document.createElement('small');err.textContent=error;wrap.appendChild(err);return;}
+    var toggle=docButton('',function(){_docExpanded[type]=!_docExpanded[type];renderDocumentHistory(state,error);},head);toggle.className='doc-toggle';toggle.setAttribute('aria-expanded',String(!!_docExpanded[type]));toggle.setAttribute('aria-controls','doc-history-'+type);
+    var icons=['📋','📝','🥗','⚖️','🔐','🚨','🪪','🪪','🪪'],tones=['blue','mint','purple','peach','rose','peach','gray','gray','gray'];
+    var icon=document.createElement('span');icon.className='doc-icon doc-icon-'+tones[n];icon.textContent=icons[n];icon.setAttribute('aria-hidden','true');toggle.appendChild(icon);
+    var name=document.createElement('span');name.className='doc-name';toggle.appendChild(name);
+    var title=document.createElement('strong');title.textContent=t[1];name.appendChild(title);
+    if(!state){var count=document.createElement('span');count.className='doc-count';count.textContent=String(rows.length);count.setAttribute('aria-label','총 '+rows.length+'건');title.appendChild(count);}
+    var date=document.createElement('small');date.textContent=state==='loading'?'불러오는 중…':state==='error'?'조회 실패':rows.length?'최신 작성일 '+docDateLabel(rows[0].d):'작성된 문서가 없습니다';name.appendChild(date);
+    var arrow=document.createElement('span');arrow.className='doc-chevron';arrow.textContent='⌄';arrow.setAttribute('aria-hidden','true');toggle.appendChild(arrow);
+    var quick=document.createElement('div');quick.className='doc-quick';head.appendChild(quick);
+    if(!state&&rows.length){var badge=document.createElement('span'),info=docDisplayStatus(rows[0].d);badge.className='doc-badge doc-badge-'+info.tone;badge.textContent=info.text;quick.appendChild(badge);}
+    var body=document.createElement('div');body.className='doc-records';body.id='doc-history-'+type;body.hidden=!_docExpanded[type];wrap.appendChild(body);
+    if(state==='error'){docButton('다시 불러오기',function(){showDocumentHistory(_docMember.mid,_docMember.name,type);},quick);var err=document.createElement('small');err.className='doc-error';err.textContent=error;body.appendChild(err);return;}
     if(state==='loading')return;
-    var latest=rows[0];docButton(latest?(latest.d.pdfUrl?'PDF 보기':latest.d.signed?'문서 확인':'이어서 작성 / 서명'):'＋ 새로 작성',function(){docChoose(type);if(!latest)docNew();else if(latest.d.pdfUrl)window.open(latest.d.pdfUrl,'_blank','noopener');else if(latest.d.signed&&type==='PCSP'){_docExpanded[type]=true;renderDocumentHistory();}else docOpen(latest.i);},head);
+    var latest=rows[0];docButton(latest?(latest.d.pdfUrl?'PDF 보기':latest.d.signed?'문서 확인':latest.d.status==='서명대기'?'이어서 작성 / 서명':'이어서 작성'):'＋ 새로 작성',function(){docChoose(type);if(!latest)docNew();else if(latest.d.pdfUrl)window.open(latest.d.pdfUrl,'_blank','noopener');else if(latest.d.signed&&type==='PCSP'){_docExpanded[type]=true;renderDocumentHistory();}else docOpen(latest.i);},quick);
     if(!_docExpanded[type])return;
-    var body=document.createElement('div');body.className='doc-records';wrap.appendChild(body);docButton('＋ 새로 작성',function(){docChoose(type);docNew();},body);docButton('새로고침',function(){showDocumentHistory(_docMember.mid,_docMember.name,type);},body);
-    docButton(_docTrash[type]?'작성 이력':'삭제한 문서',function(){_docTrash[type]=!_docTrash[type];renderDocumentHistory();},body);
+    var toolbar=document.createElement('div');toolbar.className='doc-history-toolbar';body.appendChild(toolbar);var heading=document.createElement('span');heading.textContent=_docTrash[type]?'삭제한 문서':'문서 이력';toolbar.appendChild(heading);
+    var tools=document.createElement('div');tools.className='doc-history-tools';toolbar.appendChild(tools);
+    docButton('＋ 새로 작성',function(){docChoose(type);docNew();},tools);docButton('새로고침',function(){showDocumentHistory(_docMember.mid,_docMember.name,type);},tools);
+    docButton(_docTrash[type]?'작성 이력':'삭제한 문서',function(){_docTrash[type]=!_docTrash[type];renderDocumentHistory();},tools);
     if(_docTrash[type])rows=_docRows.map(function(d,i){return {d:d,i:i};}).filter(function(x){return x.d.type===type&&x.d.deletedAt;});
-    rows.forEach(function(x){var d=x.d,card=document.createElement('div');card.className='doc-record';body.appendChild(card);var label=document.createElement('span');label.textContent=(d.date||'날짜 미상')+' · '+(d.deletedAt?'삭제됨':d.signed?'서명 완료':d.status||'작성중');card.appendChild(label);
+    if(!rows.length){var empty=document.createElement('p');empty.className='doc-empty';empty.textContent=_docTrash[type]?'삭제한 문서가 없습니다.':'첫 문서를 작성하면 여기에 이력이 표시됩니다.';body.appendChild(empty);}
+    rows.forEach(function(x,index){var d=x.d,row=document.createElement('div');row.className='doc-record';body.appendChild(row);var label=document.createElement('div');label.className='doc-record-name';row.appendChild(label);
+      var stamp=document.createElement('strong');stamp.textContent=docDateLabel(d);label.appendChild(stamp);
+      if(!index&&!_docTrash[type]){var newest=document.createElement('span');newest.className='doc-latest';newest.textContent='최신';stamp.appendChild(newest);}
+      var description=document.createElement('small');description.textContent=d.deletedAt?'삭제됨 · 복구 가능':d.signed?(d.pdfUrl?'서명 완료 · 읽기 전용':'서명 완료 · PDF 대기'):(d.status||'작성중')+' · 내용 수정 가능';label.appendChild(description);
+      var card=document.createElement('div');card.className='doc-record-actions';row.appendChild(card);
       function act(fn){return function(){docChoose(type);fn();};}
       if(d.deletedAt){docButton('복구',act(function(){docChange(x.i,true);}),card);return;}
       if(d.pdfUrl)docButton('PDF 보기',function(){window.open(d.pdfUrl,'_blank','noopener');},card);
-      if(d.jsonFile||type==='Incident'||(type==='PCSP'&&!d.signed))docButton(d.signed?'저장 내용 보기':'이어서 작성 / 서명',act(function(){docOpen(x.i);}),card);
+      if(!d.signed&&(d.jsonFile||type==='Incident'||type==='PCSP'))docButton('이어서 작성 / 서명',act(function(){docOpen(x.i);}),card);
       if(d.signed&&(d.jsonFile||type==='PCSP')&&['PCSP','Assessment','Nutrition','MemberRights'].includes(type))docButton('복사해서 새로 작성',act(function(){docCopy(x.i);}),card);
       if(d.signed&&!d.pdfUrl&&(d.canGeneratePDF||type==='PCSP'))docButton('PDF 생성 재시도',act(async function(){try{if(type==='PCSP'){await loadPCSPFromSheets();await wfRetryPDF(d.recordId);}else docResult(await apiCall({action:'documentPDF',documentId:d.id,memberId:_docMember.mid}));showDocumentHistory(_docMember.mid,_docMember.name,type);}catch(e){alert(e.message);}}),card);
-      var more=document.createElement('details'),summary=document.createElement('summary');summary.textContent='⋯';summary.setAttribute('aria-label','문서 관리');more.appendChild(summary);card.appendChild(more);docButton('삭제',act(function(){docChange(x.i,false);}),more);
+      var more=document.createElement('details'),summary=document.createElement('summary');summary.textContent='⋯';summary.setAttribute('aria-label',docDateLabel(d)+' '+t[1]+' 문서 관리');more.appendChild(summary);card.appendChild(more);
+      if(d.signed&&d.jsonFile&&type!=='PCSP')docButton('저장 내용 보기',act(function(){docOpen(x.i);}),more);
+      docButton('삭제',act(function(){docChange(x.i,false);}),more);
     });
   });
 }
