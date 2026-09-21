@@ -319,7 +319,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .doc-row[onclick]:hover{background:#F2F2F7;}
 </style>
 <script src="core/write_guard.js?v=20260911p1" defer></script>
-<script src="core/api.js?v=20260911p1" defer></script>
+<script src="core/api.js?v=20260921" defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="core/state.js?v=20260911p1" defer></script>
 <script src="core/utils.js?v=20260911p1" defer></script>
@@ -329,11 +329,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 <script src="apps/members.js?v=20260915sign" defer></script>
 <script src="apps/logs.js?v=20260911p1" defer></script>
 <script src="apps/auth.js?v=20260916replacement" defer></script>
-<script src="apps/visitor.js?v=20260911p1" defer></script>
+<script src="apps/visitor.js?v=20260921" defer></script>
 <script src="apps/billing.js?v=20260911p1" defer></script>
 <script src="apps/workflow.js?v=20260916design" defer></script>
 <script src="core/app.js?v=20260911p1" defer></script>
 <link rel="stylesheet" href="apps/dashboard.css?v=20260916design">
+<link rel="stylesheet" href="apps/council_tools.css?v=20260921">
+<script src="core/pdf-lib.min.js?v=1.17.1" defer></script>
+<script src="apps/council_tools.js?v=20260921" defer></script>
 </head>
 <body>
 
@@ -1280,8 +1283,9 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
     </select>
   </div>
   <div class="modal-input-wrap" style="margin-bottom:10px"><label>참석자 (쉼표로 구분)</label><input class="m-input" id="council-attendees" placeholder="참석자 이름"></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>안건</label><textarea class="m-textarea" id="council-agenda" placeholder="회의 안건"></textarea></div>
-  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 내용/결정사항</label><textarea class="m-textarea" id="council-minutes" placeholder="회의록 내용"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>안건 · 키워드 또는 문장</label><textarea class="m-textarea" id="council-agenda" placeholder="예: 점심 메뉴 선호, 다음 달 활동 제안"></textarea></div>
+  <div class="modal-input-wrap" style="margin-bottom:10px"><label>회의 내용/결정사항</label><textarea class="m-textarea" id="council-minutes" placeholder="실제 논의 내용, 참가자 의견, 결정사항을 적어주세요. 예: 메뉴 의견 수렴 / 다음 회의에서 재논의"></textarea></div>
+  <div class="council-ai-bar"><label>AI 작성 언어 <select id="council-ai-language"><option value="English">English</option><option value="Korean">한국어</option></select></label><button type="button" class="council-primary" onclick="councilAIDraft(this)">✨ AI 문장 정리</button></div><p class="council-hint">입력한 사실만 문장으로 정리합니다. 초안 확인 후 적용하고 저장해주세요.</p>
   <div class="modal-input-wrap" style="margin-bottom:10px"><label>다음 회의 예정일</label><input class="m-input" id="council-next" type="date"></div>
 
   <!-- 참석 서명지 -->
@@ -1292,13 +1296,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       <button type="button" onclick="document.getElementById('council-pdf-file').click()" style="flex:1;padding:9px;border-radius:8px;border:none;background:#0F6E56;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📎 서명지 PDF 첨부</button>
     </div>
     <input type="file" id="council-pdf-file" accept=".pdf" style="display:none" onchange="uploadCouncilSignedPDF(this)">
+    <p class="council-hint">첨부 후 회의록을 저장하세요. 목록에서 회의록과 서명지를 합친 PDF를 만들 수 있습니다.</p>
     <div id="council-pdf-status" style="font-size:11px;color:#5856D6;margin-top:6px;text-align:center"></div>
     <input type="hidden" id="council-pdf-link">
   </div>
 
   <input type="hidden" id="council-edit-id">
   <div class="modal-btns">
-    <button class="mbt mbt-cancel" onclick="closeOv('ov-council')">취소</button>
+    <button type="button" onclick="printCouncilMinutes()">🖨️ 회의록 인쇄</button><button class="mbt mbt-cancel" onclick="closeOv('ov-council')">취소</button>
     <button class="mbt mbt-save" onclick="saveCouncil()">저장</button>
   </div>
 </div>

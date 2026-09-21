@@ -163,6 +163,7 @@ function operationalFormReady(id){
 function openAssessmentForMember(mid,mName){
   var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
   if(!member){alert('멤버 정보를 찾을 수 없습니다');return;}
+  assessmentMedicationReset();
   _asmt.mid=mid;_asmt.step=0;
   document.querySelectorAll('#frm-assessment input,#frm-assessment textarea,#frm-assessment select').forEach(function(el){if(el.type==='checkbox'||el.type==='radio')el.checked=false;else el.value='';});
   var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
@@ -211,7 +212,7 @@ function collectAssessmentData(){
   var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
   return{formFields:collectAssessmentFields(),mid:_asmt.mid,date:gv2('as-date'),assessor:gv2('as-assessor'),medicaid:gv2('as-medicaid'),phone:gv2('as-phone'),addr:gv2('as-addr'),pcp:gv2('as-pcp'),dob:gv2('as-dob'),
     adl:{bathing:gv2('adl-bathing-st'),hygiene:gv2('adl-hygiene-st'),dressing:gv2('adl-dressing-st'),mobility:gv2('adl-mobility-st'),transfer:gv2('adl-transfer-st'),eating:gv2('adl-eating-st'),toilet:gv2('adl-toilet-st')},
-    medications:[{name:gv2('med-1-name'),dose:gv2('med-1-dose'),reason:gv2('med-1-reason')},{name:gv2('med-2-name'),dose:gv2('med-2-dose'),reason:gv2('med-2-reason')},{name:gv2('med-3-name'),dose:gv2('med-3-dose'),reason:gv2('med-3-reason')},{name:gv2('med-4-name'),dose:gv2('med-4-dose'),reason:gv2('med-4-reason')},{name:gv2('med-5-name'),dose:gv2('med-5-dose'),reason:gv2('med-5-reason')}].filter(function(m){return m.name;}),
+    medications:assessmentMedicationCollect(),
     caregiver:{name:gv2('care-name'),rel:gv2('care-rel'),phone:gv2('care-hphone')},
     ec1:{name:gv2('ec1-name'),rel:gv2('ec1-rel'),phone:gv2('ec1-hphone')},
     ec2:{name:gv2('ec2-name'),rel:gv2('ec2-rel'),phone:gv2('ec2-hphone')},
@@ -225,6 +226,7 @@ function collectAssessmentData(){
     savedAt:new Date().toISOString()};
 }
 function fillAssessmentFromJSON(data){
+  assessmentMedicationEnsure((data.medications||[]).length);
   Object.keys(data.formFields||{}).forEach(function(id){var el=document.getElementById(id);if(!el||!el.closest('#frm-assessment'))return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!data.formFields[id];else el.value=data.formFields[id];});
   var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
   if(data.date)sv('as-date',data.date);if(data.assessor)sv('as-assessor',data.assessor);

@@ -93,33 +93,23 @@ async function deleteVisitor(id) {
 }
 
 // ── 회의록 ───────────────────────────────────────────────────
-function renderCouncilList() {
-  const q    = (document.getElementById('council-search') || {}).value || '';
-  const list = COUNCIL_LIST.filter(c =>
-    !q || (c.type || '').includes(q) || (c.attendees || '').includes(q) || (c.agenda || '').includes(q)
-  );
-  list.sort((a, b) => b.date > a.date ? 1 : -1);
-  let html = list.length ? '' : '<div class="empty-msg">회의록이 없어요</div>';
-  list.forEach(c => {
-    html += `<div class="log-card">
-      <div class="log-top"><div class="log-name">📋 ${c.type}</div><span class="badge b-ok">${c.date}</span></div>
-      <div style="font-size:12px;font-weight:600;color:#3C3C43;margin-bottom:3px">안건: ${c.agenda || '—'}</div>
-      <div style="font-size:11px;color:#8E8E93;margin-bottom:3px">참석자: ${c.attendees || '—'}</div>
-      ${c.minutes ? `<div style="font-size:11px;color:#3C3C43;background:#F2F2F7;border-radius:8px;padding:6px;margin-bottom:4px">${c.minutes}</div>` : ''}
-      ${c.next ? `<div style="font-size:11px;color:#FF9500">📅 다음 회의: ${c.next}</div>` : ''}
-      ${c.pdfLink ? `<div style="font-size:11px;color:#0F6E56;margin-top:3px">📎 서명지 PDF 첨부됨</div>` : ''}
-      <div class="log-actions" style="margin-top:6px;flex-wrap:wrap">
-        <button class="btn-sm" onclick="editCouncil('${c.id}')">✏️ 수정</button>
-        <button class="btn-sm" onclick="printCouncilSignSheet('${c.id}')" style="background:#EDE9FE;color:#5856D6">🖨️ 서명지</button>
-        ${c.pdfLink ? `<button class="btn-sm" onclick="window.open('${c.pdfLink}','_blank')" style="background:#E1F5EE;color:#0F6E56">📄 PDF보기</button>` : ''}
-        <button class="btn-danger" onclick="deleteCouncil('${c.id}')">삭제</button>
-      </div>
-    </div>`;
-  });
-  const el = document.getElementById('council-list'); if (el) el.innerHTML = html;
+function renderCouncilList(){
+  var q=((document.getElementById('council-search')||{}).value||'').toLowerCase();
+  var list=COUNCIL_LIST.filter(function(c){return !q||[c.type,c.attendees,c.agenda].join(' ').toLowerCase().includes(q);}).slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
+  var html=list.length?'':'<div class="empty-msg">회의록이 없어요</div>';
+  function arg(v){return councilEscape(JSON.stringify(String(v||'')));}
+  list.forEach(function(c){var id=arg(c.id),busy=_councilPdfBusy?' disabled':'';
+    html+='<article class="council-record"><div class="council-record-title"><strong>'+councilEscape(c.type)+'</strong><span>'+councilEscape(c.date)+'</span></div><h4>안건</h4><p>'+councilEscape(c.agenda||'—')+'</p><h4>참석자</h4><p>'+councilEscape(c.attendees||'—')+'</p><h4>회의 내용 / 결정사항</h4><p>'+councilEscape(c.minutes||'—')+'</p>'+(c.next?'<p>다음 회의: '+councilEscape(c.next)+'</p>':'')+'<div class="council-actions">'
+      +'<button onclick="editCouncil('+id+')">수정</button><button onclick="printCouncilMinutes('+id+')">🖨️ 회의록 인쇄</button><button onclick="printCouncilSignSheet('+id+')">서명지 인쇄</button>'
+      +(c.minutesPdfLink?'<button onclick="councilOpenPDF('+arg(c.minutesPdfLink)+')">회의록 PDF 보기</button>':'<button'+busy+' onclick="councilExportPDF('+id+',false)">회의록 PDF 저장</button>')
+      +(c.pdfLink?'<button onclick="councilOpenPDF('+arg(c.pdfLink)+')">첨부 서명지 보기</button>':'')
+      +(c.combinedPdfLink?'<button class="council-primary" onclick="councilOpenPDF('+arg(c.combinedPdfLink)+')">서명 포함 합본 PDF 보기</button>':c.pdfLink?'<button class="council-primary"'+busy+' onclick="councilExportPDF('+id+',true)">회의록 + 서명지 PDF 저장</button>':'')
+      +'<button class="council-danger" onclick="deleteCouncil('+id+')">삭제</button></div></article>';
+  });var el=document.getElementById('council-list');if(el)el.innerHTML=html;
 }
 
 function openCouncilModal(id) {
+  _councilAiSerial++;if(_councilPdfBusy||_councilSaveBusy){alert('현재 처리가 끝난 뒤 열어주세요.');return;}
   document.getElementById('council-modal-title').textContent = id ? '✏️ 회의록 수정' : '📋 회의록 추가';
   document.getElementById('council-edit-id').value = id || '';
   const today = todayISO;
@@ -148,7 +138,9 @@ function openCouncilModal(id) {
   openOv('ov-council');
 }
 
+var _councilSaveBusy=false;
 async function saveCouncil() {
+  if(_councilPdfBusy||_councilUploadBusy||_councilSaveBusy){alert('현재 처리가 끝난 뒤 저장해주세요.');return;}
   const date = document.getElementById('council-date').value;
   if (!date) { alert('날짜는 필수입니다'); return; }
   const editId2 = document.getElementById('council-edit-id').value;
@@ -162,23 +154,27 @@ async function saveCouncil() {
     next:      document.getElementById('council-next').value,
     pdfLink:   document.getElementById('council-pdf-link').value || '',
   };
+  document.getElementById('council-edit-id').value=entry.id;
+  _councilSaveBusy=true;
   try {
     await SheetsAPI.post({
-      action: editId2 ? 'update' : 'append',
+      action: 'upsert',
       sheet: 'council',
+      key: 'ID', value: entry.id,
       id: editId2 || null,
-      data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '유형': entry.type, '참석자': entry.attendees, '안건': entry.agenda, '내용': entry.minutes, '다음회의': entry.next, 'PDF링크': entry.pdfLink },
+      data: { 'ID': entry.id, '날짜': entry.date, '시간': entry.time, '유형': entry.type, '참석자': entry.attendees, '안건': entry.agenda, '내용': entry.minutes, '다음회의': entry.next, 'PDF링크': entry.pdfLink, '회의록PDF링크':'', '합본PDF링크':'' },
     });
-  } catch(e) { alert('❌ 저장 실패: '+e.message); return; }
+  } catch(e) { alert('❌ 저장 실패: '+e.message); return; }finally{_councilSaveBusy=false;}
 
   if (editId2) { const idx = COUNCIL_LIST.findIndex(x => x.id === editId2); if (idx >= 0) COUNCIL_LIST[idx] = entry; else COUNCIL_LIST.push(entry); }
   else COUNCIL_LIST.push(entry);
 
-  closeOv('ov-council'); renderCouncilList();
+  _councilAiSerial++;closeOv('ov-council'); renderCouncilList();
 }
 
 function editCouncil(id)   { openCouncilModal(id); }
 async function deleteCouncil(id) {
+  if(_councilPdfBusy){alert('PDF 처리가 끝난 뒤 삭제해주세요.');return;}
   if (!confirm('삭제하시겠어요?')) return;
   try { await SheetsAPI.post({ action: 'delete', sheet: 'council', id }); } catch(e) { alert('❌ 삭제 실패: '+e.message); return; }
   COUNCIL_LIST = COUNCIL_LIST.filter(x => x.id !== id);
@@ -193,6 +189,7 @@ function printCouncilSignSheet(id){
   var type = c ? c.type : (document.getElementById('council-type').value || 'Participant Council Meeting');
   var agenda = c ? c.agenda : (document.getElementById('council-agenda').value || '');
 
+  date=councilEscape(date);time=councilEscape(time);type=councilEscape(type);agenda=councilEscape(agenda);
   var rows = '';
   for (var i=0;i<20;i++){
     rows += '<tr><td style="border:1px solid #999;padding:10px;width:30px;text-align:center">'+(i+1)+'</td>'
@@ -218,12 +215,16 @@ function printCouncilSignSheet(id){
 }
 
 // ── Council 서명지 PDF 업로드 ────────────────────────────────
+var _councilUploadBusy=false;
 async function uploadCouncilSignedPDF(input){
+  if(_councilUploadBusy||_councilPdfBusy)return;
   var file = input.files[0];
   if (!file) return;
   if (!file.name.toLowerCase().endsWith('.pdf')) { alert('PDF 파일만 업로드 가능해요'); return; }
   var statusEl = document.getElementById('council-pdf-status');
-  statusEl.textContent = '⏳ 업로드 중...';
+  if(file.size>20*1024*1024){alert('20MB 이하 PDF를 첨부해주세요.');return;}
+  var editId=document.getElementById('council-edit-id').value,serial=_councilAiSerial;
+  _councilUploadBusy=true;statusEl.textContent = '⏳ 업로드 중...';
   try {
     var base64 = await new Promise(function(resolve,reject){
       var reader = new FileReader();
@@ -234,10 +235,11 @@ async function uploadCouncilSignedPDF(input){
     var date = document.getElementById('council-date').value || todayISO;
     var res = await SheetsAPI.post({
       action:'savePDF', memberId:'council', memberName:'Council',
-      fileType:'Council_' + date, base64Data:base64,
+      fileType:'Council_Signatures_' + (editId||'draft') + '_' + crypto.randomUUID(), base64Data:base64,
       author:(_currentUser&&_currentUser.name)||'Staff'
     });
-    if (res && res.ok && res.data && res.data.url) {
+    if(serial!==_councilAiSerial||editId!==document.getElementById('council-edit-id').value)return;
+    if (res && res.ok && res.data && res.data.success!==false && res.data.url) {
       document.getElementById('council-pdf-link').value = res.data.url;
       statusEl.textContent = '✅ PDF 업로드 완료!';
     } else {
@@ -245,5 +247,5 @@ async function uploadCouncilSignedPDF(input){
     }
   } catch(e){
     statusEl.textContent = '❌ 오류: ' + e.message;
-  }
+  }finally{_councilUploadBusy=false;input.value='';}
 }

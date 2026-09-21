@@ -245,7 +245,7 @@ function resetPCSPState(){
   _pcspRights=newPCSPRights();
   _pcspAuthRecords=[];
   _pcspSelectedAuthId='';_pcspAuthSnapshot=null;_pcspMemberDefaults={};_pcspAuthLoadSerial++;
-  _pcspSig=null;
+  _pcspSig=null;pcspMedicationRestore({});
 }
 function clearPCSPFormFields(){
   document.querySelectorAll('#pcsp-form-view input:not([type="hidden"]):not([type="button"]),#pcsp-form-view textarea,#pcsp-form-view select').forEach(function(el){
@@ -500,7 +500,7 @@ function restorePCSPv2(p){
   _pcspDays=new Set(p.days||[]);
   var plan=p.planning||{};pcspSet('p-planning-participated',plan.participantParticipated||'');pcspSet('p-planning-notes',plan.participationNotes||'');pcspSet('p-meeting-date',plan.meetingDate||'');pcspSet('p-meeting-time',plan.meetingTime||'');pcspSet('p-meeting-location',plan.meetingLocation||'');pcspSet('p-communication-method',plan.preferredCommunication||'');pcspSet('p-interpreter-needed',plan.interpreterNeeded||'');pcspSet('p-interpreter-language',plan.interpreterLanguage||'');pcspSet('p-accessibility',plan.accessibilityAccommodation||'');pcspSet('p-planning-concerns',plan.concerns||'');_pcspPlanningPeople=pcspClone(plan.chosenPeople||[]);
   _pcspContacts=pcspClone(p.contacts||[{},{},{}]).map(function(c){c=c||{};c.relationship=c.relationship||c.rel||'';return c;});ensureThreeContacts();
-  var h=p.health||{};pcspSet('p-diag-code',h.diagnosisCode||'');pcspSet('p-diag',h.diagnoses||'');pcspSet('p-medassist',h.medicationAssistance||'');pcspSet('p-medlevel',h.medicationAssistanceLevel||'');pcspSet('p-meds',h.medications||'');pcspSet('p-allergy',h.allergies||'');pcspSet('p-diet',h.dietaryRestrictions||'');pcspSet('p-nutrition',h.nutritionPreferences||'');pcspSet('p-nutr-acc',h.nutritionAccommodated||'');pcspSet('p-nutr-how',h.nutritionAccommodationDetails||'');
+  var h=p.health||{};pcspMedicationRestore(h);pcspSet('p-diag-code',h.diagnosisCode||'');pcspSet('p-diag',h.diagnoses||'');pcspSet('p-medassist',h.medicationAssistance||'');pcspSet('p-medlevel',h.medicationAssistanceLevel||'');pcspMedicationSync();pcspSet('p-allergy',h.allergies||'');pcspSet('p-diet',h.dietaryRestrictions||'');pcspSet('p-nutrition',h.nutritionPreferences||'');pcspSet('p-nutr-acc',h.nutritionAccommodated||'');pcspSet('p-nutr-how',h.nutritionAccommodationDetails||'');
   var fn=p.functional||{};pcspSet('p-comm',fn.communicateNeeds||'');pcspSet('p-comm-why',fn.communicateNeedsWhy||'');pcspSet('p-decision',fn.makeDecisions||'');pcspSet('p-decision-why',fn.makeDecisionsWhy||'');pcspSet('p-alone',fn.leftAlone||'');pcspSet('p-alone-why',fn.leftAloneWhy||'');pcspSet('p-pain',fn.painSensory||'');pcspSet('p-pain-desc',fn.painSensoryDetails||'');pcspSet('p-carepref',fn.personalCarePreference||'');pcspSet('p-carepref-acc',fn.personalCareAccommodated||'');pcspSet('p-carepref-desc',fn.personalCarePreferenceDetails||'');pcspSet('p-carepref-notified',fn.personalCareNotification||'');
   var pc=p.personCentered||{};Object.keys(pc).forEach(function(k){pcspSet('p-pc-'+k,pc[k]||'');});
   _pcspRisks=pcspClone(p.risks||[]);_pcspGoals=pcspClone(p.goals||[]);_pcspSadcActivities=pcspClone(p.sadcActivities||[]);_pcspCommunity=pcspClone(p.communityActivities||[]);_pcspRights=pcspClone(p.rights||newPCSPRights());
@@ -530,7 +530,7 @@ function collectPCSPEntry(){
     ins:gp('ins'),medicaid:gp('medicaid'),ins2:gp('ins2'),ins2id:gp('ins2id'),cm1name:gp('cm1name'),cm1phone:gp('cm1phone'),cm1email:gp('cm1email'),cm2name:gp('cm2name'),cm2phone:gp('cm2phone'),cm2email:gp('cm2email'),pcpname:gp('pcpname'),pcpphone:gp('pcpphone'),pcpemail:gp('pcpemail'),days:Array.from(_pcspDays),time:gp('time'),transport:gp('transport'),
     planning:{participantParticipated:pcspVal('p-planning-participated'),participationNotes:pcspVal('p-planning-notes'),meetingDate:pcspVal('p-meeting-date'),meetingTime:pcspVal('p-meeting-time'),meetingLocation:pcspVal('p-meeting-location'),preferredCommunication:pcspVal('p-communication-method'),interpreterNeeded:pcspVal('p-interpreter-needed'),interpreterLanguage:pcspVal('p-interpreter-language'),accessibilityAccommodation:pcspVal('p-accessibility'),concerns:pcspVal('p-planning-concerns'),chosenPeople:pcspClone(_pcspPlanningPeople)},
     contacts:_pcspContacts.map(function(c){var x=pcspClone(c||{});x.relationship=x.relationship||x.rel||'';x.rel=x.relationship;return x;}),
-    health:{diagnosisCode:gp('diag-code'),diagnoses:gp('diag'),medicationAssistance:gp('medassist'),medicationAssistanceLevel:gp('medlevel'),medications:gp('meds'),allergies:gp('allergy'),dietaryRestrictions:gp('diet'),nutritionPreferences:gp('nutrition'),nutritionAccommodated:gp('nutr-acc'),nutritionAccommodationDetails:gp('nutr-how')},
+    health:{diagnosisCode:gp('diag-code'),diagnoses:gp('diag'),medicationAssistance:gp('medassist'),medicationAssistanceLevel:gp('medlevel'),medications:medicationText(pcspMedicationCollect()),medicationList:pcspMedicationCollect(),medicationSource:_pcspMedicationSource,allergies:gp('allergy'),dietaryRestrictions:gp('diet'),nutritionPreferences:gp('nutrition'),nutritionAccommodated:gp('nutr-acc'),nutritionAccommodationDetails:gp('nutr-how')},
     functional:{communicateNeeds:gp('comm'),communicateNeedsWhy:gp('comm-why'),makeDecisions:gp('decision'),makeDecisionsWhy:gp('decision-why'),leftAlone:gp('alone'),leftAloneWhy:gp('alone-why'),painSensory:gp('pain'),painSensoryDetails:gp('pain-desc'),adl:collectPCSPAdl(),personalCarePreference:gp('carepref'),personalCareAccommodated:gp('carepref-acc'),personalCarePreferenceDetails:gp('carepref-desc'),personalCareNotification:gp('carepref-notified')},
     personCentered:collectPersonCentered(),risks:pcspClone(_pcspRisks),goals:pcspClone(_pcspGoals),sadcActivities:pcspClone(_pcspSadcActivities),communityActivities:pcspClone(_pcspCommunity),
     workVolunteer:{interest:pcspVal('p-work-interest'),opportunity:pcspVal('p-work-opportunity'),frequencySchedule:pcspVal('p-work-frequency'),supportNeededProvided:pcspVal('p-work-support'),transportation:pcspVal('p-work-transport'),unableReason:pcspVal('p-work-unable')},
@@ -643,7 +643,7 @@ async function saveMedToLibrary(name,reason){
 }
 function initMedAutocomplete(){var input=document.getElementById('p-med-input');if(!input||input._medInit)return;input._medInit=true;input.addEventListener('input',function(){var q=this.value.trim().toLowerCase(),d=document.getElementById('med-autocomplete');if(!q){d.style.display='none';return;}var matches=getMedLibrary().filter(function(m){return m.name.toLowerCase().includes(q);}).slice(0,8);d.innerHTML=matches.map(function(m){return '<div onclick="selectMed('+JSON.stringify(m.name).replace(/"/g,'&quot;')+','+JSON.stringify(m.reason).replace(/"/g,'&quot;')+')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F2F2F7;font-size:12px"><b>'+pcspEsc(m.name)+'</b> <span style="color:#8E8E93">'+pcspEsc(m.reason)+'</span></div>';}).join('');d.style.display=matches.length?'block':'none';});input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addMedLine();}if(e.key==='Escape'){var d=document.getElementById('med-autocomplete');if(d)d.style.display='none';}});}
 function selectMed(name,reason){pcspSet('p-med-input',name);pcspSet('p-med-reason',reason);var d=document.getElementById('med-autocomplete');if(d)d.style.display='none';}
-function addMedLine(){var n=pcspVal('p-med-input').trim(),r=pcspVal('p-med-reason').trim(),ta=document.getElementById('p-meds');if(!n||!ta)return;var line=n+(r?' – '+r:'');ta.value=ta.value?ta.value+'\n'+line:line;pcspSet('p-med-input','');pcspSet('p-med-reason','');saveMedToLibrary(n,r);}
+function addMedLine(){var name=pcspVal('p-med-input').trim(),reason=pcspVal('p-med-reason').trim();if(!name)return;_pcspMedicationRows.push({name:name,dose:'',reason:reason});pcspMedicationRender();pcspSet('p-med-input','');pcspSet('p-med-reason','');saveMedToLibrary(name,reason);}
 
 // ══════════════════════════════════════════════════════════════
 // Claude drafting — facts first, no invented participant choices
@@ -821,19 +821,22 @@ async function wfRevise(id){
   }catch(e){alert(e.message);}
 }
 async function wfImportSources(){
+  if(_pcspSig||_wfBusy||_wfPending){alert('서명 또는 저장 중인 문서에는 반영할 수 없습니다.');return;}
   var id=pcspVal('pcsp-edit-id'),mid=_pcspMemberId,name=gp('kr')||gp('last');if(!mid)return;
   try{
     var results=await Promise.all(['Assessment','Nutrition'].map(function(t){return apiGet({action:'loadJSON',memberId:mid,memberName:name,fileType:t});}));
-    if(mid!==_pcspMemberId||id!==pcspVal('pcsp-edit-id'))return;
+    if(mid!==_pcspMemberId||id!==pcspVal('pcsp-edit-id')||_pcspSig||_wfBusy||_wfPending)return;
+    results.forEach(function(r){if(!r||!r.ok||!r.data||r.data.success===false||typeof r.data.found!=='boolean')throw new Error('평가 조회 응답을 확인하지 못했습니다.');});
     var a=results[0].data.found?results[0].data.data:null,n=results[1].data.found?results[1].data.data:null;
     var sources=[];if(a)sources.push({type:'Assessment',date:a.date||'',savedAt:a.savedAt||'',adl:a.adl||{},healthComments:(a.formFields||{})['health-comments']||'',adlComments:(a.formFields||{})['adl-comments']||''});if(n)sources.push({type:'Nutrition',date:n.date||'',savedAt:n.savedAt||'',assessment:n.assessment||'',diet:n.diet||{},allergy:n.allergy||'',allergySpec:n.allergySpec||''});
     if(!sources.length){alert('저장된 Assessment/Nutrition이 없습니다.');return;}
-    if(!confirm(sources.map(function(s){return s.type+' · 평가일 '+(s.date||'미기재');}).join('\n')+'\n빈 항목에만 적용합니다. 평가일과 내용을 확인해주세요.'))return;
+    if(!confirm(sources.map(function(s){return s.type+' · 평가일 '+(s.date||'미기재');}).join('\n')+'\n약 목록은 비교 후 선택합니다. 다른 정보는 빈 항목에만 적용합니다.'))return;
     function empty(field,value){if(value&&!pcspVal(field))pcspSet(field,value);}
-    if(a){empty('p-meds',(a.medications||[]).map(function(m){return [m.name,m.dose,m.reason].filter(Boolean).join(' — ');}).join('\n'));empty('p-pcpname',a.pcp);}
+    if(a){empty('p-pcpname',a.pcp);}
     if(n){empty('p-allergy',n.allergySpec);var diet=n.diet||{};empty('p-diet',[diet.na?'Sodium restricted':'',diet.lf?'Low fat':'',diet.carb?'Carbohydrate controlled':'',diet.renal?'Renal diet':'',diet.other?diet.otherText:''].filter(Boolean).join('; '));}
     var p=wfEntry();_wfMeta[p.id]=Object.assign({},_wfMeta[p.id],{importSources:sources});
     wfNotice(sources.map(function(s){return s.type+' '+s.date;}).join(' / ')+' · 빈 항목에 반영됨. 개인 선호·Capacity는 직접 확인해주세요.');
+    if(a)pcspMedicationCompare(a,sources[0]);
   }catch(e){alert('평가 정보 조회 실패: '+e.message);}
 }
 function wfBegin(p){_wfSavedExit=false;_wfPaused=false;_wfFingerprint='';if(p)_wfMeta[p.id]={revision:p._revision||0,previousId:p.previousId||'',importSources:p.importSources||[],renewalReview:p.renewalReview||null};if(typeof docRenderReview==='function')docRenderReview('pcsp-form-view',p&&p.renewalReview);wfNotice('초안 변경은 20초 간격으로 서버에 저장됩니다.');document.getElementById('pcsp-keep-json').checked=true;}
