@@ -226,12 +226,11 @@ function collectAssessmentData(){
     savedAt:new Date().toISOString()};
 }
 function fillAssessmentFromJSON(data){
-  assessmentMedicationEnsure((data.medications||[]).length);
-  Object.keys(data.formFields||{}).forEach(function(id){var el=document.getElementById(id);if(!el||!el.closest('#frm-assessment'))return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!data.formFields[id];else el.value=data.formFields[id];});
+  assessmentMedicationRestore(data);
+  Object.keys(data.formFields||{}).forEach(function(id){if(/^med-\d+-/.test(id))return;var el=document.getElementById(id);if(!el||!el.closest('#frm-assessment'))return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!data.formFields[id];else el.value=data.formFields[id];});
   var sv=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
   if(data.date)sv('as-date',data.date);if(data.assessor)sv('as-assessor',data.assessor);
   if(data.adl){sv('adl-bathing-st',data.adl.bathing);sv('adl-hygiene-st',data.adl.hygiene);sv('adl-dressing-st',data.adl.dressing);sv('adl-mobility-st',data.adl.mobility);sv('adl-transfer-st',data.adl.transfer);sv('adl-eating-st',data.adl.eating);sv('adl-toilet-st',data.adl.toilet);}
-  if(data.medications)data.medications.forEach(function(m,i){sv('med-'+(i+1)+'-name',m.name);sv('med-'+(i+1)+'-dose',m.dose);sv('med-'+(i+1)+'-reason',m.reason);});
   if(data.caregiver){sv('care-name',data.caregiver.name);sv('care-rel',data.caregiver.rel);sv('care-hphone',data.caregiver.phone);}
   if(data.personal){sv('ph-work',data.personal.work);sv('ph-edu',data.personal.edu);sv('ph-hobbies',data.personal.hobbies);sv('ph-religion',data.personal.religion);sv('ph-hopes',data.personal.hopes);}
 }

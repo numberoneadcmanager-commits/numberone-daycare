@@ -469,7 +469,6 @@ function pcspGoStep(s){
   var prog=document.getElementById('pcsp-progress');if(prog)prog.style.width=Math.round((position+1)/PCSP_STEP_ORDER.length*100)+'%';
   var nav=document.getElementById('pcsp-nav');if(nav)nav.style.display=s===PCSP_STEP_COUNT-1?'none':'flex';
   var prev=document.getElementById('pcsp-prev-btn');if(prev)prev.style.visibility=s===0?'hidden':'visible';
-  if(s===3)setTimeout(initMedAutocomplete,80);
   if(s===4)setTimeout(updatePcspCapacityUI,0);
   if(s===PCSP_STEP_COUNT-1){buildPCSPSummary();setTimeout(initPCSPSignatureCanvas,100);}
   var content=document.querySelector('.content');if(content)content.scrollTop=0;pcspMarkConfirmFields();
@@ -632,18 +631,16 @@ async function loadMedLibraryFromSheets(){
 }
 function getMedLibrary(){if(!_pcspMedLibLoaded)loadMedLibraryFromSheets();return MED_LIBRARY.concat(PCSP_MED_CUSTOM);}
 async function saveMedToLibrary(name,reason){
-  name=String(name||'').trim(); if(!name)return;
-  var exists=getMedLibrary().find(function(m){return m.name.toLowerCase()===name.toLowerCase();}); if(exists)return;
+  name=String(name||'').trim(); if(!name)return false;
+  var exists=getMedLibrary().find(function(m){return m.name.toLowerCase()===name.toLowerCase();}); if(exists)return true;
   try{
     var id='MED_'+name.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
     var res=await apiCall({action:'upsert',sheet:'medlib',key:'ID',value:id,data:{'ID':id,'이름':name,'이유':reason||''}});
     if(!res||!res.ok||!res.data||res.data.success===false) throw new Error((res&&res.data&&res.data.error)||'약물 라이브러리 저장 실패');
-    PCSP_MED_CUSTOM.push({name:name,reason:reason||''});
-  }catch(e){console.log('약물 라이브러리 저장 실패:',e);}
+    PCSP_MED_CUSTOM.push({name:name,reason:reason||''});return true;
+  }catch(e){console.log('약물 라이브러리 저장 실패:',e);return false;}
 }
-function initMedAutocomplete(){var input=document.getElementById('p-med-input');if(!input||input._medInit)return;input._medInit=true;input.addEventListener('input',function(){var q=this.value.trim().toLowerCase(),d=document.getElementById('med-autocomplete');if(!q){d.style.display='none';return;}var matches=getMedLibrary().filter(function(m){return m.name.toLowerCase().includes(q);}).slice(0,8);d.innerHTML=matches.map(function(m){return '<div onclick="selectMed('+JSON.stringify(m.name).replace(/"/g,'&quot;')+','+JSON.stringify(m.reason).replace(/"/g,'&quot;')+')" style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #F2F2F7;font-size:12px"><b>'+pcspEsc(m.name)+'</b> <span style="color:#8E8E93">'+pcspEsc(m.reason)+'</span></div>';}).join('');d.style.display=matches.length?'block':'none';});input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addMedLine();}if(e.key==='Escape'){var d=document.getElementById('med-autocomplete');if(d)d.style.display='none';}});}
-function selectMed(name,reason){pcspSet('p-med-input',name);pcspSet('p-med-reason',reason);var d=document.getElementById('med-autocomplete');if(d)d.style.display='none';}
-function addMedLine(){var name=pcspVal('p-med-input').trim(),reason=pcspVal('p-med-reason').trim();if(!name)return;_pcspMedicationRows.push({name:name,dose:'',reason:reason});pcspMedicationRender();pcspSet('p-med-input','');pcspSet('p-med-reason','');saveMedToLibrary(name,reason);}
+
 
 // ══════════════════════════════════════════════════════════════
 // Claude drafting — facts first, no invented participant choices

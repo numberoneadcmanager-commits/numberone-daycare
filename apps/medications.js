@@ -1,26 +1,48 @@
-// Shared medication records: {name, dose, reason}. Narrative text is a PDF/AI projection.
-var _pcspMedicationRows=[],_pcspMedicationSource=null;
+// Shared editor UI; each document has its own medication array.
+var _pcspMedicationRows=[],_pcspMedicationSource=null,_assessmentMedicationRows=[];
 function medicationNormalize(rows){return (Array.isArray(rows)?rows:[]).map(function(r){return {name:String(r.name||''),dose:String(r.dose||''),reason:String(r.reason||'')};}).filter(function(r){return r.name.trim()||r.dose.trim()||r.reason.trim();});}
 function medicationText(rows){return medicationNormalize(rows).map(function(r){return [r.name,r.dose,r.reason].filter(Boolean).join(' — ');}).join('\n');}
 function medicationLegacy(text){return String(text||'').split('\n').filter(function(s){return s.trim();}).map(function(s){return {name:s,dose:'',reason:''};});}
-function pcspMedicationRestore(health){health=health||{};_pcspMedicationRows=Array.isArray(health.medicationList)?medicationNormalize(health.medicationList):medicationLegacy(health.medications);_pcspMedicationSource=health.medicationSource||null;pcspMedicationRender();}
-function pcspMedicationRender(){
-  var root=document.getElementById('pcsp-medication-rows');if(!root)return;root.textContent='';
-  _pcspMedicationRows.forEach(function(row,i){var wrap=document.createElement('div');wrap.className='medication-row';root.appendChild(wrap);
-    [['name','약 이름'],['dose','용량 / 복용 횟수'],['reason','목적']].forEach(function(pair){var label=document.createElement('label');label.textContent=pair[1];var input=document.createElement('input');input.value=row[pair[0]];input.oninput=function(){row[pair[0]]=input.value;pcspMedicationSync();};label.appendChild(input);wrap.appendChild(label);});
-    var remove=document.createElement('button');remove.type='button';remove.textContent='행 삭제';remove.onclick=function(){_pcspMedicationRows.splice(i,1);pcspMedicationRender();};wrap.appendChild(remove);
-  });pcspMedicationSync();
+function medicationEditorRows(context){return context==='pcsp'?_pcspMedicationRows:_assessmentMedicationRows;}
+function medicationEditorRender(context){
+  var root=document.getElementById(context==='pcsp'?'pcsp-medication-rows':'assessment-medication-editor');if(!root)return;root.textContent='';root.className='medication-editor';
+  var toolbar=document.createElement('div');toolbar.className='medication-search';root.appendChild(toolbar);
+  var label=document.createElement('label');label.textContent='약 검색 · 공용 라이브러리';toolbar.appendChild(label);
+  var input=document.createElement('input');input.type='search';input.placeholder='약 이름을 검색하거나 직접 입력하세요';input.setAttribute('data-med-search','');input.autocomplete='off';label.appendChild(input);
+  var add=document.createElement('button');add.type='button';add.className='medication-add';add.textContent='＋ 약 추가';toolbar.appendChild(add);
+  var matches=document.createElement('div');matches.className='medication-matches';matches.hidden=true;toolbar.appendChild(matches);
+  function commit(name,reason){medicationEditorRows(context).push({name:name||'',dose:'',reason:reason||''});medicationEditorRender(context);if(context==='pcsp')pcspMedicationSync();}
+  add.onclick=function(){commit(input.value.trim(),'');};
+  function search(){
+    var q=input.value.trim().toLowerCase();matches.textContent='';matches.hidden=!q;if(!q)return;
+    var library=typeof getMedLibrary==='function'?getMedLibrary():[];
+    var found=library.filter(function(m){return String(m.name).toLowerCase().includes(q);}).slice(0,8);
+    found.forEach(function(m){var option=document.createElement('button');option.type='button';option.textContent=m.name+(m.reason?' · '+m.reason:'');option.onclick=function(){commit(m.name,m.reason);};matches.appendChild(option);});
+    if(!found.length){var msg=document.createElement('p');msg.textContent='검색 결과가 없습니다. 약 추가로 직접 입력할 수 있습니다.';matches.appendChild(msg);}
+  }
+  input.oninput=search;input.onfocus=search;input.onkeydown=function(e){if(e.key==='Escape')matches.hidden=true;if(e.key==='Enter'){e.preventDefault();commit(input.value.trim(),'');}};
+  var rows=document.createElement('div');rows.className='medication-items';root.appendChild(rows);
+  if(!medicationEditorRows(context).length){var empty=document.createElement('p');empty.className='medication-empty';empty.textContent='등록된 약이 없습니다. 검색 결과를 선택하거나 약을 추가하세요.';rows.appendChild(empty);}
+  medicationEditorRows(context).forEach(function(row,i){var wrap=document.createElement('div');wrap.className='medication-row';rows.appendChild(wrap);
+    [['name','약 이름'],['dose','용량 / 복용 횟수'],['reason','목적']].forEach(function(pair){var field=document.createElement('label');field.textContent=pair[1];var value=document.createElement('input');value.value=row[pair[0]];value.id=(context==='assessment'?'med-':'pcsp-med-')+(i+1)+'-'+pair[0];value.oninput=function(){row[pair[0]]=value.value;if(context==='pcsp')pcspMedicationSync();};field.appendChild(value);wrap.appendChild(field);});
+    var actions=document.createElement('div');actions.className='medication-row-actions';wrap.appendChild(actions);
+    var save=document.createElement('button');save.type='button';save.textContent='라이브러리 저장';save.onclick=async function(){if(!row.name.trim()){alert('약 이름을 입력해주세요.');return;}save.disabled=true;try{var ok=await saveMedToLibrary(row.name,row.reason);save.textContent=ok?'✓ 라이브러리 저장됨':'저장 실패 · 재시도';}finally{save.disabled=false;}};actions.appendChild(save);
+    var remove=document.createElement('button');remove.type='button';remove.className='medication-remove';remove.textContent='삭제';remove.setAttribute('aria-label',(row.name||'약 '+(i+1))+' 행 삭제');remove.onclick=function(){medicationEditorRows(context).splice(i,1);medicationEditorRender(context);if(context==='pcsp')pcspMedicationSync();};actions.appendChild(remove);
+  });
 }
+function pcspMedicationRestore(health){health=health||{};_pcspMedicationRows=Array.isArray(health.medicationList)?medicationNormalize(health.medicationList):medicationLegacy(health.medications);_pcspMedicationSource=health.medicationSource||null;pcspMedicationRender();}
+function pcspMedicationRender(){medicationEditorRender('pcsp');pcspMedicationSync();}
 function pcspMedicationSync(){var text=document.getElementById('p-meds');if(text)text.value=medicationText(_pcspMedicationRows);}
 function pcspMedicationCollect(){return medicationNormalize(_pcspMedicationRows);}
 function pcspMedicationAdd(){_pcspMedicationRows.push({name:'',dose:'',reason:''});pcspMedicationRender();}
-function assessmentMedicationReset(){var extra=document.getElementById('assessment-medication-extra');if(extra)extra.textContent='';}
-function assessmentMedicationEnsure(count){
-  var extra=document.getElementById('assessment-medication-extra');if(!extra)return;
-  for(var i=6;i<=count;i++){if(document.getElementById('med-'+i+'-name'))continue;var row=document.createElement('div');row.className='medication-row';extra.appendChild(row);['name','dose','reason'].forEach(function(k){var label=document.createElement('label');label.textContent={name:'약 이름',dose:'용량 / 복용 횟수',reason:'목적'}[k];var input=document.createElement('input');input.id='med-'+i+'-'+k;label.appendChild(input);row.appendChild(label);});}
+function assessmentMedicationReset(){_assessmentMedicationRows=[];medicationEditorRender('assessment');}
+function assessmentMedicationRestore(data){
+  var rows=data.medications;
+  if(!Array.isArray(rows)){var fields=data.formFields||{},indices=Object.keys(fields).map(function(k){return /^med-(\d+)-name$/.exec(k);}).filter(Boolean).map(function(m){return Number(m[1]);}).sort(function(a,b){return a-b;});rows=indices.map(function(i){return {name:fields['med-'+i+'-name'],dose:fields['med-'+i+'-dose'],reason:fields['med-'+i+'-reason']};});}
+  _assessmentMedicationRows=medicationNormalize(rows);medicationEditorRender('assessment');
 }
-function assessmentMedicationCollect(){var rows=[];for(var i=1;document.getElementById('med-'+i+'-name');i++){function value(k){return document.getElementById('med-'+i+'-'+k).value;}rows.push({name:value('name'),dose:value('dose'),reason:value('reason')});}return medicationNormalize(rows);}
-function assessmentMedicationAdd(){var i=1;while(document.getElementById('med-'+i+'-name'))i++;assessmentMedicationEnsure(i);}
+function assessmentMedicationCollect(){return medicationNormalize(_assessmentMedicationRows);}
+function assessmentMedicationAdd(){_assessmentMedicationRows.push({name:'',dose:'',reason:''});medicationEditorRender('assessment');}
 function medicationComparison(current,incoming){
   var used=new Set(),result=[];function key(row){return row.name.trim().toLowerCase().replace(/\s+/g,' ');}
   incoming.forEach(function(next){var index=current.findIndex(function(old,i){return !used.has(i)&&key(old)&&key(old)===key(next);});

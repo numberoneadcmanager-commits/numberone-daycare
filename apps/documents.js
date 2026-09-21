@@ -122,7 +122,7 @@ function docPrintFields(type){
   if(type==='MemberRights')fields.push({label:'Participant Bill of Rights',value:Array.from(root.children).filter(function(el){return !el.hasAttribute('data-renewal-review');}).map(function(el){return el.innerText;}).join('\n')});
   if(type==='Nutrition')fields.push({label:'Date of Birth',value:document.getElementById('ns-dob').textContent});
   root.querySelectorAll('input,select,textarea').forEach(function(el){
-    if(el.closest('[data-renewal-review]')||el.type==='file'||el.type==='hidden'||el.type==='button')return;
+    if(el.hasAttribute('data-med-search')||el.closest('[data-renewal-review]')||el.type==='file'||el.type==='hidden'||el.type==='button')return;
     var wrap=el.closest('.modal-input-wrap')||el.parentElement;
     var label=el.labels&&el.labels[0];var title=label?label.textContent.trim():'';
     if(!title){var l=wrap.querySelector('.fl,label');title=l?l.textContent.trim():el.id||el.name;}
