@@ -318,21 +318,21 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .doc-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:.5px solid #F2F2F7;transition:background .15s;}
 .doc-row[onclick]:hover{background:#F2F2F7;}
 </style>
-<script src="core/write_guard.js?v=20260911p1" defer></script>
-<script src="core/api.js?v=20260921" defer></script>
+<script src="core/write_guard.js?v=20260929accuracy1" defer></script>
+<script src="core/api.js?v=20260929accuracy1" defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="core/state.js?v=20260911p1" defer></script>
-<script src="core/utils.js?v=20260911p1" defer></script>
+<script src="core/utils.js?v=20260929accuracy1" defer></script>
 <script src="data/members.js" defer></script>
 <script src="apps/dashboard.js?v=20260916design" defer></script>
-<script src="apps/attendance.js?v=20260911p1" defer></script>
-<script src="apps/members.js?v=20260915sign" defer></script>
-<script src="apps/logs.js?v=20260911p1" defer></script>
+<script src="apps/attendance.js?v=20260929accuracy1" defer></script>
+<script src="apps/members.js?v=20260929accuracy1" defer></script>
+<script src="apps/logs.js?v=20260929accuracy1" defer></script>
 <script src="apps/auth.js?v=20260916replacement" defer></script>
 <script src="apps/visitor.js?v=20260921" defer></script>
 <script src="apps/billing.js?v=20260911p1" defer></script>
 <script src="apps/workflow.js?v=20260916design" defer></script>
-<script src="core/app.js?v=20260911p1" defer></script>
+<script src="core/app.js?v=20260929accuracy1" defer></script>
 <link rel="stylesheet" href="apps/dashboard.css?v=20260916design">
 <link rel="stylesheet" href="apps/council_tools.css?v=20260921">
 <script src="core/pdf-lib.min.js?v=1.17.1" defer></script>
@@ -459,6 +459,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
       </div>
       <div class="search-wrap"><span>🔍</span><input type="search" id="asearch" placeholder="이름으로 검색..."></div>
       <button id="att-bulk-confirm-btn" onclick="confirmRemainingAsPresent()" style="display:none;width:100%;padding:12px;border-radius:12px;border:none;background:#34C759;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">☑️ 나머지 전원 출석 확정 (<span id="att-bulk-count">0</span>명)</button>
+      <div id="att-bulk-result" hidden role="status" style="background:#F1F5FF;border:1px solid #D8E2F4;border-radius:14px;padding:14px;margin:8px 0 14px;color:#293F63;font-size:13px;line-height:1.6"></div>
+      <button class="btn-sm" type="button" onclick="loadAttFromSheets(toISO(curDate))">↻ 출결 새로고침</button>
       <div style="font-size:11px;color:#8E8E93;margin-bottom:6px">💡 종이 출석부가 원본이에요. 결석/지각/여행 등 예외만 표시하고, 나머지는 위 버튼으로 한번에 출석 처리하세요.</div>
       <div class="section-lbl" id="att-title">출결 체크</div>
       <div class="card" id="att-list"></div>

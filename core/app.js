@@ -167,12 +167,15 @@ async function initSheets() {
 async function loadAllData() {
   try {
     const members = await SheetsAPI.loadMembers();
+    WriteGuard.adopt(members,function(){
     if (Array.isArray(members)) {
       MEMBERS.length = 0;
       members.forEach(m => MEMBERS.push(m));
       mFilt = [...MEMBERS];
     }
+    });
     const all = await SheetsAPI.loadAll();
+    WriteGuard.adopt(all,function(){
     incidents  = all.incidents;
     activities = all.activities;
     cases      = all.cases;
@@ -182,6 +185,7 @@ async function loadAllData() {
     renderIncidents(); renderActivities(); renderCases();
     updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
     // 멤버 select 업데이트 (Sheets에서 멤버 로드 후)
+    });
     ['inc','act','case'].forEach(function(px){
       var sel = document.getElementById(px+'-msel');
       if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
@@ -200,6 +204,7 @@ async function loadFromSheets() {
       SheetsAPI.loadAll(),
     ]);
 
+    WriteGuard.adopt(WriteGuard.track({},members,staff,all),function(){
     if (Array.isArray(members)) {
       MEMBERS.length = 0;
       members.forEach(m => MEMBERS.push(m));
@@ -214,6 +219,7 @@ async function loadFromSheets() {
     if (all.visitorList) VISITOR_LIST = all.visitorList;
     if (all.councilList) COUNCIL_LIST = all.councilList;
 
+    });
     await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets(),restorePhotosFromDrive(true)]);
     hideLoadingOverlay();
     return true;

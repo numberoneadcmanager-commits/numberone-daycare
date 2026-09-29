@@ -8,11 +8,12 @@ var STAFF_OP = []; // Google Sheets가 단일 원본
 async function loadOpStaffFromSheets(){
   try {
     var res = await apiGet({ action: 'read', sheet: '스태프' });
-    STAFF_OP = (res && res.ok && res.data ? res.data : []).map(function(r){
+    var next = (res && res.ok && res.data ? res.data : []).map(function(r){
       var certs = []; try { certs = JSON.parse(r['자격증'] || '[]'); } catch(e) {}
       return {id:String(r['ID']||''),nameKr:String(r['한글이름']||''),name:String(r['영문이름']||''),role:String(r['직책']||''),phone:String(r['전화']||''),email:String(r['이메일']||''),certs:certs,avBg:String(r['avBg']||'#FAECE7'),avColor:String(r['avColor']||'#993C1D')};
     }).filter(function(x){return x.id;});
-  } catch(e) { STAFF_OP=[]; console.log('스태프 Sheets 로드 실패:', e); }
+    WriteGuard.adopt(res,function(){STAFF_OP=next;});
+  } catch(e) { console.log('스태프 Sheets 로드 실패:', e); }
   renderOpStaff();
 }
 

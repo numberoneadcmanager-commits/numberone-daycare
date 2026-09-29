@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 로딩 상태 ─────────────────────────────────────────────────
-var _attLoading = false;
+var _attLoading = false,_attLoadSerial=0,_attReady={},_attBulkBusy=false,_attBulkResult=null,_attLastErrors={},_attRowWrites=new Set();
 var _attCache   = {}; // { 'YYYY-MM-DD': { mid: {...} } } — 메모리 캐시만
 
 // ── 출결 대상 목록 ────────────────────────────────────────────
@@ -35,6 +35,7 @@ function updateDN() {
 }
 
 function moveDate(d) {
+  if(_attBulkBusy||_attWrites||Object.keys(_attMemoDrafts).length){alert('출결 저장이 끝난 후 날짜를 이동해주세요.');return;}
   const nd = new Date(curDate);
   nd.setDate(nd.getDate() + d);
   if (toISO(nd) > todayISO) return;
@@ -44,51 +45,30 @@ function moveDate(d) {
 }
 
 function goToday() {
+  if(_attBulkBusy||_attWrites||Object.keys(_attMemoDrafts).length){alert('출결 저장이 끝난 후 날짜를 이동해주세요.');return;}
   curDate = new Date();
   updateDN();
   loadAttFromSheets(toISO(curDate));
 }
 
 // ── Sheets에서 출결 로드 ──────────────────────────────────────
-async function loadAttFromSheets(iso) {
-  if (_attLoading) return;
-  _attLoading = true;
-
-  // 로딩 표시
-  const listEl = document.getElementById('att-list');
-  if (listEl) listEl.innerHTML = '<div class="empty-msg">⏳ 출결 데이터 불러오는 중...</div>';
-
+async function loadAttFromSheets(iso,options) {
+  options=options||{};
+  if(_attWrites||Object.keys(_attMemoDrafts).length||(_attBulkBusy&&!options.bulk)||WriteGuard.editing())return false;
+  var serial=++_attLoadSerial;_attLoading=true;_attReady[iso]=false;
+  if(!options.quiet)renderAtt();
   try {
-    const res = await SheetsAPI.readByDate('출결', iso);
-    if (res && res.ok && res.data) {
-      // 캐시 초기화 후 Sheets 데이터로 채우기
-      _attCache[iso] = {};
-      allR[iso]      = {};
-      res.data.forEach(function(r) {
-        const mid = String(r['멤버ID'] || '');
-        if (!mid) return;
-        const rec = {
-          sdcAuth:r['SDCAUTH']||'',transportAuth:r['교통AUTH']||'',transportCount:r['교통횟수']==null?'':r['교통횟수'],authWarning:r['AUTH확인']||'',
-          status:  String(r['상태']    || ''),
-          signIn:  String(r['Sign-in'] || ''),
-          signOut: String(r['Sign-out']|| ''),
-          memo:    String(r['메모']    || ''),
-          start:   String(r['시작일']  || ''),
-          end:     String(r['종료일']  || ''),
-          writer:  String(r['작성자']  || ''),
-        };
-        _attCache[iso][mid] = rec;
-        allR[iso][mid]      = rec;
-      });
-    }
-  } catch(e) {
-    console.warn('출결 로드 실패:', e);
-  } finally {
-    _attLoading = false;
-  }
-
-  renderAtt();
-  updateDashNow();
+    const res=await SheetsAPI.readByDate('출결',iso);
+    if(serial!==_attLoadSerial)return false;
+    if(!res||!res.ok||!Array.isArray(res.data))throw new Error('출결 조회 응답을 확인하지 못했습니다.');
+    var next={};
+    res.data.forEach(function(r){var mid=String(r['멤버ID']||'');if(!mid)return;
+      next[mid]={sdcAuth:r['SDCAUTH']||'',transportAuth:r['교통AUTH']||'',transportCount:r['교통횟수']==null?'':r['교통횟수'],authWarning:r['AUTH확인']||'',status:String(r['상태']||''),signIn:String(r['Sign-in']||''),signOut:String(r['Sign-out']||''),memo:String(r['메모']||''),start:String(r['시작일']||''),end:String(r['종료일']||''),writer:String(r['작성자']||'')};
+    });
+    WriteGuard.adopt(res,function(){_attCache[iso]=next;allR[iso]=Object.assign({},next);_attReady[iso]=true;});
+    return true;
+  }catch(e){console.warn('출결 로드 실패:',e);return false;}
+  finally{if(serial===_attLoadSerial){_attLoading=false;renderAtt();updateDashNow();}}
 }
 
 // ── 출결 렌더링 ───────────────────────────────────────────────
@@ -131,12 +111,17 @@ function renderAtt() {
       </div>
       <button class="btn-sm" onclick="wfRecordServices('${iso}','${m.id}')">AUTH / 교통 확인 · ${r.transportCount===''||r.transportCount==null?'횟수 미확인':r.transportCount+'회'}</button>
       <div style="color:#B35900;font-size:11px">${wfEsc(r.authWarning||(!r.sdcAuth&&['in','late'].includes(s)?'SDC AUTH 미연결':''))}</div>
-      <textarea class="memo-f" rows="1" placeholder="메모..." oninput="qMemo('${iso}','${m.id}',this.value)">${(r.memo || '').replace(/</g, '&lt;')}</textarea>
+      <textarea class="memo-f" rows="1" placeholder="메모..." oninput="qMemo('${iso}','${m.id}',this.value)">${String(Object.prototype.hasOwnProperty.call(_attMemoDrafts,iso+'|'+m.id)?_attMemoDrafts[iso+'|'+m.id]:(r.memo||'')).replace(/</g, '&lt;')}</textarea>
+      ${Object.prototype.hasOwnProperty.call(_attMemoDrafts,iso+'|'+m.id)?`<button class="btn-sm" onclick="retryAttMemo('${iso}','${m.id}')">메모 저장 재시도</button><button class="btn-sm" onclick="discardAttMemo('${iso}','${m.id}')">미저장 메모 취소</button>`:''}
     </div>`;
   }).join('');
 
   const attList = document.getElementById('att-list');
-  if (attList) attList.innerHTML = html || '<div class="empty-msg">오늘 대상 이용자 없음</div>';
+  if (attList) {
+    var blocked=_attBulkBusy||_attLoading||!_attReady[iso];
+    attList.innerHTML = (! _attReady[iso]?'<div class="empty-msg">'+(_attLoading?'⏳ 최신 출결 조회 중…':'조회되지 않은 출결입니다. 새로고침 후 작성해주세요.')+'</div>':'')+(html||'<div class="empty-msg">오늘 대상 이용자 없음</div>');
+    attList.querySelectorAll('button,textarea').forEach(function(el){el.disabled=blocked;});
+  }
   const attIn  = document.getElementById('att-in');    if(attIn)    attIn.textContent    = inC;
   const attTr  = document.getElementById('att-travel'); if(attTr)   attTr.textContent    = trC;
   const attPnd = document.getElementById('att-pend');  if(attPnd)   attPnd.textContent   = pC;
@@ -145,42 +130,71 @@ function renderAtt() {
 
   // 일괄 확정 버튼 표시 여부 (미확정자 있을 때만)
   const bulkBtn = document.getElementById('att-bulk-confirm-btn');
-  if (bulkBtn) bulkBtn.style.display = pC > 0 ? 'block' : 'none';
+  if (bulkBtn) {bulkBtn.style.display=pC>0?'block':'none';bulkBtn.disabled=_attBulkBusy||_attLoading||!_attReady[iso];}
   const bulkCount = document.getElementById('att-bulk-count');
   if (bulkCount) bulkCount.textContent = pC;
+  renderAttBulkResult();
 }
 
 // 결석/지각/여행 등 예외만 표시된 상태에서, 나머지 미확정 전원을 한번에 "출석"으로 확정
-async function confirmRemainingAsPresent() {
-  const iso = toISO(curDate);
-  const list = getList(iso);
-  const recs = getRec(iso);
-  const pending = list.filter(m => !(recs[m.id] || {}).status);
-
-  if (!pending.length) { alert('확정할 대상이 없어요'); return; }
-  if (!confirm(pending.length + '명을 전부 출석(✅)으로 확정할까요?\n(결석/지각 등 예외 처리한 사람은 그대로 유지돼요)')) return;
-
-  const btn = document.getElementById('att-bulk-confirm-btn');
-  if (btn) btn.disabled = true;
-
-  for (let i = 0; i < pending.length; i++) {
-    await qSet(iso, pending[i].id, 'in');
-    if (btn) btn.textContent = '⏳ 확정 중... ' + (i + 1) + '/' + pending.length;
-    if (i % 8 === 7) await new Promise(r => setTimeout(r, 200));
-  }
-
-  if (btn) { btn.disabled = false; btn.textContent = '☑️ 나머지 전원 출석 확정 (' + 0 + '명)'; }
-  renderAtt();
+async function confirmRemainingAsPresent(){return runAttendanceBulk(false);}
+async function retryFailedAttendance(){return runAttendanceBulk(true);}
+function renderAttBulkResult(){
+  var box=document.getElementById('att-bulk-result');if(!box)return;box.textContent='';
+  var r=_attBulkResult;if(!r||r.iso!==toISO(curDate)){box.hidden=true;return;}box.hidden=false;
+  var title=document.createElement('strong');title.textContent=r.busy?'⏳ 출결 처리 중 · '+r.processed+'/'+r.total:r.verified?'출결 서버 확인 완료':'출결 서버 재확인 필요';box.appendChild(title);
+  var text=document.createElement('p');text.textContent=r.busy?'저장 결과를 확인하고 있습니다.':r.verified?'출석 확인 '+r.confirmed+'명 · 다른 상태로 기록됨 '+r.other+'명 · 미확정 '+r.failed.length+'명':'저장 응답 성공 '+r.saved+'명. 서버 조회에 실패하여 나머지 결과를 확정하지 않았습니다.';box.appendChild(text);
+  if(!r.busy&&r.failed.length){var list=document.createElement('ul');r.failed.forEach(function(x){var li=document.createElement('li');li.textContent=x.name+' — '+x.error;list.appendChild(li);});box.appendChild(list);}
+  if(!r.busy&&(r.failed.length||!r.verified)){var retry=document.createElement('button');retry.type='button';retry.className='btn-sm';retry.textContent=r.verified?'미확정 대상만 재시도':'서버 재확인 후 재시도';retry.onclick=retryFailedAttendance;box.appendChild(retry);}
+}
+async function runAttendanceBulk(retry){
+  if(_attBulkBusy||_attWrites||_attLoading||Object.keys(_attMemoDrafts).length||WriteGuard.editing()){alert('진행 중인 저장이나 편집을 먼저 완료해주세요.');return;}
+  const iso=toISO(curDate),previous=_attBulkResult;
+  var candidates=retry&&previous&&previous.iso===iso?previous.failed.map(function(x){return {id:x.id,kr:x.name};}):getList(iso).filter(function(m){return !(getRec(iso)[m.id]||{}).status;});
+  if(!candidates.length){alert('확정할 대상이 없습니다.');return;}
+  if(!confirm(candidates.length+'명의 최신 서버 상태를 확인하고 미확정인 사람만 출석으로 저장할까요?'))return;
+  _attBulkBusy=true;
+  var result={iso:iso,total:candidates.length,processed:0,busy:true,saved:0,confirmed:0,other:0,verified:false,failed:[],targets:candidates};_attBulkResult=result;renderAtt();
+  try{
+    if(!await loadAttFromSheets(iso,{bulk:true,quiet:true})){
+      result.failed=candidates.map(function(m){return {id:m.id,name:m.kr,error:'서버 조회 실패 — 저장하지 않음'};});return;
+    }
+    for(var i=0;i<candidates.length;i++){
+      var m=candidates[i],rec=getRec(iso)[m.id]||{};
+      if(!rec.status){
+        var ok=await qSet(iso,m.id,'in',{bulk:true,quiet:true,ensure:true});
+        if(ok)result.saved++;else result.failed.push({id:m.id,name:m.kr,error:_attLastErrors[iso+'|'+m.id]||'저장 실패'});
+      }
+      result.processed=i+1;renderAttBulkResult();
+    }
+    // Successful rows are never blindly resubmitted. Re-read even after all POSTs succeeded.
+    var failedById={};result.failed.forEach(function(x){failedById[x.id]=x;});
+    result.verified=await loadAttFromSheets(iso,{bulk:true,quiet:true});
+    if(result.verified){
+      result.failed=[];candidates.forEach(function(m){var status=(getRec(iso)[m.id]||{}).status;
+        if(status==='in'||status==='late')result.confirmed++;
+        else if(status)result.other++;
+        else result.failed.push(failedById[m.id]||{id:m.id,name:m.kr,error:'서버에 미확정 상태로 남아 있습니다.'});
+      });
+    }else{
+      // Include uncertain successes in the verification candidates, but retry never overwrites a server status.
+      result.failed=candidates.map(function(m){return failedById[m.id]||{id:m.id,name:m.kr,error:'서버 최종 조회 실패 — 재확인 필요'};});
+    }
+  }catch(e){result.verified=false;result.failed=candidates.map(function(m){return {id:m.id,name:m.kr,error:e.message};});}
+  finally{result.busy=false;_attBulkBusy=false;renderAtt();}
 }
 
 // ── 빠른 출결 체크 ────────────────────────────────────────────
-async function qSet(iso, mid, st) {
+async function qSet(iso, mid, st, options) {
+  options=options||{};
+  if((_attBulkBusy&&!options.bulk)||!_attReady[iso])return false;
   const r    = getRec(iso);
   const prev = (r[mid] || {}).status;
   const past = iso < todayISO;
 
   // 오늘 이미 출석(in/late) 상태면 재클릭 무시
-  if (!past && (prev === 'in' || prev === 'late') && st === prev) return;
+  if (options.ensure&&prev)return true;
+  if (!past && (prev === 'in' || prev === 'late') && st === prev) return true;
 
   let upd;
   if (prev === st) {
@@ -195,26 +209,33 @@ async function qSet(iso, mid, st) {
 
   }
 
-  await saveAttToSheets(iso, mid, upd);
-  renderAtt();
+  var ok=await saveAttToSheets(iso, mid, upd,options);
+  if(!options.bulk)renderAtt();
+  return ok;
 }
 
-var _attMemoTimers=Object.create(null);
+var _attMemoTimers=Object.create(null),_attMemoDrafts=Object.create(null);
 var _attWrites=0;
 function qMemo(iso,mid,val){
-  var key=iso+'|'+mid;clearTimeout(_attMemoTimers[key]);
+  var key=iso+'|'+mid;_attMemoDrafts[key]=val;clearTimeout(_attMemoTimers[key]);
   _attMemoTimers[key]=setTimeout(async function(){
     delete _attMemoTimers[key];
     var ex=getRec(iso)[mid]||{};
-    await saveAttToSheets(iso,mid,{...ex,memo:val,updatedAt:now2()});
+    var ok=await saveAttToSheets(iso,mid,{...ex,memo:val,updatedAt:now2()});
+    if(_attMemoDrafts[key]===val){if(ok)delete _attMemoDrafts[key];renderAtt();}
   },500);
 }
+function retryAttMemo(iso,mid){var key=iso+'|'+mid;if(Object.prototype.hasOwnProperty.call(_attMemoDrafts,key))qMemo(iso,mid,_attMemoDrafts[key]);}
+function discardAttMemo(iso,mid){var key=iso+'|'+mid;if(_attRowWrites.has(key)||!confirm('저장하지 못한 메모를 취소하고 서버에서 읽었던 값으로 돌아갈까요?'))return;clearTimeout(_attMemoTimers[key]);delete _attMemoTimers[key];delete _attMemoDrafts[key];renderAtt();}
 window.addEventListener('beforeunload',function(e){
-  if(Object.keys(_attMemoTimers).length||_attWrites){e.preventDefault();e.returnValue='';}
+  if(Object.keys(_attMemoDrafts).length||_attWrites){e.preventDefault();e.returnValue='';}
 });
 
 // ── Sheets에 단일 출결 저장 ───────────────────────────────────
-async function saveAttToSheets(iso, mid, r) {
+async function saveAttToSheets(iso, mid, r, options) {
+  options=options||{};var rowKey=iso+'|'+mid;
+  if(_attRowWrites.has(rowKey)||(_attBulkBusy&&!options.bulk)){if(!options.quiet)alert('이 출결은 저장 중입니다. 잠시 기다려주세요.');return false;}
+  _attRowWrites.add(rowKey);delete _attLastErrors[rowKey];
   r=Object.assign({},getRec(iso)[mid]||{},r);
   const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
   const author = _currentUser ? (_currentUser.name || '') : '';
@@ -242,8 +263,8 @@ async function saveAttToSheets(iso, mid, r) {
     });
     setRec(iso,mid,{...r});return true;
   } catch(e) {
-    alert('❌ 출결 저장 실패: '+e.message);return false;
-  } finally{_attWrites--;} 
+    _attLastErrors[rowKey]=e.message;if(!options.quiet)alert('❌ 출결 저장 실패: '+e.message);return false;
+  } finally{_attWrites--;_attRowWrites.delete(rowKey);} 
 }
 
 // ── 출결 상세 모달 ────────────────────────────────────────────

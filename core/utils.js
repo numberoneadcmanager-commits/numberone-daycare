@@ -105,18 +105,20 @@ function hideLoadingOverlay() {
 
 // ── 모달 헬퍼 ─────────────────────────────────────────────────
 function openOv(id) {
+  WriteGuard.beginEdit(id);
   document.getElementById(id).classList.add('open');
   document.getElementById(id.replace(/^ov-/, 'modal-ov-')).style.display = 'block';
 }
 
 function closeOv(id) {
+  WriteGuard.endEdit(id);
   document.getElementById(id).classList.remove('open');
   document.getElementById(id.replace(/^ov-/, 'modal-ov-')).style.display = 'none';
   editId = null; popId = null; popDate = null; mCurSt = null;
 }
 
 function closeModal() {
-  document.querySelectorAll('.ov.open').forEach(o => o.classList.remove('open'));
+  document.querySelectorAll('.ov.open').forEach(o => {WriteGuard.endEdit(o.id);o.classList.remove('open');});
   document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
   editId = null; popId = null; popDate = null; mCurSt = null;
 }
@@ -185,12 +187,7 @@ function showStorageInfo() {
   return '이 기기에는 운영 데이터를 저장하지 않습니다. 데이터 원본은 Google Sheets / Drive입니다.';
 }
 
-// ── apiCall 래퍼 (SheetsAPI 위임) ────────────────────────────
-function apiCall(getParams, postBody) {
-  if (postBody) return SheetsAPI.post(postBody);
-  return SheetsAPI.get(getParams);
-}
-
+// API wrappers are defined once in core/api.js. apiCall = POST, apiGet = GET.
 var apiUrl = SheetsAPI.URL;
 
 // Sheet/user text used in HTML content or quoted attributes.

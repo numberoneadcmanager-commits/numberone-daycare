@@ -429,7 +429,7 @@ var SECTOR_NAMES = ['N','NE','E','SE','S','SW','W','NW'];
 var VEHICLE_FLEET=[{label:'Van1',cap:14},{label:'Van2',cap:14},{label:'Minivan1',cap:7}];
 function getVehicleFleet(){return VEHICLE_FLEET.map(function(v){return {label:v.label,cap:v.cap};});}
 async function loadVehicleFleetFromSheets(){
-  try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr))VEHICLE_FLEET=arr;}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
+  try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr))WriteGuard.adopt(WriteGuard.select(res,[row]),function(){VEHICLE_FLEET=arr;});}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
 }
 async function saveVehicleFleet(fleet){
   await SheetsAPI.upsert('settings','Key','fleet_vehicles',{'Key':'fleet_vehicles','Value':JSON.stringify(fleet),'수정시각':new Date().toISOString()});VEHICLE_FLEET=fleet.map(function(v){return {label:v.label,cap:v.cap};});
@@ -999,7 +999,7 @@ var TRANSPORT_LOG = [];
 function loadTransportFromSheets() {
   apiGet({ action: 'read', sheet: 'transportation' }).then(function(res) {
     if (res && res.ok && res.data) {
-      TRANSPORT_LOG = res.data;
+      WriteGuard.adopt(res,function(){TRANSPORT_LOG = res.data;});
       renderTransportLog();
     }
   }).catch(function(){});

@@ -38,7 +38,7 @@ function saveTrStorage() {}
 
 function loadTrFromSheets(){
   apiGet({action:'read',sheet:'training_log'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
       // 세션별로 그룹핑
       var sessions = {};
       res.data.forEach(function(r){
@@ -56,7 +56,7 @@ function loadTrFromSheets(){
           id:String(r['스태프ID']),name:String(r['스태프이름']||'')
         });
       });
-      TR_SESSIONS = Object.values(sessions);
+      WriteGuard.adopt(res,function(){TR_SESSIONS = Object.values(sessions);});
       renderTrSessionList();
     }
   }).catch(function(){});

@@ -49,7 +49,7 @@ async function toggleMemberDocs(mid, btn) {
     var logs = (logRes.ok && logRes.data) ? logRes.data : [];
     function lastLog(type) {
       var found = logs.filter(function(l){ return String(l['파일종류']||'')===type; });
-      return found.length ? String(found[found.length-1]['저장일시']||'').slice(0,10) : null;
+      return found.length ? memberDocDate(found[found.length-1]['저장일시']) : null;
     }
     html += docRow('🥗','Nutrition Screening', lastLog('Nutrition'),  lastLog('Nutrition')  ? "viewDriveDoc('"+mid+"','Nutrition')"  : '', '_pendingNutrition_'+mid);
     html += docRow('📋','Assessment',           lastLog('Assessment'), lastLog('Assessment') ? "viewDriveDoc('"+mid+"','Assessment')" : '', '_pendingAssessment_'+mid);
@@ -472,6 +472,7 @@ async function saveStatus() {
     await SheetsAPI.saveMember(m);
   } catch(e) { alert('❌ 상태 저장 실패: '+e.message); return; }
   Object.assign(original,m);
+  WriteGuard.endEdit('ov-status');
   document.getElementById('ov-status').classList.remove('open');
   document.getElementById('modal-ov-status').style.display = 'none';
 
@@ -780,8 +781,7 @@ async function showPendingSignatures() {
     var latestMap = {};
     checkTargets.forEach(function(l){
       var key = l['멤버ID'] + '_' + l['파일종류'];
-      var savedAt = String(l['저장일시']||'');
-      if (!latestMap[key] || savedAt > latestMap[key]['저장일시']) latestMap[key] = l;
+      latestMap[key]=l; // Append order is authoritative; never compare locale date strings.
     });
 
     var checks = Object.values(latestMap).map(async function(l) {
@@ -796,7 +796,7 @@ async function showPendingSignatures() {
             pending.push({
               mid: mid, mName: mName, type: fileType,
               icon: fileType === 'Nutrition' ? '🥗' : '📋',
-              date: String(l['저장일시']||'').slice(0,10),
+              date: memberDocDate(l['저장일시']),
               onclick: "closeOv('ov-doc-viewer');"
                 + "window.location.href='operations.html?tab=forms&mid="+mid+"&type="+fileType+"&sign=1'"
             });
@@ -1021,7 +1021,7 @@ async function loadDaycareHoursFromSheets() {
   try {
     var res=await SheetsAPI.read('settings'); var rows=(res&&res.ok&&res.data)?res.data:[];
     var row=rows.find(function(r){return String(r['Key']||'')==='daycare_hours';});
-    if(row&&row['Value']){var v=JSON.parse(String(row['Value'])); if(v&&v.start&&v.end) DAYCARE_HOURS={start:v.start,end:v.end};}
+    if(row&&row['Value']){var v=JSON.parse(String(row['Value'])); if(v&&v.start&&v.end)WriteGuard.adopt(WriteGuard.select(res,[row]),function(){DAYCARE_HOURS={start:v.start,end:v.end};});}
   } catch(e){console.log('운영시간 로드 실패:',e);} loadDaycareHoursDisplay();
 }
 async function saveDaycareHours() {
@@ -1332,46 +1332,53 @@ var PCSP_STATUS_MAP = {};       // mid -> {wdate, nextdate, status, expired}
 var NUTRITION_STATUS_MAP = {};  // mid -> {date, signed}
 var ASSESSMENT_STATUS_MAP = {}; // mid -> {date, signed}
 
+// Dates shown in document summaries are civil dates, not locale-sortable timestamps.
+function memberDocDate(value){
+  var m=String(value||'').match(/^(\d{4})[-.](?:\s*)(\d{1,2})[-.](?:\s*)(\d{1,2})(?:$|[T.\s])/);if(!m)return '';
+  var iso=m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'),date=new Date(iso+'T12:00:00Z');
+  return !isNaN(date.getTime())&&date.toISOString().slice(0,10)===iso?iso:'';
+}
+function memberServerTime(value){var s=String(value||'');return /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(s)&&Number.isFinite(Date.parse(s))?Date.parse(s):null;}
+function memberLatestPCSP(rows){
+  var date=rows.reduce(function(best,r){var d=memberDocDate(r['작성일']);return d>best?d:best;},'');
+  var candidates=rows.filter(function(r){return memberDocDate(r['작성일'])===date;});
+  // Explicit renewal links can resolve older records even before timestamps were introduced.
+  var previous=new Set(candidates.map(function(r){return String(r['이전PCSP']||'');}).filter(Boolean));
+  var leaves=candidates.filter(function(r){return !previous.has(String(r.ID));});if(leaves.length)candidates=leaves;
+  if(candidates.length===1)return {row:candidates[0],date:date,ambiguous:false};
+  if(candidates.every(function(r){return memberServerTime(r['생성시각'])!==null;})){
+    var latest=Math.max.apply(null,candidates.map(function(r){return memberServerTime(r['생성시각']);}));
+    candidates=candidates.filter(function(r){return memberServerTime(r['생성시각'])===latest;});
+    if(candidates.length===1)return {row:candidates[0],date:date,ambiguous:false};
+  }
+  // Never compare revision numbers across different PCSP records or guess from sheet row order.
+  return {date:date,ambiguous:true};
+}
+
+var _docStatusSerial=0;
 async function loadDocStatusMaps(forceReload) {
   if (_docStatusLoaded && !forceReload) return;
+  var serial=++_docStatusSerial;
   try {
     var [pcspRes, logRes] = await Promise.all([
       SheetsAPI.read('PCSP'),
       SheetsAPI.read('JSONLog'),
     ]);
+    if(serial!==_docStatusSerial)return;
     var today = new Date().toLocaleDateString('sv-SE');
 
     PCSP_STATUS_MAP = {};
-    if (pcspRes && pcspRes.ok && pcspRes.data) {
-      pcspRes.data.forEach(function(p) {
-        var savedKey = String(p['멤버ID']||'').trim();
-        if (!savedKey) return;
-        var wdate = String(p['작성일']||'').slice(0,10);
-        var nextdate = String(p['갱신예정일']||'').slice(0,10);
-        var statusObj = {
-          wdate: wdate,
-          nextdate: nextdate,
-          status: String(p['상태']||''),
-          expired: !!(nextdate && nextdate < today),
-        };
-
-        // PCSP는 기존 코드에서 '멤버ID'에 내부 ID가 아니라 Medicaid 번호를 저장한 기록이 있음.
-        // 멤버 카드에서는 내부 ID(m.id)로 조회하므로, 둘 다 같은 PCSP 상태를 가리키도록 alias를 만든다.
-        var keys = [savedKey, savedKey.toUpperCase()];
-        var member = (typeof MEMBERS !== 'undefined' ? MEMBERS : []).find(function(m){
-          return String(m.id||'') === savedKey
-            || String(m.medicaid||'').trim().toUpperCase() === savedKey.toUpperCase();
-        });
-        if (member) {
-          keys.push(String(member.id||''));
-          if (member.medicaid) keys.push(String(member.medicaid).trim().toUpperCase());
-        }
-
-        keys.filter(Boolean).forEach(function(key){
-          if (!PCSP_STATUS_MAP[key] || wdate > PCSP_STATUS_MAP[key].wdate) {
-            PCSP_STATUS_MAP[key] = statusObj;
-          }
-        });
+    if(pcspRes&&pcspRes.ok&&Array.isArray(pcspRes.data)){
+      var groups={};pcspRes.data.forEach(function(p){
+        var key=String(p['멤버ID']||'').trim();if(!key)return;
+        var member=MEMBERS.find(function(m){return String(m.id)===key||String(m.medicaid||'').trim().toUpperCase()===key.toUpperCase();});
+        var canonical=member?String(member.id):key;
+        if(!groups[canonical])groups[canonical]={rows:[],keys:new Set([canonical])};
+        groups[canonical].rows.push(p);[key,key.toUpperCase(),member&&String(member.medicaid||'').trim().toUpperCase()].filter(Boolean).forEach(function(k){groups[canonical].keys.add(k);});
+      });
+      Object.keys(groups).forEach(function(k){var group=groups[k],selected=memberLatestPCSP(group.rows);
+        var status=selected.ambiguous?{wdate:selected.date,nextdate:'',status:'동일 날짜 이력 확인',expired:false,ambiguous:true}:{id:String(selected.row.ID||''),wdate:memberDocDate(selected.row['작성일']),nextdate:memberDocDate(selected.row['갱신예정일']),status:String(selected.row['상태']||''),expired:!!(memberDocDate(selected.row['갱신예정일'])&&memberDocDate(selected.row['갱신예정일'])<today)};
+        group.keys.forEach(function(key){PCSP_STATUS_MAP[key]=status;});
       });
     }
 
@@ -1381,14 +1388,14 @@ async function loadDocStatusMaps(forceReload) {
       logRes.data.forEach(function(l) {
         var mid  = String(l['멤버ID']||'');
         var type = String(l['파일종류']||'');
-        var date = String(l['저장일시']||'').slice(0,10);
-        if (!mid || !date) return;
+        var date = memberDocDate(l['저장일시']);
+        if (!mid) return;
         if (type === 'Nutrition') {
-          if (!NUTRITION_STATUS_MAP[mid] || date > NUTRITION_STATUS_MAP[mid].date) {
+          { // latest appended record, not locale-string order
             NUTRITION_STATUS_MAP[mid] = { date: date, signed: null }; // signed는 아래에서 비동기 보강
           }
         } else if (type === 'Assessment') {
-          if (!ASSESSMENT_STATUS_MAP[mid] || date > ASSESSMENT_STATUS_MAP[mid].date) {
+          { // latest appended record, not locale-string order
             ASSESSMENT_STATUS_MAP[mid] = { date: date, signed: null };
           }
         }

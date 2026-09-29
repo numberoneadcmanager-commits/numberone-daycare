@@ -15,16 +15,19 @@ const SheetsAPI = {
 
   // ── 기본 호출 ──────────────────────────────────────────────
   async get(params) {
+    const stamp=WriteGuard.readStart();
     const qs  = new URLSearchParams(params).toString();
     const res = await fetch(this.URL + '?' + qs, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
     if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
-    return WriteGuard.remember(params,data);
+    return WriteGuard.remember(params,data,stamp);
   },
 
   async post(body) {
+    WriteGuard.writeStart();
+    try{
     body=WriteGuard.prepare(body);
     const res = await fetch(this.URL, {
       method: 'POST',
@@ -37,6 +40,7 @@ const SheetsAPI = {
     if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
     if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
     return WriteGuard.saved(body,data);
+    }finally{WriteGuard.writeEnd();}
   },
 
   // ── 연결 테스트 ────────────────────────────────────────────
@@ -124,7 +128,7 @@ const SheetsAPI = {
       { bg: '#FAEEDA', color: '#854F0B' }, { bg: '#FBEAF0', color: '#72243E' },
       { bg: '#EAF3DE', color: '#3B6D11' }, { bg: '#E6F1FB', color: '#0C447C' }
     ];
-    return res.data.map(function(r) {
+    return WriteGuard.track(res.data.map(function(r) {
       var id = String(r['ID'] || '');
       var n  = 0; for (var i = 0; i < id.length; i++) n += id.charCodeAt(i);
       var clr = COLORS[n % COLORS.length];
@@ -170,7 +174,7 @@ const SheetsAPI = {
         avBg:          r['avBg']   || clr.bg,
         avColor:       r['avColor'] || clr.color,
       };
-    }).filter(m => m.id && m.kr);
+    }).filter(m => m.id && m.kr),res);
   },
 
   async saveMember(m) {
@@ -230,7 +234,7 @@ const SheetsAPI = {
   async loadStaff() {
     const res = await this.read('스태프');
     if (!res.ok || !Array.isArray(res.data)) throw new Error('Invalid member response');
-    return res.data.map(function(r) {
+    return WriteGuard.track(res.data.map(function(r) {
       var certs = [];
       try { certs = JSON.parse(r['자격증'] || '[]'); } catch (e) {}
       return {
@@ -244,7 +248,7 @@ const SheetsAPI = {
         avBg:    String(r['avBg']   || '#FAECE7'),
         avColor: String(r['avColor'] || '#993C1D'),
       };
-    });
+    }),res);
   },
 
   async saveStaff(s) {
@@ -385,7 +389,7 @@ const SheetsAPI = {
   async loadAuth() {
     const res = await this.read('auth');
     if (!res.ok) return [];
-    return (res.data || []).map(function(r) {
+    return WriteGuard.track((res.data || []).map(function(r) {
       return {
         id:          String(r['ID'] || ''),
         memberId:    String(r['멤버ID'] || ''),
@@ -410,7 +414,7 @@ const SheetsAPI = {
         pdfLink:     String(r['PDF링크'] || ''),
         note:        String(r['메모'] || ''),
       };
-    });
+    }),res);
   },
 
   // ══════════════════════════════════════════════════════════
@@ -453,7 +457,7 @@ const SheetsAPI = {
       this.read('visitor'),
       this.read('council'),
     ]);
-    return {
+    return WriteGuard.track({
       incidents:  iR.ok ? (iR.data  || []) : [],
       activities: aR.ok ? (aR.data  || []) : [],
       cases:      cR.ok ? (cR.data  || []) : [],
@@ -469,7 +473,7 @@ const SheetsAPI = {
                  agenda:String(r['안건']||''), minutes:String(r['내용']||''), next:String(r['다음회의']||''),
                  pdfLink:String(r['PDF링크']||''),minutesPdfLink:String(r['회의록PDF링크']||''),combinedPdfLink:String(r['합본PDF링크']||'') };
       }) : [],
-    };
+    },iR,aR,cR,authR,vR,coR);
   },
 
   // ══════════════════════════════════════════════════════════

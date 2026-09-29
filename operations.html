@@ -1256,15 +1256,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-  <script src="core/write_guard.js?v=20260911p1"></script>
+  <script src="core/write_guard.js?v=20260929accuracy1"></script>
 <script src="apps/billing.js?v=20260911p1"></script>
   <script src="apps/attachments.js?v=20260929"></script>
   <script src="apps/medications.js?v=20260929"></script>
 <script src="apps/pcsp.js?v=20260921shared"></script>
-  <script src="apps/staff_ops.js?v=20260911p1"></script>
+  <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
   <script src="apps/forms_ops.js?v=20260929"></script>
   <script src="apps/documents.js?v=20260929"></script>
-  <script src="apps/training_ops.js?v=20260929"></script>
+  <script src="apps/training_ops.js?v=20260929accuracy1"></script>
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────
@@ -1388,8 +1388,8 @@ function goTab(tab,el){
 }
 
 // ── Overlay ───────────────────────────────────────────────
-function openOv(id){document.getElementById(id).classList.add('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='block';}
-function closeOv(id){document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
+function openOv(id){WriteGuard.beginEdit(id);document.getElementById(id).classList.add('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='block';}
+function closeOv(id){WriteGuard.endEdit(id);document.getElementById(id).classList.remove('open');document.getElementById(id.replace(/^ov-/,'modal-ov-')).style.display='none';}
 
 // ── API Call ─────────────────────────────────────────────
 async function checkAPIResponse(r){
@@ -1400,11 +1400,14 @@ async function checkAPIResponse(r){
   return result;
 }
 async function apiCall(data){
+  WriteGuard.writeStart();try{
   data=WriteGuard.prepare(data);
   return WriteGuard.saved(data,await checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)})));
+  }finally{WriteGuard.writeEnd();}
 }
 async function apiGet(params){
-  return WriteGuard.remember(params,await checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'})));
+  var stamp=WriteGuard.readStart();
+  return WriteGuard.remember(params,await checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'})),stamp);
 }
 // ── Drive JSON 저장/로드 ──────────────────────────────────
 async function saveJSONtoDrive(memberId,memberName,fileType,jsonData){
@@ -1495,8 +1498,9 @@ async function loadAuditFromSheets(){
     var res=await apiGet({action:'read',sheet:'settings'});
     var rows=(res&&res.ok&&res.data)?res.data:[];
     var row=rows.find(function(r){return String(r['Key']||'')==='audit_done';});
-    AUDIT_DONE=row&&row['Value']?JSON.parse(String(row['Value'])):{};
-  }catch(e){AUDIT_DONE={};console.log('Audit 로드 실패:',e);}
+    var next=row&&row['Value']?JSON.parse(String(row['Value'])):{};
+    WriteGuard.adopt(WriteGuard.select(res,row?[row]:[]),function(){AUDIT_DONE=next;});
+  }catch(e){console.log('Audit 로드 실패:',e);}
   renderAudit();
 }
 
@@ -1579,13 +1583,15 @@ var GR_LIST = [];
 function saveGRStorage(){ /* 중앙 저장소 사용 */ }
 function loadGRfromSheets(){
   apiGet({action:'read',sheet:'grievance'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
+      WriteGuard.adopt(res,function(){
       GR_LIST=res.data.map(function(r){return{
         id:String(r['ID']||''),date:String(r['날짜']||''),type:String(r['유형']||'Grievance'),
         member:String(r['멤버']||''),content:String(r['내용']||''),action:String(r['조치']||''),
         staff:String(r['담당자']||''),status:String(r['상태']||'open'),result:String(r['결과']||'')
       };}).filter(function(g){return g.id;});
       saveGRStorage();
+      });
     }
     renderGrievanceList();
   }).catch(function(){ renderGrievanceList(); });
@@ -1894,7 +1900,8 @@ var FD_LIST = [];
 function saveFDStorage(){ /* 중앙 저장소 사용 */ }
 function loadFDfromSheets(){
   apiGet({action:'read',sheet:'firedrill'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
+      WriteGuard.adopt(res,function(){
       FD_LIST=res.data.map(function(r){return{
         id:String(r['ID']||''),date:String(r['날짜']||''),time:String(r['시간']||''),
         count:String(r['참석인원']||''),duration:String(r['소요시간']||''),
@@ -1902,6 +1909,7 @@ function loadFDfromSheets(){
         pdfLink:String(r['PDF링크']||'')
       };}).filter(function(f){return f.id;});
       saveFDStorage();
+      });
     }
     renderFDList();
   }).catch(function(){ renderFDList(); });
@@ -2035,13 +2043,15 @@ var TEMP_LIST = [];
 function saveTempStorage(){ /* 중앙 저장소 사용 */ }
 function loadTempfromSheets(){
   apiGet({action:'read',sheet:'templog'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
+      WriteGuard.adopt(res,function(){
       TEMP_LIST=res.data.map(function(r){return{
         id:String(r['ID']||''),date:String(r['날짜']||''),time:String(r['시간']||''),
         type:String(r['유형']||''),value:String(r['측정값']||''),
         unit:String(r['단위']||'°F'),staff:String(r['기록자']||''),note:String(r['메모']||'')
       };}).filter(function(t){return t.id;});
       saveTempStorage();
+      });
     }
     renderTempList();
   }).catch(function(){ renderTempList(); });
@@ -2133,13 +2143,15 @@ var DOCS_LIST = JSON.parse('['+
 function saveDocsStorage(){ /* 중앙 저장소 사용 */ }
 function loadDocsfromSheets(){
   apiGet({action:'read',sheet:'docs'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
+      WriteGuard.adopt(res,function(){
       DOCS_LIST=res.data.map(function(r){return{
         id:String(r['ID']||''),name:String(r['이름']||''),cat:String(r['카테고리']||'인증/허가'),
         issued:String(r['발급일']||''),expiry:String(r['만료일']||''),
         link:String(r['Drive링크']||''),note:String(r['메모']||'')
       };}).filter(function(d){return d.id&&d.name;});
       saveDocsStorage();
+      });
     }
     renderDocsList();
   }).catch(function(){ renderDocsList(); });
@@ -2220,13 +2232,15 @@ var ACT_LIST = [];
 function saveActStorage(){ /* 중앙 저장소 사용 */ }
 function loadActfromSheets(){
   apiGet({action:'read',sheet:'op_activity'}).then(function(res){
-    if(res&&res.ok&&res.data&&res.data.length){
+    if(res&&res.ok&&Array.isArray(res.data)){
+      WriteGuard.adopt(res,function(){
       ACT_LIST=res.data.map(function(r){return{
         id:String(r['ID']||''),date:String(r['날짜']||''),time:String(r['시간']||''),
         name:String(r['활동명']||''),cat:String(r['카테고리']||'신체활동'),
         staff:String(r['담당자']||''),note:String(r['메모']||'')
       };}).filter(function(a){return a.id&&a.name;});
       saveActStorage();
+      });
     }
     renderActivityList();
   }).catch(function(){ renderActivityList(); });
