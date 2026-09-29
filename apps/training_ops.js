@@ -353,13 +353,14 @@ function saveDocWithUpload(){
   }
 
   if(file){
+    if(!file.size||file.size>20*1024*1024){alert('빈 파일 또는 20MB 초과 파일은 업로드할 수 없습니다.');return;}
     var statusEl = document.getElementById('doc-upload-status');
     if(statusEl) statusEl.textContent = '📤 업로드 중...';
     var reader = new FileReader();
     reader.onload = function(ev){
       var b64 = ev.target.result.split(',')[1];
       apiCall({
-        action:'savePDF', memberId:'CENTER', memberName:'센터문서',
+        action:'savePDF', originalName:file.name, memberId:'CENTER', memberName:'센터문서',
         fileType:name.replace(/\s+/g,'_'), base64Data:b64,
         author:_currentUser?(_currentUser.name||''):''
       }).then(function(res){
@@ -368,13 +369,14 @@ function saveDocWithUpload(){
           finalize(res.data.url);
         } else {
           if(statusEl) statusEl.textContent = '❌ 업로드 실패';
-          finalize(existingLink);
+          return;
         }
       }).catch(function(){
         if(statusEl) statusEl.textContent = '❌ 네트워크 오류';
-        finalize(existingLink);
+        return;
       });
     };
+    reader.onerror=function(){if(statusEl)statusEl.textContent='파일 읽기 실패';};
     reader.readAsDataURL(file);
   } else {
     finalize(existingLink);

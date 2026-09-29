@@ -212,7 +212,7 @@ function collectAssessmentData(){
   var gv2=function(id){var el=document.getElementById(id);return el?el.value:'';};
   return{formFields:collectAssessmentFields(),mid:_asmt.mid,date:gv2('as-date'),assessor:gv2('as-assessor'),medicaid:gv2('as-medicaid'),phone:gv2('as-phone'),addr:gv2('as-addr'),pcp:gv2('as-pcp'),dob:gv2('as-dob'),
     adl:{bathing:gv2('adl-bathing-st'),hygiene:gv2('adl-hygiene-st'),dressing:gv2('adl-dressing-st'),mobility:gv2('adl-mobility-st'),transfer:gv2('adl-transfer-st'),eating:gv2('adl-eating-st'),toilet:gv2('adl-toilet-st')},
-    medications:assessmentMedicationCollect(),
+    medications:assessmentMedicationCollect(),medicationSource:_assessmentMedicationSource,
     caregiver:{name:gv2('care-name'),rel:gv2('care-rel'),phone:gv2('care-hphone')},
     ec1:{name:gv2('ec1-name'),rel:gv2('ec1-rel'),phone:gv2('ec1-hphone')},
     ec2:{name:gv2('ec2-name'),rel:gv2('ec2-rel'),phone:gv2('ec2-hphone')},
@@ -566,35 +566,14 @@ function goOperationalSign(type){
 }
 
 // ── 멤버별 ID 업로드 ──────────────────────────────────────
-function uploadMemberID(mid, mName, docType){
-  var input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.pdf,.jpg,.jpeg,.png';
-  input.onchange = function(e){
-    var file = e.target.files[0];
-    if(!file)return;
-    var status = '📤 업로드 중...';
-    alert(status+'\n'+file.name+'\n멤버: '+mName+'\n종류: '+docType);
-    var reader = new FileReader();
-    reader.onload = function(ev){
-      var b64 = ev.target.result.split(',')[1];
-      var ext = file.name.split('.').pop().toLowerCase();
-      apiCall({
-        action:'savePDF', memberId:mid, memberName:mName,
-        fileType:docType, base64Data:b64,
-        author:_currentUser?(_currentUser.name||''):''
-      }).then(function(res){
-        if(res&&res.ok&&res.data&&res.data.success){
-          alert('✅ '+docType+' 업로드 완료!\n'+mName);
-          if(_docContext)showDocumentHistory(mid,mName,docType);else selectFormsMember(mid);
-        } else {
-          alert('❌ 업로드 실패. Drive 연결을 확인해주세요.');
-        }
-      }).catch(function(){ alert('❌ 네트워크 오류'); });
-    };
-    reader.readAsDataURL(file);
-  };
-  input.click();
+async function uploadMemberID(mid,mName,docType){
+  var input=document.createElement('input');input.type='file';input.accept='.pdf,.jpg,.jpeg,.png';
+  input.onchange=async function(){var file=input.files[0];if(!file)return;
+    var serial=_docListSerial;
+    try{await attachmentUpload(file,mid,mName,docType);alert('업로드 완료');
+      if(serial===_docListSerial&&document.getElementById('forms-hub').style.display!=='none'&&_docMember&&String(_docMember.mid)===String(mid))await showDocumentHistory(mid,mName,docType);
+    }catch(e){alert('업로드 실패: '+e.message);}
+  };input.click();
 }
 
 // ══════════════════════════════════════════════════════════

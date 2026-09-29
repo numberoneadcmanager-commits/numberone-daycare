@@ -149,7 +149,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .doc-renewal{margin:12px 0;padding:16px;border:1px solid #a8c6dd;border-radius:12px;background:#f1f8fc}.doc-renewal label{display:block;margin-top:12px;font-weight:600}.doc-renewal select,.doc-renewal textarea{display:block;width:100%;margin:6px 0;padding:8px}.doc-renewal p{font-size:13px;line-height:1.5}
 </style>
 <link rel="stylesheet" href="apps/documents.css?v=20260916design">
-<link rel="stylesheet" href="apps/medications.css?v=20260921shared">
+<link rel="stylesheet" href="apps/medications.css?v=20260929">
 </head>
 <body>
 
@@ -1133,6 +1133,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div class="modal-input-wrap" style="margin-bottom:10px"><label>또는 Google Drive 링크 직접 입력</label><input class="m-input" id="doc-link" placeholder="https://drive.google.com/..."></div>
   <div class="modal-input-wrap" style="margin-bottom:10px"><label>메모</label><input class="m-input" id="doc-note" placeholder="참고사항"></div>
+  <button type="button" class="mbt mbt-cancel" onclick="attachmentRepairCenter(this)">저장된 파일 형식 복구</button>
   <input type="hidden" id="doc-edit-id">
   <div class="modal-btns"><button class="mbt mbt-cancel" onclick="closeOv('ov-doc')">취소</button><button class="mbt mbt-save" onclick="saveDocWithUpload()">저장</button></div>
 </div>
@@ -1257,12 +1258,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
   <script src="core/write_guard.js?v=20260911p1"></script>
 <script src="apps/billing.js?v=20260911p1"></script>
-  <script src="apps/medications.js?v=20260921shared"></script>
+  <script src="apps/attachments.js?v=20260929"></script>
+  <script src="apps/medications.js?v=20260929"></script>
 <script src="apps/pcsp.js?v=20260921shared"></script>
   <script src="apps/staff_ops.js?v=20260911p1"></script>
-  <script src="apps/forms_ops.js?v=20260921shared"></script>
-  <script src="apps/documents.js?v=20260921shared"></script>
-  <script src="apps/training_ops.js?v=20260911p1"></script>
+  <script src="apps/forms_ops.js?v=20260929"></script>
+  <script src="apps/documents.js?v=20260929"></script>
+  <script src="apps/training_ops.js?v=20260929"></script>
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────

@@ -1,4 +1,5 @@
 // Shared editor UI; each document has its own medication array.
+var _assessmentMedicationSource=null;
 var _pcspMedicationRows=[],_pcspMedicationSource=null,_assessmentMedicationRows=[];
 function medicationNormalize(rows){return (Array.isArray(rows)?rows:[]).map(function(r){return {name:String(r.name||''),dose:String(r.dose||''),reason:String(r.reason||'')};}).filter(function(r){return r.name.trim()||r.dose.trim()||r.reason.trim();});}
 function medicationText(rows){return medicationNormalize(rows).map(function(r){return [r.name,r.dose,r.reason].filter(Boolean).join(' — ');}).join('\n');}
@@ -10,6 +11,7 @@ function medicationEditorRender(context){
   var label=document.createElement('label');label.textContent='약 검색 · 공용 라이브러리';toolbar.appendChild(label);
   var input=document.createElement('input');input.type='search';input.placeholder='약 이름을 검색하거나 직접 입력하세요';input.setAttribute('data-med-search','');input.autocomplete='off';label.appendChild(input);
   var add=document.createElement('button');add.type='button';add.className='medication-add';add.textContent='＋ 약 추가';toolbar.appendChild(add);
+  var sourceBtn=document.createElement('button');sourceBtn.type='button';sourceBtn.className='medication-add';sourceBtn.textContent='📄 약 리스트에서 가져오기';sourceBtn.onclick=function(){medicationSourcePicker(context);};toolbar.appendChild(sourceBtn);
   var matches=document.createElement('div');matches.className='medication-matches';matches.hidden=true;toolbar.appendChild(matches);
   function commit(name,reason){medicationEditorRows(context).push({name:name||'',dose:'',reason:reason||''});medicationEditorRender(context);if(context==='pcsp')pcspMedicationSync();}
   add.onclick=function(){commit(input.value.trim(),'');};
@@ -35,8 +37,9 @@ function pcspMedicationRender(){medicationEditorRender('pcsp');pcspMedicationSyn
 function pcspMedicationSync(){var text=document.getElementById('p-meds');if(text)text.value=medicationText(_pcspMedicationRows);}
 function pcspMedicationCollect(){return medicationNormalize(_pcspMedicationRows);}
 function pcspMedicationAdd(){_pcspMedicationRows.push({name:'',dose:'',reason:''});pcspMedicationRender();}
-function assessmentMedicationReset(){_assessmentMedicationRows=[];medicationEditorRender('assessment');}
+function assessmentMedicationReset(){_assessmentMedicationSource=null;_assessmentMedicationRows=[];medicationEditorRender('assessment');}
 function assessmentMedicationRestore(data){
+  _assessmentMedicationSource=data.medicationSource||null;
   var rows=data.medications;
   if(!Array.isArray(rows)){var fields=data.formFields||{},indices=Object.keys(fields).map(function(k){return /^med-(\d+)-name$/.exec(k);}).filter(Boolean).map(function(m){return Number(m[1]);}).sort(function(a,b){return a-b;});rows=indices.map(function(i){return {name:fields['med-'+i+'-name'],dose:fields['med-'+i+'-dose'],reason:fields['med-'+i+'-reason']};});}
   _assessmentMedicationRows=medicationNormalize(rows);medicationEditorRender('assessment');
