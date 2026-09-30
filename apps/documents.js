@@ -29,8 +29,21 @@ async function showDocumentHistory(mid,name,type){
   if(!_docMember||_docMember.mid!==String(mid)){_docExpanded={};_docTrash={};}
   _docMember={mid:String(mid),name:name||''};if(type)_docExpanded[type]=true;docChoose(type||'PCSP');
   var serial=++_docListSerial;_docRows=[];renderDocumentHistory('loading');
-  try{var data=docResult(await apiGet({action:'documentList',memberId:mid}));if(serial!==_docListSerial)return;_docRows=data.documents||[];renderDocumentHistory();}
+  try{var data=docResult(await apiGet({action:'documentList',memberId:mid}));if(serial!==_docListSerial)return;_docRows=data.documents||[];renderDocumentHistory();return true;}
   catch(e){if(serial!==_docListSerial)return;renderDocumentHistory('error',e.message);}
+}
+async function openDocumentFromURL(mid,name,type,id,recordMid){
+  var loaded=await showDocumentHistory(mid,name,type);
+  if(!loaded||!_docMember||_docMember.mid!==String(mid))return;
+  var i=_docRows.findIndex(function(d){return d.id===id&&d.type===type&&!d.deletedAt;});
+  if(i<0&&recordMid&&String(recordMid)!==String(mid)){
+    // Legacy records may still belong to the Medicaid alias in DocumentIndex.
+    loaded=await showDocumentHistory(recordMid,name,type);
+    if(!loaded||!_docMember||_docMember.mid!==String(recordMid))return;
+    i=_docRows.findIndex(function(d){return d.id===id&&d.type===type&&!d.deletedAt;});
+  }
+  if(i<0){alert('해당 문서를 찾을 수 없습니다. 삭제 여부를 문서 이력에서 확인해주세요.');return;}
+  docChoose(type);await docOpen(i);
 }
 function renderDocumentHistory(state,error){
   ['forms-official-list','forms-id-list'].forEach(function(id){document.getElementById(id).textContent='';});

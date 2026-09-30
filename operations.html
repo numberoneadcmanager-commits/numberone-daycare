@@ -1263,7 +1263,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="apps/pcsp.js?v=20260921shared"></script>
   <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
   <script src="apps/forms_ops.js?v=20260929"></script>
-  <script src="apps/documents.js?v=20260929"></script>
+  <script src="apps/documents.js?v=20260929summary2-20260929"></script>
   <script src="apps/training_ops.js?v=20260929accuracy1"></script>
 <script>
 
@@ -1361,8 +1361,9 @@ function initData(){
           var mName = member ? (member['한글이름']||'') : '';
           var type=params.get('type')||'PCSP';
           if(!member && type!=='PCSP'){alert('멤버 정보를 불러오지 못했습니다. Forms에서 멤버를 다시 선택해주세요.');return;}
-          if(member)selectFormsMember(mid);
-          showDocumentHistory(mid,mName,type);
+          if(member){document.getElementById('forms-search').value=mName;document.getElementById('forms-member-result').style.display='none';}
+          if(params.get('documentId'))openDocumentFromURL(mid,mName,type,params.get('documentId'),params.get('recordMid'));
+          else showDocumentHistory(mid,mName,type);
         }
       }, 150);
     }

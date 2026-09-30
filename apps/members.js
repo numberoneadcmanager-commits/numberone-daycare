@@ -743,117 +743,33 @@ async function splitMemberNames() {
 // ══════════════════════════════════════════════════════════════
 // 서명대기 폼 전체보기 (PCSP / Nutrition / Assessment)
 // ══════════════════════════════════════════════════════════════
+function documentPendingRows(summary){
+  var pending=[];
+  summary.pcsp.forEach(function(p){if(p['상태']==='서명대기')pending.push({mid:p.canonicalMid||String(p['멤버ID']),name:p['한글이름'],type:'PCSP',date:memberDocDate(p['작성일']),url:'operations.html?'+new URLSearchParams({tab:'forms',sign:'1',pcspId:p.ID,pcspMemberId:p['멤버ID'],pcspName:p['한글이름']})});});
+  summary.documents.forEach(function(d){if(d.signed===false&&d.jsonFile)pending.push({mid:d.mid,name:d.name,type:d.type,date:memberDocDate(d.date),url:'operations.html?'+new URLSearchParams({tab:'forms',mid:d.mid,type:d.type,documentId:d.id,recordMid:d.recordMid,sign:'1'})});});
+  return pending.sort(function(a,b){return a.date.localeCompare(b.date);});
+}
+function documentSummaryUnknown(summary){return summary.unindexed.length+summary.documents.filter(function(d){return d.readError;}).length;}
+function renderPendingSigCount(summary){
+  var count=documentPendingRows(summary).length,unknown=documentSummaryUnknown(summary);
+  var el=document.getElementById('pending-sig-count');if(el)el.textContent=count+(unknown?' + 확인중':'');
+  var alertEl=document.getElementById('ds-sig-alert');if(alertEl){alertEl.style.display=count||unknown?'block':'none';alertEl.textContent='📝 서명대기 '+count+'건'+(unknown?' · 이전 기록 '+unknown+'건 확인 필요':'')+' — 클릭해서 확인 →';}
+}
 async function showPendingSignatures() {
-  var titleEl = document.getElementById('doc-viewer-title');
-  var bodyEl  = document.getElementById('doc-viewer-body');
-  if (titleEl) titleEl.textContent = '📝 서명대기 목록';
-  if (bodyEl)  bodyEl.innerHTML = '<div style="padding:20px;text-align:center;color:#8E8E93">불러오는 중...</div>';
-  openOv('ov-doc-viewer');
-
-  var pending = []; // { mid, mName, type, date, icon }
-
-  try {
-    // 1) PCSP — Sheets에서 '상태'=서명대기 인 것
-    var pcspRes = await SheetsAPI.read('PCSP');
-    if (pcspRes.ok && pcspRes.data) {
-      pcspRes.data.forEach(function(p) {
-        if (String(p['상태']||'') === '서명대기') {
-          pending.push({
-            mid: String(p['멤버ID']||''),
-            mName: String(p['한글이름']||''),
-            type: 'PCSP', icon: '📋',
-            date: String(p['작성일']||'').slice(0,10),
-            onclick: "closeOv('ov-doc-viewer');window.location.href='operations.html?tab=forms&sign=1&pcspId="+encodeURIComponent(p['ID']||'')+"&pcspMemberId="+encodeURIComponent(p['멤버ID']||'')+"&pcspName="+encodeURIComponent(p['한글이름']||'')+"'"
-          });
-        }
-      });
-    }
-
-    // 2) Nutrition / Assessment — JSONLog 전체 조회 후 각 파일 signed 체크
-    var logRes = await SheetsAPI.read('JSONLog');
-    var logs = (logRes.ok && logRes.data) ? logRes.data : [];
-    var checkTargets = logs.filter(function(l){
-      var t = String(l['파일종류']||'');
-      return t === 'Nutrition' || t === 'Assessment';
-    });
-
-    // 멤버별 + 종류별 최신 1건만
-    var latestMap = {};
-    checkTargets.forEach(function(l){
-      var key = l['멤버ID'] + '_' + l['파일종류'];
-      latestMap[key]=l; // Append order is authoritative; never compare locale date strings.
-    });
-
-    var checks = Object.values(latestMap).map(async function(l) {
-      var mid = String(l['멤버ID']||'');
-      var mName = String(l['한글이름']||'');
-      var fileType = String(l['파일종류']||'');
-      try {
-        var res = await SheetsAPI.loadJSON(mid, mName, fileType);
-        if (res.ok && res.data && res.data.found) {
-          var d = res.data.data || {};
-          if (d.signed === false) {
-            pending.push({
-              mid: mid, mName: mName, type: fileType,
-              icon: fileType === 'Nutrition' ? '🥗' : '📋',
-              date: memberDocDate(l['저장일시']),
-              onclick: "closeOv('ov-doc-viewer');"
-                + "window.location.href='operations.html?tab=forms&mid="+mid+"&type="+fileType+"&sign=1'"
-            });
-          }
-        }
-      } catch(e) { /* 무시 */ }
-    });
-
-    await Promise.all(checks);
-
-    // 날짜 오름차순(오래된 것 먼저)
-    pending.sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-
-    var countEl = document.getElementById('pending-sig-count');
-    if (countEl) countEl.textContent = pending.length;
-
-    if (!pending.length) {
-      if (bodyEl) bodyEl.innerHTML = '<div style="padding:20px;text-align:center;color:#34C759;font-weight:600">✅ 서명대기 없음! 모두 완료됐어요.</div>';
-      return;
-    }
-
-    var html = '<div style="font-size:12px;color:#8E8E93;margin-bottom:10px">총 ' + pending.length + '건 — 태블릿으로 순서대로 열어 서명받으세요</div>';
-    pending.forEach(function(p) {
-      html += '<div onclick="' + p.onclick + '" style="background:#FFF3E0;border:1px solid #FFB347;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
-        + '<div><div style="font-size:13px;font-weight:700">' + p.icon + ' ' + p.mName + '</div>'
-        + '<div style="font-size:11px;color:#8E8E93;margin-top:2px">' + p.type + ' · ' + p.date + '</div></div>'
-        + '<span style="color:#FF9500;font-size:13px">서명받기 →</span>'
-        + '</div>';
-    });
-    if (bodyEl) bodyEl.innerHTML = html;
-
-  } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div style="padding:20px;color:#FF3B30">오류: ' + e.message + '</div>';
-  }
+  var title=document.getElementById('doc-viewer-title'),body=document.getElementById('doc-viewer-body');
+  if(title)title.textContent='📝 서명대기 목록';if(body)body.textContent='불러오는 중...';openOv('ov-doc-viewer');
+  try{
+    var summary=await loadDocStatusMaps(true);if(!summary)throw new Error('상태를 불러오지 못했습니다. 다시 시도해주세요.');
+    var pending=documentPendingRows(summary),unknown=documentSummaryUnknown(summary);renderPendingSigCount(summary);if(!body)return;
+    body.textContent='';var note=document.createElement('p');note.textContent=pending.length?'서명대기 '+pending.length+'건 — 작성일이 오래된 순서입니다.':unknown?'이전 기록 확인이 남아 있습니다.':'✓ 서명대기 문서가 없습니다.';body.appendChild(note);
+    if(unknown){var warning=document.createElement('p');warning.textContent='아직 확인하지 못한 기록 '+unknown+'건이 있습니다. 완료 건수에는 포함하지 않았습니다.';warning.style.color='#B35900';body.appendChild(warning);}
+    if(summary.unindexed.length){var next=document.createElement('button');next.textContent='이전 기록 확인 계속';next.onclick=function(){showPendingSignatures();};body.appendChild(next);}
+    var rows=pending.concat(summary.documents.filter(function(d){return d.readError;}).map(function(d){return {name:d.name,type:d.type,date:memberDocDate(d.date),unknown:true,url:'operations.html?'+new URLSearchParams({tab:'forms',mid:d.mid,type:d.type})};}));
+    rows.forEach(function(p){var button=document.createElement('button');button.type='button';button.style.cssText='width:100%;text-align:left;background:#FFF7EB;border:1px solid #F4D4A7;border-radius:12px;padding:14px;margin:8px 0;color:#764D1A;cursor:pointer';
+      var name=document.createElement('strong');name.textContent=p.name||p.mid||'회원';var meta=document.createElement('div');meta.style.cssText='font-size:12px;margin-top:6px';meta.textContent=p.type+' · '+(p.date||'날짜 미상')+' · '+(p.unknown?'읽기 오류 · 문서 이력 확인 →':'이어서 작성 / 서명 →');button.appendChild(name);button.appendChild(meta);button.onclick=function(){window.location.href=p.url;};body.appendChild(button);});
+  }catch(e){if(body)body.textContent='조회 실패: '+e.message;}
 }
-
-// 대시보드 진입 시 서명대기 카운트 자동 업데이트 (가벼운 PCSP만 체크)
-async function updatePendingSigCount() {
-  try {
-    var res = await SheetsAPI.read('PCSP');
-    if (!res.ok || !res.data) return;
-    var count = res.data.filter(function(p){ return String(p['상태']||'')==='서명대기'; }).length;
-    var el = document.getElementById('pending-sig-count');
-    if (el) el.textContent = count;
-
-    // 대시보드 알림도 함께 업데이트
-    var alertEl = document.getElementById('ds-sig-alert');
-    if (alertEl) {
-      if (count > 0) {
-        alertEl.style.display = 'block';
-        alertEl.innerHTML = '📝 서명대기 PCSP <b style="color:#B35900">' + count + '건</b> — 클릭해서 확인 →';
-      } else {
-        alertEl.style.display = 'none';
-      }
-    }
-  } catch(e) {}
-}
+async function updatePendingSigCount(){await loadDocStatusMaps();}
 
 // ══════════════════════════════════════════════════════════════
 // 멤버 사진 Drive에서 복원 (다른 기기 동기화)
@@ -1355,56 +1271,29 @@ function memberLatestPCSP(rows){
   return {date:date,ambiguous:true};
 }
 
-var _docStatusSerial=0;
-async function loadDocStatusMaps(forceReload) {
-  if (_docStatusLoaded && !forceReload) return;
-  var serial=++_docStatusSerial;
-  try {
-    var [pcspRes, logRes] = await Promise.all([
-      SheetsAPI.read('PCSP'),
-      SheetsAPI.read('JSONLog'),
-    ]);
-    if(serial!==_docStatusSerial)return;
-    var today = new Date().toLocaleDateString('sv-SE');
-
-    PCSP_STATUS_MAP = {};
-    if(pcspRes&&pcspRes.ok&&Array.isArray(pcspRes.data)){
-      var groups={};pcspRes.data.forEach(function(p){
-        var key=String(p['멤버ID']||'').trim();if(!key)return;
-        var member=MEMBERS.find(function(m){return String(m.id)===key||String(m.medicaid||'').trim().toUpperCase()===key.toUpperCase();});
-        var canonical=member?String(member.id):key;
-        if(!groups[canonical])groups[canonical]={rows:[],keys:new Set([canonical])};
-        groups[canonical].rows.push(p);[key,key.toUpperCase(),member&&String(member.medicaid||'').trim().toUpperCase()].filter(Boolean).forEach(function(k){groups[canonical].keys.add(k);});
+var _docStatusPromise=null,_docSummary=null,_docSummaryAt=0,_docStatusError=false;
+async function loadDocStatusMaps(forceReload){
+  if(_docStatusPromise)return _docStatusPromise;
+  if(_docStatusLoaded&&!_docStatusError&&!forceReload&&Date.now()-_docSummaryAt<60000)return _docSummary;
+  _docStatusPromise=(async function(){
+    try{
+      var res=await SheetsAPI.get({action:'documentSummary'}),summary=res&&res.data;
+      if(!res.ok||!summary||summary.success!==true||!Array.isArray(summary.pcsp)||!Array.isArray(summary.documents)||!Array.isArray(summary.unindexed))throw new Error('문서 상태 요약 API 응답을 확인해주세요.');
+      var today=new Date().toLocaleDateString('sv-SE'),pcspMap={},nutrition={},assessment={},groups={};
+      summary.pcsp.forEach(function(p){var key=String(p.canonicalMid||p['멤버ID']||'');if(!key)return;if(!groups[key])groups[key]=[];groups[key].push(p);});
+      Object.keys(groups).forEach(function(key){var selected=memberLatestPCSP(groups[key]),r=selected.row;
+        var status=selected.ambiguous?{wdate:selected.date,nextdate:'',status:'동일 날짜 이력 확인',expired:false,ambiguous:true}:{id:String(r.ID||''),wdate:memberDocDate(r['작성일']),nextdate:memberDocDate(r['갱신예정일']),status:String(r['상태']||''),expired:!!(memberDocDate(r['갱신예정일'])&&memberDocDate(r['갱신예정일'])<today)};
+        pcspMap[key]=status;groups[key].forEach(function(p){pcspMap[String(p['멤버ID']).trim().toUpperCase()]=status;});
       });
-      Object.keys(groups).forEach(function(k){var group=groups[k],selected=memberLatestPCSP(group.rows);
-        var status=selected.ambiguous?{wdate:selected.date,nextdate:'',status:'동일 날짜 이력 확인',expired:false,ambiguous:true}:{id:String(selected.row.ID||''),wdate:memberDocDate(selected.row['작성일']),nextdate:memberDocDate(selected.row['갱신예정일']),status:String(selected.row['상태']||''),expired:!!(memberDocDate(selected.row['갱신예정일'])&&memberDocDate(selected.row['갱신예정일'])<today)};
-        group.keys.forEach(function(key){PCSP_STATUS_MAP[key]=status;});
+      summary.documents.slice().sort(function(a,b){return a.logOrder-b.logOrder;}).forEach(function(d){var map=d.type==='Nutrition'?nutrition:assessment,previous=map[d.mid];
+        map[d.mid]={date:memberDocDate(d.date),signed:d.signed,pending:(previous&&previous.pending||0)+(d.signed===false&&d.jsonFile?1:0),unknown:!!(d.readError||previous&&previous.unknown)};
       });
-    }
-
-    NUTRITION_STATUS_MAP = {};
-    ASSESSMENT_STATUS_MAP = {};
-    if (logRes && logRes.ok && logRes.data) {
-      logRes.data.forEach(function(l) {
-        var mid  = String(l['멤버ID']||'');
-        var type = String(l['파일종류']||'');
-        var date = memberDocDate(l['저장일시']);
-        if (!mid) return;
-        if (type === 'Nutrition') {
-          { // latest appended record, not locale-string order
-            NUTRITION_STATUS_MAP[mid] = { date: date, signed: null }; // signed는 아래에서 비동기 보강
-          }
-        } else if (type === 'Assessment') {
-          { // latest appended record, not locale-string order
-            ASSESSMENT_STATUS_MAP[mid] = { date: date, signed: null };
-          }
-        }
-      });
-    }
-    _docStatusLoaded = true;
-  } catch(e) {
-    console.log('문서 상태 로드 실패:', e);
-  }
+      summary.unindexed.forEach(function(d){var map=d.type==='Nutrition'?nutrition:assessment;map[d.mid]=Object.assign({},map[d.mid]||{signed:null,pending:0},{unknown:true});});
+      PCSP_STATUS_MAP=pcspMap;NUTRITION_STATUS_MAP=nutrition;ASSESSMENT_STATUS_MAP=assessment;
+      _docSummary=summary;_docSummaryAt=Date.now();_docStatusLoaded=true;_docStatusError=false;renderPendingSigCount(summary);return summary;
+    }catch(e){_docStatusError=true;_docStatusLoaded=true;var count=document.getElementById('pending-sig-count');if(count)count.textContent='조회 실패';var alertEl=document.getElementById('ds-sig-alert');if(alertEl){alertEl.style.display='block';alertEl.textContent='문서 상태 조회 실패 — 클릭해서 다시 확인';}console.warn('문서 상태 조회 실패:',e);return null;}
+    finally{_docStatusPromise=null;}
+  })();return _docStatusPromise;
 }
 
 // 멤버 카드용 상태 배지 HTML (PCSP / Nutrition / Assessment / Auth)
@@ -1457,6 +1346,8 @@ function _docStatusBadgeHTML(m) {
   var mid = m.id;
   var html = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">';
 
+  if(!_docSummary||_docStatusError)return html+'<span style="font-size:11px;color:#B35900">'+(_docStatusError?'문서 상태 조회 실패 · 새로고침 필요':'문서 상태 확인 중…')+'</span>'+_authTypeBadges(mid)+'</div>';
+
   // PCSP
   var pcsp = PCSP_STATUS_MAP[String(mid)]
     || PCSP_STATUS_MAP[String(m.medicaid||'').trim().toUpperCase()];
@@ -1470,47 +1361,21 @@ function _docStatusBadgeHTML(m) {
     html += '<span onclick="event.stopPropagation();goToPCSPForMember(\''+mid+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px">✅ PCSP(' + (pcsp.nextdate||'—') + ')</span>';
   }
 
-  // Nutrition
-  var nut = NUTRITION_STATUS_MAP[mid];
-  if (!nut) {
-    html += '<span onclick="event.stopPropagation();goToFormForMember(\''+mid+'\',\'Nutrition\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Nutrition 필요</span>';
-  } else {
-    html += '<span onclick="event.stopPropagation();viewDriveDoc(\''+mid+'\',\'Nutrition\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px" id="_ns_badge_'+mid+'">✅ Nutrition</span>';
-    _checkSignedBadgeInline(mid, 'Nutrition');
-  }
-
-  // Assessment
-  var asmt = ASSESSMENT_STATUS_MAP[mid];
-  if (!asmt) {
-    html += '<span onclick="event.stopPropagation();goToFormForMember(\''+mid+'\',\'Assessment\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#FFEBEE;color:#FF3B30;border-radius:6px;padding:3px 8px">⚠️ Assessment 필요</span>';
-  } else {
-    html += '<span onclick="event.stopPropagation();viewDriveDoc(\''+mid+'\',\'Assessment\')" style="cursor:pointer;font-size:10px;font-weight:700;background:#E1F5EE;color:#0F6E56;border-radius:6px;padding:3px 8px" id="_as_badge_'+mid+'">✅ Assessment</span>';
-    _checkSignedBadgeInline(mid, 'Assessment');
-  }
+  [['Nutrition',NUTRITION_STATUS_MAP[mid]],['Assessment',ASSESSMENT_STATUS_MAP[mid]]].forEach(function(pair){
+    var type=pair[0],d=pair[1],text,bg,color;
+    if(!d){text='⚠️ '+type+' 필요';bg='#FFEBEE';color='#FF3B30';}
+    else if(d.unknown){text='⚠️ '+type+' 이력 확인 필요';bg='#FFF3E0';color='#B35900';}
+    else if(d.pending){text='📝 '+type+' 서명대기 '+d.pending+'건';bg='#FFF3E0';color='#B35900';}
+    else if(d.signed===true){text='✅ '+type;bg='#E1F5EE';color='#0F6E56';}
+    else{text=type+' 상태 확인 필요';bg='#FFF3E0';color='#B35900';}
+    html+='<span onclick="event.stopPropagation();goToFormForMember(\''+mid+'\',\''+type+'\')" style="cursor:pointer;font-size:10px;font-weight:700;background:'+bg+';color:'+color+';border-radius:6px;padding:3px 8px">'+text+'</span>';
+  });
 
   // Auth — 서비스유형(SDC/Transportation)별로 나눠서 남은 일수 표시
   html += _authTypeBadges(mid);
 
   html += '</div>';
   return html;
-}
-
-// Nutrition/Assessment 배지에 서명완료 여부를 비동기로 보강 표시
-async function _checkSignedBadgeInline(mid, fileType) {
-  try {
-    var m = MEMBERS.find(function(x){ return x.id === mid; });
-    var res = await SheetsAPI.loadJSON(mid, m ? m.kr : mid, fileType);
-    if (!res.ok || !res.data || !res.data.found) return;
-    var d = res.data.data || {};
-    var badgeId = fileType === 'Nutrition' ? '_ns_badge_' + mid : '_as_badge_' + mid;
-    var el = document.getElementById(badgeId);
-    if (!el) return;
-    if (d.signed === false) {
-      el.textContent = '📝 ' + fileType + ' 서명대기';
-      el.style.background = '#FFF3E0';
-      el.style.color = '#B35900';
-    }
-  } catch(e) {}
 }
 
 // PCSP 미완료/작성필요 배지 클릭 → 업무관리로 바로 이동 (기존 카드 링크와 동일 방식)
