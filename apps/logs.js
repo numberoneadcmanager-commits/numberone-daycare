@@ -356,7 +356,37 @@ function dailyActToggleAll(cat, checked) {
   });
 }
 
+var _dailyActivityPending=null,_dailyActivityBusy=false,_dispatchPending=null,_dispatchBusy=false,_dispatchGeneration=0;
+function lockLogBatchControls(selector){var fields=Array.from(document.querySelectorAll(selector)).map(function(el){var old=el.disabled;el.disabled=true;return {el:el,old:old};});return function(){fields.forEach(function(x){x.el.disabled=x.old;});};}
+window.addEventListener('beforeunload',function(e){if(_dailyActivityPending||_dispatchPending){e.preventDefault();e.returnValue='';}});
+async function reviewDailyActivityBatch(){
+  if(_dailyActivityBusy||!_dailyActivityPending)return;
+  if(!confirm('일부 기록은 이미 저장되었을 수 있습니다. 서버 기록을 확인하고 현재 재시도를 중단할까요?'))return;
+  var pending=_dailyActivityPending;_dailyActivityBusy=true;closeOv('ov-daily-act');
+  try{var res=await SheetsAPI.readByDate('activity',pending.iso);if(!res||!res.ok||!Array.isArray(res.data))throw new Error('조회 실패');WriteGuard.adopt(res,function(){activities=activities.filter(function(r){return String(r['날짜']).slice(0,10)!==pending.iso;}).concat(res.data);});_dailyActivityPending=null;renderActivities();alert('서버 기록을 불러왔습니다. 이미 저장된 항목을 확인한 후 필요한 항목만 새로 작성해주세요.');}
+  catch(e){alert('서버 확인 실패. 이전 재시도 내용은 유지됩니다: '+e.message);}
+  finally{_dailyActivityBusy=false;}
+}
+async function finishDailyActivityBatch(){
+  if(_dailyActivityBusy||!_dailyActivityPending)return;_dailyActivityBusy=true;
+  var pending=_dailyActivityPending,button=document.getElementById('dact-save-btn'),status=document.getElementById('dact-status'),failed=[];
+  var unlock=lockLogBatchControls('#ov-daily-act input,#ov-daily-act select,#ov-daily-act textarea,#ov-daily-act button');
+  if(button)button.disabled=true;
+  try{
+    for(var start=0;start<pending.items.length;start+=50){var chunk=pending.items.slice(start,start+50);
+      try{var results=await SheetsAPI.batchWrite('activity',chunk);results.forEach(function(r,i){var item=chunk[i];if(r.success){pending.saved++;var index=activities.findIndex(function(x){return x.ID===item.data.ID;});if(index<0)activities.unshift(item.data);else activities[index]=item.data;}else failed.push({item:item,error:r.error||'저장 실패'});});}
+      catch(e){chunk.forEach(function(item){failed.push({item:item,error:e.message});});}
+      if(status)status.textContent='저장 확인 '+pending.saved+'건 · 처리 중 '+Math.min(start+50,pending.items.length)+'/'+pending.items.length;
+    }
+    pending.items=failed.map(function(x){return x.item;});renderActivities();
+    if(failed.length){if(status)status.textContent='저장 확인 '+pending.saved+'건 · 미확정 '+failed.length+'건. 전체 저장 버튼으로 같은 기록을 재시도할 수 있습니다.';if(status){var review=document.createElement('button');review.type='button';review.textContent='재시도 중단 · 서버 기록 확인';review.onclick=reviewDailyActivityBatch;status.appendChild(review);}alert('미확정 '+failed.length+'건\n'+failed.map(function(x){return (x.item.data['한글이름']||x.item.data['멤버ID'])+' / '+x.item.data['카테고리']+': '+x.error;}).join('\n'));}
+    else{_dailyActivityPending=null;closeOv('ov-daily-act');alert('✅ 총 '+pending.saved+'건 기록 완료!');}
+  }finally{unlock();_dailyActivityBusy=false;if(button)button.disabled=false;}
+}
 async function saveDailyActivityLog() {
+  if(_dailyActivityBusy)return;
+  if(_dailyActivityPending){if(confirm('이전 저장의 미확정 '+_dailyActivityPending.items.length+'건을 같은 내용으로 재시도할까요? 화면에서 새로 바꾼 내용은 이 재시도에 포함되지 않습니다.'))return finishDailyActivityBatch();return;}
+
   const iso = document.getElementById('dact-date').value;
   const programName = document.getElementById('dact-program-name').value.trim() || '프로그램';
   const writer = document.getElementById('dact-writer').value.trim();
@@ -381,7 +411,7 @@ async function saveDailyActivityLog() {
         const noteEl = document.getElementById('dact-note-' + mid + '-' + cat);
         const note = noteEl ? noteEl.value.trim() : '';
         entries.push({
-          'ID': 'ACT' + Date.now() + '_' + mid + '_' + cat,
+          'ID': 'ACT_' + crypto.randomUUID(),
           '날짜': iso, '멤버ID': mid, '한글이름': mem.kr || '',
           '활동명': cat === 'program' ? programName : (note || catMeta[cat].name),
           '카테고리': catMeta[cat].label,
@@ -395,24 +425,8 @@ async function saveDailyActivityLog() {
 
   if (!entries.length) { alert('선택된 항목이 없어요'); return; }
 
-  const saveBtn = document.getElementById('dact-save-btn');
-  const statusEl = document.getElementById('dact-status');
-  if (saveBtn) saveBtn.disabled = true;
-
-  for (let i = 0; i < entries.length; i++) {
-    try {
-      await SheetsAPI.post({ action:'upsert', sheet:'activity', key:'ID',value:entries[i]['ID'],data:entries[i] });
-      activities.unshift(entries[i]);
-    } catch(e) { if(saveBtn)saveBtn.disabled=false;renderActivities();alert('❌ '+i+'건 저장 후 중단되었습니다: '+e.message);return; }
-    if (statusEl) statusEl.textContent = '⏳ 저장 중... ' + (i+1) + '/' + entries.length;
-    if (i % 8 === 7) await new Promise(r => setTimeout(r, 200));
-  }
-
-  if (saveBtn) saveBtn.disabled = false;
-  saveToStorage();
-  closeOv('ov-daily-act');
-  renderActivities();
-  alert('✅ ' + attendeeIds.length + '명, 총 ' + entries.length + '건 기록 완료!');
+  _dailyActivityPending={iso:iso,saved:0,items:entries.map(function(row){return {action:'upsert',key:'ID',value:row.ID,data:row,expectedToken:null};})};
+  return finishDailyActivityBatch();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -528,6 +542,10 @@ async function _ensureCenterCoord() {
 }
 
 async function generateDispatchPlan() {
+  if(_dispatchBusy){alert('배차 저장 중입니다.');return;}
+  if(_dispatchPending){if(!confirm('이전 배차가 일부 저장되었을 수 있습니다. 재시도를 중단하고 서버 기록을 다시 읽어 새 계획을 만들까요?'))return;_dispatchPending=null;}
+  var generation=++_dispatchGeneration;window._dispatchPlan=null;
+
   var iso = document.getElementById('disp-date').value || todayISO;
   var dow = (typeof dowKey === 'function') ? dowKey(iso) : null;
   var statusEl = document.getElementById('disp-status');
@@ -537,10 +555,16 @@ async function generateDispatchPlan() {
   resultEl.innerHTML = '';
 
   var center = await _ensureCenterCoord();
+  if(generation!==_dispatchGeneration)return;
   if (!center) {
     statusEl.textContent = '⚠️ 센터 좌표를 서버에서 만들지 못했어요. ' + (window._centerCoordError || 'Apps Script 최신 버전 배포를 확인해주세요.');
     return;
   }
+
+  var baseline;
+  try{var baseResponse=await SheetsAPI.readByDate('transportation',iso);if(generation!==_dispatchGeneration)return;if(!baseResponse||!baseResponse.ok||!Array.isArray(baseResponse.data))throw new Error('배차 조회 실패');baseline=baseResponse.data;
+    WriteGuard.adopt(baseResponse,function(){TRANSPORT_LOG=TRANSPORT_LOG.filter(function(r){return String(r['날짜']).slice(0,10)!==iso;}).concat(baseline);});renderTransportLog();
+  }catch(e){statusEl.textContent='기존 배차를 확인하지 못해 계획을 만들지 않았습니다: '+e.message;return;}
 
   // 오늘 부재(여행/입원/휴가) 예약된 멤버는 자동 제외
   var absenceMap = (typeof ABSENCE_MAP !== 'undefined') ? ABSENCE_MAP : {};
@@ -713,7 +737,7 @@ async function generateDispatchPlan() {
     closeBatch();
   })();
 
-  window._dispatchPlan = { iso: iso, farAssignments: farAssignments, nearBatches: batches, unassigned: [] };
+  window._dispatchPlan = { baseline: baseline, iso: iso, farAssignments: farAssignments, nearBatches: batches, unassigned: [] };
   if (noCoord.length) window._dispatchPlan.unassigned = window._dispatchPlan.unassigned.concat(noCoord);
 
   resultEl.innerHTML = '<div id="disp-editable"></div>'
@@ -883,7 +907,26 @@ function _dispatchMergeChecked(groupType) {
   _renderDispatchGroups();
 }
 
+async function finishDispatchBatch(){
+  if(_dispatchBusy||!_dispatchPending)return;_dispatchBusy=true;
+  var pending=_dispatchPending,status=document.getElementById('disp-status'),unlock=lockLogBatchControls('#disp-result input,#disp-result select,#disp-result button,#disp-date,#disp-direction');
+  try{
+    var results=await SheetsAPI.batchWrite('transportation',pending.items,{requireAll:true,scope:pending.scope});
+    // Adopt acknowledged rows with their new tokens before any background reload can fail.
+    results.forEach(function(r){if(!r.success)return;var item=pending.items[r.index],id=String(item.action==='delete'?item.id:item.value),i=TRANSPORT_LOG.findIndex(function(row){return String(row.ID)===id;});
+      if(item.action==='delete'){if(i>=0)TRANSPORT_LOG.splice(i,1);}else{var row=Object.assign({},i>=0?TRANSPORT_LOG[i]:{},item.data,{_writeToken:r.writeToken});if(i>=0)TRANSPORT_LOG[i]=row;else TRANSPORT_LOG.push(row);}
+    });renderTransportLog();
+    var failed=results.filter(function(r){return !r.success;});
+    if(failed.length){status.textContent='배차 미확정 '+failed.length+'건. 기존 행 삭제를 완료하지 않았습니다. 저장 버튼으로 같은 내용을 재시도하거나 기록을 확인해주세요.';alert(failed.map(function(r){return (r.id||'행 '+(r.index+1))+': '+r.error;}).join('\n'));return;}
+    _dispatchPending=null;window._dispatchPlan=null;status.textContent='✅ '+pending.scope.direction+' 배차 '+pending.count+'건 저장 확인 완료';
+    await loadTransportFromSheets();
+  }catch(e){status.textContent='배차 저장 결과 재확인 필요: '+e.message+' — 저장 버튼으로 같은 내용 재시도';}
+  finally{unlock();_dispatchBusy=false;}
+}
 async function saveDispatchToLog() {
+  if(_dispatchBusy)return;
+  if(_dispatchPending){if(confirm('이전 배차 저장 결과를 같은 내용으로 다시 확인/재시도할까요? 이후 화면에서 바꾼 내용은 포함되지 않습니다.'))return finishDispatchBatch();return;}
+
   var plan = window._dispatchPlan;
   if (!plan) { alert('먼저 배차 계획을 생성해주세요'); return; }
   var writer = (document.getElementById('disp-writer') || {}).value.trim();
@@ -930,19 +973,15 @@ async function saveDispatchToLog() {
 
   var statusEl = document.getElementById('disp-status');
 
-  try{
-    var existRes=await SheetsAPI.read('transportation');
-    var old=existRes.data.filter(function(r){return String(r['날짜']).slice(0,10)===iso&&r['방향']===direction&&r['그룹']!=='캔슬';});
-    for(var i=0;i<entries.length;i++){
-      await SheetsAPI.upsert('transportation','ID',entries[i]['ID'],entries[i]);
-      statusEl.textContent='⏳ 저장 중... '+(i+1)+'/'+entries.length;
-    }
-    var newIds=new Set(entries.map(function(r){return r['ID'];}));
-    for(var previous of old){if(!newIds.has(previous['ID']))await SheetsAPI.delete('transportation',previous['ID']);}
-    statusEl.textContent='✅ '+direction+' 배차 '+entries.length+'건 저장 완료';
-    loadTransportFromSheets();
-  }catch(e){statusEl.textContent='❌ 배차 저장이 끝나지 않았습니다: '+e.message;loadTransportFromSheets();}
-
+  if(!Array.isArray(plan.baseline)){statusEl.textContent='최신 배차 계획을 다시 생성해주세요.';return;}
+  var old=plan.baseline.filter(function(r){return r['방향']===direction&&r['그룹']!=='캔슬';}),byId={};old.forEach(function(r){byId[String(r.ID)]=r;});
+  var ids=new Set(entries.map(function(r){return String(r.ID);}));
+  var items=entries.map(function(r){return {action:'upsert',key:'ID',value:r.ID,data:r,expectedToken:byId[r.ID]?byId[r.ID]._writeToken:null};});
+  old.forEach(function(r){if(!ids.has(String(r.ID)))items.push({action:'delete',id:r.ID,expectedToken:r._writeToken});});
+  if(items.length>100){statusEl.textContent='배차 변경이 100행을 초과합니다. 범위를 나누어 처리해주세요.';return;}
+  if(!confirm(direction+' 배차 '+entries.length+'건을 저장하고, 기존 계획 '+old.length+'건을 이 계획으로 대체할까요?'))return;
+  _dispatchPending={items:items,scope:{date:iso,direction:direction},count:entries.length};
+  return finishDispatchBatch();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -997,7 +1036,7 @@ async function saveCancelLog() {
 var TRANSPORT_LOG = [];
 
 function loadTransportFromSheets() {
-  apiGet({ action: 'read', sheet: 'transportation' }).then(function(res) {
+  return apiGet({ action: 'read', sheet: 'transportation' }).then(function(res) {
     if (res && res.ok && res.data) {
       WriteGuard.adopt(res,function(){TRANSPORT_LOG = res.data;});
       renderTransportLog();

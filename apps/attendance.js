@@ -159,13 +159,16 @@ async function runAttendanceBulk(retry){
     if(!await loadAttFromSheets(iso,{bulk:true,quiet:true})){
       result.failed=candidates.map(function(m){return {id:m.id,name:m.kr,error:'서버 조회 실패 — 저장하지 않음'};});return;
     }
-    for(var i=0;i<candidates.length;i++){
-      var m=candidates[i],rec=getRec(iso)[m.id]||{};
-      if(!rec.status){
-        var ok=await qSet(iso,m.id,'in',{bulk:true,quiet:true,ensure:true});
-        if(ok)result.saved++;else result.failed.push({id:m.id,name:m.kr,error:_attLastErrors[iso+'|'+m.id]||'저장 실패'});
-      }
-      result.processed=i+1;renderAttBulkResult();
+    var pending=candidates.filter(function(m){return !(getRec(iso)[m.id]||{}).status;});
+    for(var start=0;start<pending.length;start+=50){
+      var chunk=pending.slice(start,start+50),drafts=chunk.map(function(m){var r=Object.assign({},getRec(iso)[m.id]||{},{status:'in',updatedAt:now2()});if(iso>=todayISO&&!r.signIn)r.signIn=now2();return r;});
+      _attWrites++;
+      try{
+        var responses=await SheetsAPI.batchWrite('출결',chunk.map(function(m,i){return attendanceWriteBody(iso,m.id,drafts[i]);}));
+        responses.forEach(function(r,i){if(r.success){setRec(iso,chunk[i].id,drafts[i]);result.saved++;}else result.failed.push({id:chunk[i].id,name:chunk[i].kr,error:r.error||'저장 실패'});});
+      }catch(e){chunk.forEach(function(m){result.failed.push({id:m.id,name:m.kr,error:e.message});});}
+      finally{_attWrites--;}
+      result.processed=Math.min(candidates.length,candidates.length-pending.length+start+chunk.length);renderAttBulkResult();
     }
     // Successful rows are never blindly resubmitted. Re-read even after all POSTs succeeded.
     var failedById={};result.failed.forEach(function(x){failedById[x.id]=x;});
@@ -232,16 +235,10 @@ window.addEventListener('beforeunload',function(e){
 });
 
 // ── Sheets에 단일 출결 저장 ───────────────────────────────────
-async function saveAttToSheets(iso, mid, r, options) {
-  options=options||{};var rowKey=iso+'|'+mid;
-  if(_attRowWrites.has(rowKey)||(_attBulkBusy&&!options.bulk)){if(!options.quiet)alert('이 출결은 저장 중입니다. 잠시 기다려주세요.');return false;}
-  _attRowWrites.add(rowKey);delete _attLastErrors[rowKey];
-  r=Object.assign({},getRec(iso)[mid]||{},r);
-  const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
-  const author = _currentUser ? (_currentUser.name || '') : '';
-  _attWrites++;
-  try {
-    await SheetsAPI.post({
+function attendanceWriteBody(iso,mid,r){
+  const nameKr=(MEMBERS.find(m=>m.id===mid)||{}).kr||'';
+  const author=_currentUser?(_currentUser.name||''):'';
+  return {
       action:  'upsert',
       sheet:   '출결',
       key:     '날짜',
@@ -260,7 +257,18 @@ async function saveAttToSheets(iso, mid, r, options) {
         '수정시각': new Date().toISOString(),
         '작성자':   author,
       },
-    });
+  };
+}
+async function saveAttToSheets(iso, mid, r, options) {
+  options=options||{};var rowKey=iso+'|'+mid;
+  if(_attRowWrites.has(rowKey)||(_attBulkBusy&&!options.bulk)){if(!options.quiet)alert('이 출결은 저장 중입니다. 잠시 기다려주세요.');return false;}
+  _attRowWrites.add(rowKey);delete _attLastErrors[rowKey];
+  r=Object.assign({},getRec(iso)[mid]||{},r);
+  const nameKr = (MEMBERS.find(m => m.id === mid) || {}).kr || '';
+  const author = _currentUser ? (_currentUser.name || '') : '';
+  _attWrites++;
+  try {
+    await SheetsAPI.post(attendanceWriteBody(iso,mid,r));
     setRec(iso,mid,{...r});return true;
   } catch(e) {
     _attLastErrors[rowKey]=e.message;if(!options.quiet)alert('❌ 출결 저장 실패: '+e.message);return false;

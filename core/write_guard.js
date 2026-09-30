@@ -35,10 +35,14 @@ var WriteGuard=(function(){
     readStart:function(){return {seq:++seq,epoch:epoch};},remember:remember,track:track,adopt:adopt,select:function(result,selected){var list=snapshots(result).map(function(s){return {params:{sheet:s.params.sheet,action:'selected'},rows:selected,stamp:s.stamp};});var value={};sources.set(value,list);return value;},
     beginEdit:function(scope){edits.add(scope);},endEdit:function(scope){edits.delete(scope);},editing:editing,writeStart:function(){writes++;epoch++;},writeEnd:function(){writes=Math.max(0,writes-1);},
     prepare:function(body){
+      if(body.action==='batchWrite')return Object.assign({},body,{items:body.items.map(function(item){
+        var entry=Object.assign({},item,{sheet:body.sheet}),k=key(body.sheet,entry.data||{ID:entry.id});
+        return Object.assign({},entry,{expectedToken:Object.prototype.hasOwnProperty.call(entry,'expectedToken')?entry.expectedToken:rows.get(k)||null,_guardKey:k});
+      })});
       if(body.action==='saveJSON'&&['Assessment','Nutrition'].includes(body.fileType)){var j='JSON|'+body.fileType+'|'+body.memberId;return Object.assign({},body,{expectedToken:rows.get(j)||null,_guardKey:j});}
       if(!body.sheet||!['upsert','update','delete'].includes(body.action)||body.sheet==='PCSP')return body;
       var r=body.data||{ID:body.id};var k=key(body.sheet,r);return Object.assign({},body,{expectedToken:rows.get(k)||null,_guardKey:k});
     },
-    saved:function(body,result){if(body._guardKey&&result.data&&result.data.success){epoch++;rows.set(body._guardKey,result.data.writeToken||null);}return result;}
+    saved:function(body,result){if(body.action==='batchWrite'){if(!result.data||!Array.isArray(result.data.results)||result.data.results.length!==body.items.length||result.data.results.some(function(r,i){return r.index!==i||typeof r.success!=='boolean'||r.success&&!Object.prototype.hasOwnProperty.call(r,'writeToken');}))throw new Error('일괄 저장 응답이 불완전합니다. 토큰을 변경하지 않았습니다. 서버 기록을 확인해주세요.');result.data.results.forEach(function(r){var item=body.items[r.index];if(r.success&&item&&item._guardKey){epoch++;rows.set(item._guardKey,r.writeToken||null);}});return result;}if(body._guardKey&&result.data&&result.data.success){epoch++;rows.set(body._guardKey,result.data.writeToken||null);}return result;}
   };
 })();

@@ -43,6 +43,12 @@ const SheetsAPI = {
     }finally{WriteGuard.writeEnd();}
   },
 
+  async batchWrite(sheet,items,options) {
+    const res=await this.post(Object.assign({},options||{},{action:'batchWrite',sheet,items}));
+    if(!res.data||!Array.isArray(res.data.results)||res.data.results.length!==items.length||res.data.results.some((r,i)=>r.index!==i))throw new Error('일괄 저장 응답이 불완전합니다. 서버 기록을 다시 확인해주세요.');
+    return res.data.results;
+  },
+
   // ── 연결 테스트 ────────────────────────────────────────────
   async ping() {
     try {
