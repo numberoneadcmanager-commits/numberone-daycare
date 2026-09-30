@@ -107,12 +107,7 @@ function closeFrmBack(){
   }
 }
 
-function openPCSPForMember(mid, mName){
-  var hub=document.getElementById('forms-hub');if(hub)hub.style.display='none';
-  var lv=document.getElementById('pcsp-list-view');if(lv)lv.style.display='block';
-  renderPCSPList();
-  if(mid) prefillPCSPFromMember(mid);
-}
+
 
 function showPCSPMemberSelect(){
   document.getElementById('pcsp-list-view').style.display='none';
@@ -458,72 +453,7 @@ function openMemberRightsForMember(mid,mName){
   loadOperationalForm('frm-member-rights',mid,mName,'MemberRights',function(d){document.getElementById('mr-date').value=d.date||'';document.getElementById('mr-rep').value=d.rep||'';document.getElementById('mr-rep-rel').value=d.repRel||'';_mrSig=signatureData(d.memberSig);return restoreFormSignature('mr-sig-canvas','mr-sig-empty',_mrSig);});
 }
 function clearMRSig(){clearSigCanvas('mr-sig-canvas','mr-sig-empty');_mrSig=null;}
-function printMemberRights(){
-  if(!_mrMid){alert('멤버가 선택되지 않았습니다');return;}
-  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(_mrMid);});
-  var mName=member?(member['영문이름']||''):'';
-  var date=(document.getElementById('mr-date')||{}).value||new Date().toLocaleDateString('sv-SE');
-  var rep=(document.getElementById('mr-rep')||{}).value||'';
-  var repRel=(document.getElementById('mr-rep-rel')||{}).value||'';
 
-  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Participant Rights - '+mName+'</title>'
-    +'<style>body{font-family:Arial,sans-serif;font-size:9.5px;margin:20px;line-height:1.5}'
-    +'h1{font-size:12px;text-align:center;margin-bottom:2px}'
-    +'.sub{font-size:8.5px;color:#555;text-align:center;margin-bottom:10px}'
-    +'.sec{margin-bottom:8px;padding-left:8px;border-left:3px solid #D85A30}'
-    +'.sec-title{font-weight:700;font-size:10px;margin-bottom:3px}'
-    +'.sec-body{font-size:9px;line-height:1.6}'
-    +'table{width:100%;border-collapse:collapse;margin-top:8px}'
-    +'td,th{border:1px solid #999;padding:5px 8px;vertical-align:top}'
-    +'th{background:#f0f0f0;font-weight:700;width:35%}'
-    +'.sig-row{height:55px}@media print{button{display:none}}</style></head><body>'
-    +'<h1>NUMBER ONE ADULT DAYCARE — PARTICIPANT\'S BILL OF RIGHTS</h1>'
-    +'<p class="sub">161-22 Northern Blvd 1FL, Flushing, NY 11358 · 718-799-0248</p>'
-    +'<table style="margin-bottom:10px"><tr><th>Participant Name</th><td>'+mName+'</td><th>Date</th><td>'+date+'</td></tr>'
-    +'<tr><th>Date of Birth</th><td>'+(member?String(member['생년월일']||'').slice(0,10):'')+'</td><th>Medicaid #</th><td>'+(member?member['Medicaid']||'':'')+'</td></tr></table>'
-
-    +'<div class="sec"><div class="sec-title">I. Fundamental Rights: Dignity, Safety, and Freedom</div><div class="sec-body">'
-    +'<b>Non-Discrimination and Respect:</b> You have the right not to be discriminated against by race, skin color, or national origin. You have the right to respect and treatment as an adult and to personal treatment and help.<br>'
-    +'<b>Dignity and Safety:</b> You have the right to privacy, dignity, and respect. You have the right to be free from any form of restraint including chemical, physical, or mechanical restraints, and free from abuse, neglect, intimidation, coercion, and seclusion.<br>'
-    +'<b>Environment:</b> You have the right to a safe and pleasant environment with careful attention.</div></div>'
-
-    +'<div class="sec" style="border-left-color:#185FA5"><div class="sec-title">II. Rights to Control and Self-Determination</div><div class="sec-body">'
-    +'<b>Service Choice:</b> You have the right to choose your own day care center services and activities and to direct your service plan.<br>'
-    +'<b>Program Involvement:</b> You have the right to participate in the organization and operation of the program.<br>'
-    +'<b>Personal Development:</b> You have the right to pursue personal interests and develop hobbies.<br>'
-    +'<b>Personal Control:</b> You have control over personal finances and daily schedule, including the right to participate with modifications if needed.<br>'
-    +'<b>Staff and Withdrawal:</b> You have the right to request preferred staff for personal care needs and to stop the adult day care program at any time.</div></div>'
-
-    +'<div class="sec" style="border-left-color:#0F6E56"><div class="sec-title">III. Rights to Communication, Privacy, and Information</div><div class="sec-body">'
-    +'<b>Private Space:</b> You have access to a private space for dining, speaking on the phone, and meeting with visitors.<br>'
-    +'<b>Communication:</b> You have the right to exchange and communicate with other participants and the community.<br>'
-    +'<b>Information Access:</b> You have the right to receive information about your rights and to confirm consent forms related to personal information.<br>'
-    +'<b>Grievance:</b> You have the right to request correction of injustice regarding discriminatory treatment.<br>'
-    +'<b>Notification:</b> You have the right to be informed of decisions that affect your care.</div></div>'
-
-    +'<div class="sec" style="border-left-color:#534AB7"><div class="sec-title">IV. Rights to Opportunities and Choices</div><div class="sec-body">'
-    +'<b>Opportunities:</b> You have the right to seek employment or volunteer opportunities.<br>'
-    +'<b>Choices:</b> You have choices of services and visitors; choices of meals and mealtimes; choices of alternatives to services and activities; choices of community integration; and choices of attending appointments and social opportunities.</div></div>'
-
-    +'<div style="font-size:9px;background:#f9f9f9;border:1px solid #ddd;padding:8px;border-radius:4px;margin:8px 0">'
-    +'<b>Acknowledgment of Participant Rights:</b> I, the undersigned, have received, read, and/or had the Participant\'s Bill of Rights explained to me in a language I understand. '
-    +'I acknowledge that I understand my rights and expectations as a participant at Number One Adult Daycare.</div>'
-
-    +'<table><tr><th>Participant Signature</th><td class="sig-row">'
-    +(_mrSig?'<img src="'+_mrSig+'" style="max-height:50px;max-width:100%">':'')
-    +'</td><th>Date</th><td>'+date+'</td></tr>'
-    +(rep
-      ?'<tr><th>Representative / Guardian</th><td>'+rep+'</td><th>Relationship</th><td>'+repRel+'</td></tr>'
-       +'<tr><th>Representative Signature</th><td class="sig-row"></td><th>Date</th><td></td></tr>'
-      :'')
-    +'<tr><th>Staff Witness Signature</th><td class="sig-row"></td><th>Date</th><td></td></tr>'
-    +'</table>'
-    +'<p style="font-size:8px;margin-top:8px;color:#555">This document has been prepared in accordance with the Number One Adult Daycare Policies and Procedures manual.</p>'
-    +'<button onclick="window.print()">🖨️ 인쇄 / PDF 저장</button></body></html>';
-
-  var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}
-  w.document.write(html);w.document.close();setTimeout(function(){w.print();},800);
-}
 
 function signatureData(value){
   var v=String(value||'');return /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(v)?v:'';

@@ -133,11 +133,7 @@ function goTab(tab, el) {
 }
 
 // ── API 관련 ──────────────────────────────────────────────────
-function setApiStatus(ok) {
-  const el = document.getElementById('api-pill');
-  el.className = 'api-pill ' + (ok ? 'api-ok' : 'api-no');
-  el.textContent = ok ? '✅ Sheets 연동됨' : '⚡ Sheets 미연동';
-}
+
 
 function saveApiUrl() { testApi(); }
 
@@ -226,18 +222,7 @@ async function loadFromSheets() {
   } catch (e) { hideLoadingOverlay(); console.log('Sheets load error:', e); return false; }
 }
 
-async function uploadDefaultStaff() {
-  for (let i = 0; i < DEFAULT_STAFF.length; i++) {
-    const s = DEFAULT_STAFF[i];
-    try {
-      await SheetsAPI.post({ action: 'upsert', sheet: '스태프', key: 'ID', value: s.id, data: {
-        'ID': s.id, '한글이름': s.nameKr, '영문이름': s.name, '직책': s.role,
-        '전화': s.phone, '이메일': s.email, '자격증': JSON.stringify(s.certs),
-        'avBg': s.avBg, 'avColor': s.avColor,
-      }});
-    } catch (e) {}
-  }
-}
+
 
 // ── 스태프 ────────────────────────────────────────────────────
 function renderStaff() {

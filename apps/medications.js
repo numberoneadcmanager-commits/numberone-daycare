@@ -36,7 +36,7 @@ function pcspMedicationRestore(health){health=health||{};_pcspMedicationRows=Arr
 function pcspMedicationRender(){medicationEditorRender('pcsp');pcspMedicationSync();}
 function pcspMedicationSync(){var text=document.getElementById('p-meds');if(text)text.value=medicationText(_pcspMedicationRows);}
 function pcspMedicationCollect(){return medicationNormalize(_pcspMedicationRows);}
-function pcspMedicationAdd(){_pcspMedicationRows.push({name:'',dose:'',reason:''});pcspMedicationRender();}
+
 function assessmentMedicationReset(){_assessmentMedicationSource=null;_assessmentMedicationRows=[];medicationEditorRender('assessment');}
 function assessmentMedicationRestore(data){
   _assessmentMedicationSource=data.medicationSource||null;
@@ -45,7 +45,7 @@ function assessmentMedicationRestore(data){
   _assessmentMedicationRows=medicationNormalize(rows);medicationEditorRender('assessment');
 }
 function assessmentMedicationCollect(){return medicationNormalize(_assessmentMedicationRows);}
-function assessmentMedicationAdd(){_assessmentMedicationRows.push({name:'',dose:'',reason:''});medicationEditorRender('assessment');}
+
 function medicationComparison(current,incoming){
   var used=new Set(),result=[];function key(row){return row.name.trim().toLowerCase().replace(/\s+/g,' ');}
   incoming.forEach(function(next){var index=current.findIndex(function(old,i){return !used.has(i)&&key(old)&&key(old)===key(next);});

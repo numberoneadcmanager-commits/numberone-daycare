@@ -92,7 +92,7 @@ function applyPCSPCommonDefaults(){
     _pcspSadcActivities.push({activity:activity,category:preset?preset.category:'Daily',neededSupport:'Independent',supportDetails:''});
   });
 }
-function _pcspPdfKey(v){ return String(v||'').trim().toUpperCase(); }
+
 
 // ══════════════════════════════════════════════════════════════
 // Saved PDF lookup / list
@@ -204,11 +204,7 @@ async function showPCSPList(){
   if(a)a.style.display='block'; if(b)b.style.display='none'; if(c)c.style.display='none'; if(h)h.style.display='none';
   renderPCSPList();loadPCSPPdfLinks(false);wfRenewalBoard();
 }
-function openPCSPMemberSelect(){
-  var a=document.getElementById('pcsp-list-view'),b=document.getElementById('pcsp-member-select'),c=document.getElementById('pcsp-form-view');
-  if(a)a.style.display='none';if(b)b.style.display='block';if(c)c.style.display='none';
-  pcspSet('pcsp-member-q','');renderPCSPMemberList();
-}
+
 function renderPCSPMemberList(){
   var q=(pcspVal('pcsp-member-q')||'').toLowerCase();
   var el=document.getElementById('pcsp-member-list');if(!el)return;
@@ -350,10 +346,7 @@ function renderPCSPAuthSummary(){
     +(a.pdfLink?'<button type="button" class="btn-sm" style="margin-top:7px" onclick="openSelectedAuthPDF()">📄 AUTH 원본 보기</button>':'');
 }
 function openSelectedAuthPDF(){var a=getSelectedPCSPAuth();if(a&&a.pdfLink)window.open(a.pdfLink,'_blank');else alert('AUTH PDF 링크가 없습니다.');}
-function getPCSPAuthContext(){
-  var a=getSelectedPCSPAuth();var active=_pcspAuthRecords.filter(pcspAuthIsCurrent);
-  return {selected:a,active:active};
-}
+
 
 // ══════════════════════════════════════════════════════════════
 // Dynamic input renderers
@@ -604,7 +597,7 @@ async function editPCSP(id){
     cachePCSPRecord(full);openPCSPForm(full.id);
   }catch(e){alert('❌ PCSP를 불러오지 못했습니다: '+e.message);}
 }
-function deletePCSP(){alert('PCSP 이력은 보존합니다. 새 PCSP를 생성해주세요.');}
+
 async function printPCSP(id){
   var existing=PCSP_LIST.find(function(p){return p.id===id;});if(existing&&existing.status==='완료')return openStoredPCSPPdf(id);
   var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p){alert('PCSP를 찾을 수 없어요');return;}var memberId=p.memberId||'';var memberName=p.nameKr||p.nameLast||'Unknown';var w=window.open('','_blank');if(!w){alert('팝업을 허용해주세요');return;}w.document.write('<body style="font-family:Arial;padding:30px">PCSP PDF 생성 중...</body>');w.document.close();

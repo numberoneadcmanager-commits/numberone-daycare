@@ -2,12 +2,12 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<script src="core/config.js?v=20260930cleanup4"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>넘버원 업무 관리</title>
 <link rel="icon" href="data:,">
 <script src="https://accounts.google.com/gsi/client" async defer onload="if(typeof initGoogle==='function')initGoogle()"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%}
@@ -1259,10 +1259,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <script src="core/write_guard.js?v=20260930batch3"></script>
 <script src="apps/billing.js?v=20260911p1"></script>
   <script src="apps/attachments.js?v=20260929"></script>
-  <script src="apps/medications.js?v=20260929"></script>
-<script src="apps/pcsp.js?v=20260921shared"></script>
+  <script src="apps/medications.js?v=20260930cleanup4"></script>
+<script src="apps/pcsp.js?v=20260930cleanup4"></script>
   <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
-  <script src="apps/forms_ops.js?v=20260929"></script>
+  <script src="apps/forms_ops.js?v=20260930cleanup4"></script>
   <script src="apps/documents.js?v=20260929summary2-20260929"></script>
   <script src="apps/training_ops.js?v=20260929accuracy1"></script>
 <script>
@@ -1270,9 +1270,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 // ── Google 로그인 ─────────────────────────────────────────
 // 운영 데이터는 서버에서만 읽습니다. 브라우저 저장소는 사용하지 않습니다.
 
-const ALLOWED_EMAILS = ['numberone.adc.manager@gmail.com','chouung11@gmail.com','numberone.adc.lee@gmail.com','numberone.adc.kimj@gmail.com'];
-const CLIENT_ID = '163454046018-4q9ba9dhv68mudfhmt0ivn8525fld58e.apps.googleusercontent.com';
-const API_URL = 'https://script.google.com/macros/s/AKfycby88tpdxiWLOekrE2FViJr5ew6KeSeiXEoefR6houH9BHUsp2EkooGx5aNA1NvC2fyP/exec';
+const ALLOWED_EMAILS = ADC_CONFIG.allowedEmails;
+const CLIENT_ID = ADC_CONFIG.clientId;
+const API_URL = ADC_CONFIG.apiURL;
 var _currentUser = null;
 
 // ── state.js 변수 (forms_ops.js에서 필요) ──────────────────

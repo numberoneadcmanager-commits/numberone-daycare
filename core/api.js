@@ -6,7 +6,7 @@
 const SheetsAPI = {
 
   // ── 설정 ───────────────────────────────────────────────────
-  URL: 'https://script.google.com/macros/s/AKfycby88tpdxiWLOekrE2FViJr5ew6KeSeiXEoefR6houH9BHUsp2EkooGx5aNA1NvC2fyP/exec',
+  URL: ADC_CONFIG.apiURL,
 
   // ── 상태 ───────────────────────────────────────────────────
   _connected: false,

@@ -527,57 +527,10 @@ async function deleteAbsence(mid) {
 // ── 저장소 ───────────────────────────────────────────────
 // 기존 호출 호환용 no-op. 운영 데이터는 Google Sheets/Drive만 사용.
 function saveToStorage() {}
-function loadFromStorage() { return false; }
 
-async function clearStorage() {
-  try {
-    await loadFromSheets();
-    await loadAttFromSheets(toISO(curDate));
-    renderDash(); filterM();
-    alert('✅ Google Sheets / Drive의 최신 데이터로 다시 불러왔습니다.');
-  } catch (e) {
-    alert('❌ 서버 데이터 다시 불러오기 실패: ' + e.message);
-  }
-}
 
-function exportData() {
-  const ms = {};
-  MEMBERS.forEach(m => { if (m.status === 'disenrolled') ms[m.id] = { status: m.status, disenrollDate: m.disenrollDate || '' }; });
-  const data = { incidents, activities, cases, memberStatus: ms, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'numberone_backup_' + todayISO + '.json'; a.click();
-  URL.revokeObjectURL(url);
-}
 
-function importData() {
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = '.json';
-  input.onchange = e => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (!confirm('현재 데이터가 덮어씌워집니다. 계속하시겠습니까?')) return;
-        if (data.incidents)  incidents  = data.incidents;
-        if (data.activities) activities = data.activities;
-        if (data.cases)      cases      = data.cases;
-        if (data.memberPhotos) Object.keys(data.memberPhotos).forEach(id => {
-          const m = MEMBERS.find(x => x.id === id); if (m) m.photo = data.memberPhotos[id];
-        });
-        if (data.memberStatus) Object.keys(data.memberStatus).forEach(id => {
-          const s = data.memberStatus[id];
-          const m = MEMBERS.find(x => x.id === id);
-          if (m) { m.status = s.status; m.disenrollDate = s.disenrollDate || ''; }
-        });
-        saveToStorage(); renderDash(); filterM();
-        renderIncidents(); renderActivities(); renderCases();
-        alert('불러오기 완료!');
-      } catch (err) { alert('파일 형식 오류'); }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
+
+
+
+
