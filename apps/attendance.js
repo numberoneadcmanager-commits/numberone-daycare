@@ -236,7 +236,9 @@ window.addEventListener('beforeunload',function(e){
 
 // ── Sheets에 단일 출결 저장 ───────────────────────────────────
 function attendanceWriteBody(iso,mid,r){
-  const nameKr=(MEMBERS.find(m=>m.id===mid)||{}).kr||'';
+  const member=MEMBERS.find(m=>m.id===mid)||{};
+  const nameKr=member.kr||'';
+  const nameEn=member.en||''; // 감사(Audit) 시 시트에서 바로 확인할 수 있도록 영문 이름도 기록
   const author=_currentUser?(_currentUser.name||''):'';
   return {
       action:  'upsert',
@@ -248,6 +250,7 @@ function attendanceWriteBody(iso,mid,r){
         '날짜':     iso,
         '멤버ID':   mid,
         '한글이름': nameKr,
+        '영문이름': nameEn,
         '상태':     r.status   || '',
         'Sign-in':  r.signIn   || '',
         'Sign-out': r.signOut  || '',
