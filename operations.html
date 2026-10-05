@@ -837,10 +837,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
     <!-- Training Records -->
     <div class="panel" id="panel-training">
+      <style>
+      #panel-training .tr-grid,#modal-ov-tr .tr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .tr-field{display:block;margin:9px 0;font-size:12px}.tr-field input:not([type=checkbox]),.tr-field select{display:block;width:100%;box-sizing:border-box}
+      #modal-ov-tr{max-height:90vh;overflow:auto;max-width:950px;width:94vw;box-sizing:border-box;margin:0 auto}
+      #modal-ov-tr fieldset{border:0;padding:0;min-width:0}#modal-ov-tr p{font-size:12px;line-height:1.5}
+      .tr-topics{max-height:290px;overflow:auto;background:#f1f5f9;padding:12px}.tr-topics label{display:block;margin:9px 0;font-size:12px}.tr-topics small{color:#475569}
+      .tr-person{border:1px solid #cbd5e1;padding:12px;margin:12px 0;border-radius:8px}
+      #panel-training .log-card p{overflow-wrap:anywhere}#tr-save-status,#tr-notice{white-space:pre-wrap;font-size:12px}
+      @media(max-width:600px){#panel-training .tr-grid,#modal-ov-tr .tr-grid{grid-template-columns:1fr}}
+      </style>
+      <div class="card"><b>SADC Training · Topic / Evidence Register</b>
+      <p id="tr-notice" role="status">중앙 교육기록을 불러와주세요.</p><button class="btn-sm" onclick="loadTrFromSheets()">새로고침</button>
+      <details><summary>교육 기준과 적용 범위</summary>
+      <p>9 NYCRR §6654.20(d)(2)(iv): 전체 직원 orientation, 노인·권리·안전 교육, 연간 in-service 6시간 및 화재·비상 교육. 직접 서비스 직원/봉사자는 서비스 전 기본교육과 업무 배정 후 3개월 이내 20시간 교육(6개 필수 주제·역량 평가)이 필요하며 규정의 동등 지식·기술 예외는 증빙 검토가 필요합니다.</p>
+      <p>개인 돌봄 기술 교육자는 RN. 초기교육 지도자는 규정의 전문자격 요건 확인. HCBS/PCP 및 thinking/practice도 기록합니다. 모든 Topic에 임의의 연간 갱신이나 CPR 24개월 만료를 적용하지 않습니다. 실제 CPR/AED 수료증 만료는 Staff 자격증에서 관리하세요. Fire Drill 기록은 별도 화면입니다.</p>
+      <p>연간 시간은 선택한 Annual in-service 회차를 달력연도로 집계합니다. 다른 교육을 연간 교육으로 중복 자동 인정하지 않습니다. 이 화면은 전체 SADC 적합 판정이 아닙니다. 계약기관 추가 교육·서명 기준은 별도 확인 대상입니다.</p>
+      <p><a href="https://www.law.cornell.edu/regulations/new-york/9-NYCRR-6654.20" target="_blank" rel="noopener">9 NYCRR §6654.20</a> · <a href="https://www.health.ny.gov/health_care/medicaid/redesign/mrt90/mltc_policy/2025/25-05.htm" target="_blank" rel="noopener">NYSDOH MLTC 25.05</a> · 기준 검토일 2026-10-05</p>
+      </details></div>
       <div class="stat-grid">
         <div class="sbox"><div class="sv c-green" id="tr-sessions">0</div><div class="sl">세션 수</div></div>
-        <div class="sbox"><div class="sv c-red" id="tr-expired">0</div><div class="sl">만료됨</div></div>
-        <div class="sbox"><div class="sv c-orange" id="tr-soon">0</div><div class="sl">만료임박</div></div>
+        <div class="sbox"><div class="sv c-red" id="tr-expired">0</div><div class="sl">증빙 확인 필요</div></div>
+        <div class="sbox"><div class="sv c-orange" id="tr-soon">0</div><div class="sl">검토 확정</div></div>
       </div>
       <div class="f-row">
         <div class="fpill active" onclick="setTrView('session',this)">📅 세션별</div>
@@ -1264,7 +1282,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
   <script src="apps/forms_ops.js?v=20260930cleanup4"></script>
   <script src="apps/documents.js?v=20260929summary2-20260929"></script>
-  <script src="apps/training_ops.js?v=20260929accuracy1"></script>
+  <script src="apps/training_ops.js?v=20261005sadc2"></script>
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────
