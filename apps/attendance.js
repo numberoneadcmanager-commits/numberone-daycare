@@ -12,7 +12,7 @@ var _attCache   = {}; // { 'YYYY-MM-DD': { mid: {...} } } — 메모리 캐시�
 function getList(iso) {
   const q   = (document.getElementById('asearch') || {}).value || '';
   const dow = dowKey(iso);
-  return MEMBERS.filter(m => m.days.includes(dow) && (!q || m.kr.includes(q)));
+  return MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso) && (!q || m.kr.includes(q)));
 }
 
 // ── 캐시 접근 ─────────────────────────────────────────────────

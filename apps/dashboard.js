@@ -13,7 +13,7 @@ function updateDashNow() {
   if (totalEl) totalEl.textContent = MEMBERS.filter(m => isActive(m)).length; // Disenrolled 제외
 
   const iso  = todayISO, dow = dowKey(iso);
-  const list = MEMBERS.filter(m => m.days.includes(dow));
+  const list = MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso));
   const recs = getRec(iso);
   let inC = 0, trC = 0, hC = 0;
   list.forEach(m => {
@@ -65,7 +65,7 @@ function renderDash() {
   if (typeof updateCertAlert === 'function') updateCertAlert();
 
   const iso  = todayISO, dow = dowKey(iso);
-  const list = MEMBERS.filter(m => m.days.includes(dow));
+  const list = MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso));
   const recs = getRec(iso);
 
   const html = list.slice(0, 8).map(m => {
@@ -99,7 +99,7 @@ function renderReport() {
   let attRows = '', attTotal = 0, attPresent = 0;
   for (let iso = from; iso <= to; iso = nextDay(iso)) {
     const dow  = dowKey(iso);
-    const list = MEMBERS.filter(m => m.days.includes(dow));
+    const list = MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso));
     if (!list.length) continue;
     const recs    = getRec(iso);
     const present = list.filter(m => { const s = (recs[m.id] || {}).status || ''; return s === 'in' || s === 'late'; }).length;
