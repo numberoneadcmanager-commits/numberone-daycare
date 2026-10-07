@@ -64,6 +64,25 @@ function setRec(iso, mid, data) { if (!allR[iso]) allR[iso] = {}; allR[iso][mid]
 // ── 멤버 상태 ─────────────────────────────────────────────────
 function isActive(m) { return !m.status || m.status === 'active'; }
 
+// 디스엔롤 날짜를 YYYY-MM-DD로 정리 (시트에서 날짜/문자열 어느 형태로 와도 처리)
+function disenrollISO(m) {
+  var v = String((m && m.disenrollDate) || '').trim();
+  if (!v) return '';
+  var hit = v.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (hit) return hit[1];
+  var d = new Date(v);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('sv-SE');
+}
+
+// 출결 대상 여부 — 디스엔롤된 멤버는 디스엔롤 날짜(당일 포함)부터 출결 대상에서 제외.
+// 그 이전 날짜는 실제 서비스 기록(청구 근거)이므로 그대로 대상에 남긴다.
+// 디스엔롤 상태인데 날짜가 비어 있으면 항상 제외.
+function isAttendanceTarget(m, iso) {
+  if (!m || m.status !== 'disenrolled') return true;
+  var cut = disenrollISO(m);
+  return !!cut && iso < cut;
+}
+
 // ── 배지 HTML ─────────────────────────────────────────────────
 function badgeHTML(s) {
   const info = SI[s];
