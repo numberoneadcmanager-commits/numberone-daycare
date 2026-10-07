@@ -115,9 +115,11 @@ function loadPCSPPdfLinks(force){
 }
 function getStoredPCSPPdf(p){
   if(!p)return null;
-  var exact=PCSP_PDF_MAP[String(p.memberId||'')+'|'+p.id];if(exact)return exact;
-  var old=PCSP_LEGACY_PDFS[String(p.memberId||'')]||[];
-  // Older v2 PDF filenames omit record IDs: show the saved documents, never regenerate or silently assign one.
+  var raw=String(p.memberId||''),aliases=[raw];
+  var member=_pcspIdentityMembers.find(function(m){return String(m.ID)===raw;});
+  if(member&&member.Medicaid&&pcspCanonicalMemberId(member.Medicaid)===raw)aliases.push(String(member.Medicaid));
+  for(var i=0;i<aliases.length;i++){var exact=PCSP_PDF_MAP[aliases[i]+'|'+p.id];if(exact)return exact;}
+  var old=[],seen={};aliases.forEach(function(mid){(PCSP_LEGACY_PDFS[mid]||[]).forEach(function(pdf){if(!seen[pdf.url]){seen[pdf.url]=true;old.push(pdf);}});});
   return old.length?{choices:old}:null;
 }
 function pcspSafeDocumentURL(value){
@@ -139,21 +141,44 @@ async function openStoredPCSPPdf(id){
   w.location.replace(pcspSafeDocumentURL(pdf.url));
 }
 
+// Refresh from Sheets before constructing a list or validating aliases. Memory only.
+var _pcspIdentityMembers=[],_pcspIdentityLoading=null;
+function pcspLoadIdentityMembers(){
+  if(_pcspIdentityLoading)return _pcspIdentityLoading;
+  _pcspIdentityLoading=apiGet({action:'read',sheet:'멤버'}).then(function(res){
+    if(!res||!res.ok||!Array.isArray(res.data))throw new Error('회원 ID 확인을 위한 멤버 목록을 불러오지 못했습니다.');
+    _pcspIdentityMembers=res.data;return res.data;
+  }).finally(function(){_pcspIdentityLoading=null;});
+  return _pcspIdentityLoading;
+}
+function pcspCanonicalMemberId(id){
+  var raw=String(id==null?'':id).trim();
+  var direct=_pcspIdentityMembers.filter(function(m){return String(m.ID).trim()===raw;});
+  if(direct.length>1)throw new Error('중복된 내부 회원 ID: '+raw);
+  if(direct.length===1)return String(direct[0].ID).trim();
+  var matches=_pcspIdentityMembers.filter(function(m){return String(m.Medicaid||'').trim()===raw&&raw;});
+  if(matches.length>1)throw new Error('여러 회원에게 등록된 Medicaid: '+raw);
+  if(matches.length===1)return String(matches[0].ID).trim();
+  throw new Error('등록되지 않은 회원 ID: '+raw);
+}
+
 function loadPCSPFromSheets(){
-  return apiGet({action:'read',sheet:'PCSP'}).then(function(res){
+  return Promise.all([apiGet({action:'read',sheet:'PCSP'}),pcspLoadIdentityMembers()]).then(function(results){
+    var res=results[0];
     if(!res||!res.ok||!res.data)return;
-    PCSP_LIST=[]; // 매번 중앙 저장소 기준으로 새로 구성
+    var nextList=[]; // Complete identity validation before replacing the visible list.
     res.data.forEach(function(row){
       var id=String(row['ID']||''); if(!id)return;
       var summary={
-        id:id,memberId:String(row['멤버ID']||''),nameKr:String(row['한글이름']||''),
+        id:id,memberId:pcspCanonicalMemberId(row['멤버ID']),nameKr:String(row['한글이름']||''),
         wdate:pcspDate(row['작성일']),nextdate:pcspDate(row['갱신예정일']),writer:String(row['작성자']||''),
         diag:String(row['진단']||''),status:String(row['상태']||'서명대기')
       };
-      var existing=PCSP_LIST.find(function(p){return p.id===id;});
+      var existing=nextList.find(function(p){return p.id===id;});
       if(existing) Object.keys(summary).forEach(function(k){existing[k]=summary[k];});
-      else PCSP_LIST.push(summary);
+      else nextList.push(summary);
     });
+    PCSP_LIST=nextList;
     savePCSPStorage();renderPCSPList();loadPCSPPdfLinks(false);
   }).catch(function(e){alert('❌ PCSP 목록 로드 실패: '+e.message);throw e;});
 }
@@ -562,17 +587,21 @@ function pcspRequireSaved(res, label){
   return res.data;
 }
 async function loadPCSPRecord(id, memberId, memberName){
+  await pcspLoadIdentityMembers();
+  memberId=pcspCanonicalMemberId(memberId);
   var res=await apiGet({action:'loadJSON',memberId:memberId,memberName:memberName||'',fileType:'PCSP',recordId:id});
   if(!res||!res.ok||!res.data||!res.data.found||!res.data.data)
     throw new Error((res&&res.data&&res.data.error)||'PCSP 전체 내용을 불러오지 못했습니다. 입력 내용은 변경하지 않았습니다.');
   var full=res.data.data;
   if(String(full.id||'')!==String(id))throw new Error('선택한 PCSP와 저장된 기록의 ID가 다릅니다. 다른 기록을 대신 열지 않습니다.');
-  if(String(full.memberId||'')!==String(memberId))throw new Error('선택한 회원과 저장된 PCSP의 회원 ID가 다릅니다.');
+  if(pcspCanonicalMemberId(full.memberId)!==memberId)throw new Error('선택한 회원과 저장된 PCSP의 회원 ID가 다릅니다.');
   if(full.version!==2||!full.health||!full.functional||!full.planning)
     throw new Error('이 PCSP는 현재 v2 양식에서 바로 열 수 없습니다. 전체 v2 원본을 확인해주세요.');
+  full.memberId=memberId;
   return full;
 }
 function cachePCSPRecord(full){
+  full.memberId=pcspCanonicalMemberId(full.memberId);
   var ix=PCSP_LIST.findIndex(function(x){return x.id===full.id;});
   if(ix>=0)PCSP_LIST[ix]=full;else PCSP_LIST.push(full);
 }
@@ -777,6 +806,8 @@ async function wfSend(){
   _wfBusy=(async function(){
     wfNotice('서버 저장 중…');
     try{
+      if(!_pcspIdentityMembers.length)await pcspLoadIdentityMembers();
+      request.pcsp.memberId=pcspCanonicalMemberId(request.pcsp.memberId);
       var result=pcspRequireSaved(await apiCall(request),'PCSP 저장');
       var p=request.pcsp;p._revision=result.revision;p.status=result.status;p.pdfUrl=result.url||p.pdfUrl;
       _wfMeta[p.id]={revision:result.revision,previousId:p.previousId,importSources:p.importSources,renewalReview:p.renewalReview||null};
