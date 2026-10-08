@@ -1278,10 +1278,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="apps/billing.js?v=20260911p1"></script>
   <script src="apps/attachments.js?v=20260929"></script>
   <script src="apps/medications.js?v=20260930cleanup4"></script>
-<script src="apps/pcsp.js?v=20260930cleanup4"></script>
+<script src="apps/pcsp.js?v=20261007fix1"></script>
   <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
-  <script src="apps/forms_ops.js?v=20260930cleanup4"></script>
-  <script src="apps/documents.js?v=20260929summary2-20260929"></script>
+  <script src="apps/forms_ops.js?v=20261007fix1"></script>
+  <script src="apps/documents.js?v=20261007fix1"></script>
   <script src="apps/training_ops.js?v=20261005sadc2"></script>
 <script>
 
@@ -1369,24 +1369,33 @@ function initData(){
       return;
     }
     if (mid) {
-      // 멤버 캐시(loadFormsMemberDropdown)가 채워질 때까지 대기 후 PCSP 오픈
-      var tries = 0;
-      var waitForCache = setInterval(function(){
-        tries++;
-        if ((_formsMemberCache && _formsMemberCache.length) || tries > 40) {
-          clearInterval(waitForCache);
-          var member = (_formsMemberCache||[]).find(function(m){ return String(m['ID']) === String(mid); });
-          var mName = member ? (member['한글이름']||'') : '';
-          var type=params.get('type')||'PCSP';
-          if(!member && type!=='PCSP'){alert('멤버 정보를 불러오지 못했습니다. Forms에서 멤버를 다시 선택해주세요.');return;}
-          if(member){document.getElementById('forms-search').value=mName;document.getElementById('forms-member-result').style.display='none';}
-          if(params.get('documentId'))openDocumentFromURL(mid,mName,type,params.get('documentId'),params.get('recordMid'));
-          else showDocumentHistory(mid,mName,type);
-        }
-      }, 150);
+      // 멤버 목록이 올 때까지 기다린 뒤(시간 제한 없음) 해당 멤버의 문서 화면을 연다.
+      openFormsForMemberFromLink(mid, params.get('type')||'PCSP', params.get('documentId'), params.get('recordMid'));
     }
   }
 }
+
+// 케어관리에서 링크로 넘어온 멤버 열기. 멤버를 못 찾으면 빈 화면 대신 안내와 다시 시도 버튼을 보여준다.
+async function openFormsForMemberFromLink(mid,type,documentId,recordMid){
+  var msg=document.getElementById('forms-empty-msg');
+  function notice(html){if(msg){msg.style.display='block';msg.innerHTML=html;}}
+  notice('<div style="font-size:24px;margin-bottom:8px">⏳</div><div>멤버 정보를 불러오는 중...</div>');
+  var member=null,err='';
+  try{member=await formsFindMember(mid);}catch(e){err=e.message||String(e);}
+  if(!member){
+    notice('<div style="font-size:24px;margin-bottom:8px">⚠️</div><div style="color:#FF3B30">'+(err?'멤버 목록을 불러오지 못했습니다: '+escapeOpsHTML(err):'멤버 ID '+escapeOpsHTML(mid)+' 를 멤버 시트에서 찾을 수 없습니다.')+'</div>'
+      +'<button class="btn-sm" style="margin-top:10px" onclick="openFormsForMemberFromLink(\''+String(mid).replace(/[^\w-]/g,'')+'\',\''+String(type||'PCSP').replace(/[^\w-]/g,'')+'\')">다시 불러오기</button>');
+    return;
+  }
+  if(msg)msg.innerHTML='<div style="font-size:32px;margin-bottom:8px">📋</div><div>멤버 이름을 검색해서 폼을 작성하세요</div>';
+  var mName=member['한글이름']||member['영문이름']||'';
+  _selectedFormsMember=member;
+  document.getElementById('forms-search').value=mName;
+  document.getElementById('forms-member-result').style.display='none';
+  if(documentId)openDocumentFromURL(String(member['ID']),mName,type,documentId,recordMid);
+  else showDocumentHistory(String(member['ID']),mName,type);
+}
+function escapeOpsHTML(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 
 // ── Tab 전환 ─────────────────────────────────────────────
 function goTab(tab,el){

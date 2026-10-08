@@ -61,10 +61,7 @@ function selectApp(type) {
             renderDash(); filterM(); renderStaff();
             renderIncidents(); renderActivities(); renderCases();
             renderAuthList(); renderVisitorList(); renderCouncilList();
-            ['inc','act','case'].forEach(function(px){
-              var sel = document.getElementById(px+'-msel');
-              if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
-            });
+            refreshAllMSel();
             loadAttFromSheets(toISO(curDate));
           }
         });
@@ -182,10 +179,7 @@ async function loadAllData() {
     updateDashNow(); renderAuthList(); renderVisitorList(); renderCouncilList(); filterM();
     // 멤버 select 업데이트 (Sheets에서 멤버 로드 후)
     });
-    ['inc','act','case'].forEach(function(px){
-      var sel = document.getElementById(px+'-msel');
-      if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
-    });
+    refreshAllMSel();
   } catch (e) { console.log('loadAllData error:', e); }
 }
 
@@ -466,10 +460,8 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>`).join('');
 
   // 멤버 select는 MEMBERS 로드 후 채워짐 (loadAllData에서 처리)
-  ['inc','act','case'].forEach(px => {
-    const sel = document.getElementById(px+'-msel');
-    if (sel && MEMBERS && MEMBERS.length) sel.innerHTML = MEMBERS.map(m=>`<option value="${m.id}">${m.kr} (${m.en})</option>`).join('');
-  });
+  ['inc','act','case'].forEach(bindMSel);
+  if (MEMBERS && MEMBERS.length) refreshAllMSel();
 
   ['inc','act','case'].forEach(px => {
     const f = document.getElementById(px+'-from'), t = document.getElementById(px+'-to');
@@ -535,10 +527,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderIncidents(); renderActivities(); renderCases();
             renderAuthList(); renderVisitorList(); renderCouncilList();
             // 멤버 select 업데이트
-            ['inc','act','case'].forEach(function(px){
-              var sel = document.getElementById(px+'-msel');
-              if (sel) sel.innerHTML = MEMBERS.map(function(m){ return '<option value="'+m.id+'">'+m.kr+' ('+m.en+')</option>'; }).join('');
-            });
+            refreshAllMSel();
             // 출결은 Sheets에서 직접 로드
             loadAttFromSheets(toISO(curDate));
           }

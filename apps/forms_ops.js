@@ -7,11 +7,25 @@
 var _formsMemberCache = [];
 var _selectedFormsMember = null;
 
+var _formsMemberAll = [];      // 디스엔롤 포함 전체 (링크로 넘어온 멤버 찾기용)
+var _formsMemberLoading = null;
 function loadFormsMemberDropdown(){
-  apiGet({action:'read',sheet:'멤버'}).then(function(res){
-    if(!res.ok||!res.data)return;
-    _formsMemberCache = res.data.filter(function(r){return r['ID']&&r['한글이름']&&r['상태']!=='disenrolled';});
-  }).catch(function(){});
+  if(_formsMemberLoading)return _formsMemberLoading;
+  _formsMemberLoading=apiGet({action:'read',sheet:'멤버'}).then(function(res){
+    if(!res||!res.ok||!Array.isArray(res.data))throw new Error('멤버 목록을 불러오지 못했습니다.');
+    _formsMemberAll = res.data.filter(function(r){return r['ID'];});
+    _formsMemberCache = _formsMemberAll.filter(function(r){return r['한글이름']&&r['상태']!=='disenrolled';});
+    return _formsMemberCache;
+  }).finally(function(){_formsMemberLoading=null;});
+  _formsMemberLoading.catch(function(){});
+  return _formsMemberLoading;
+}
+// 멤버 ID로 멤버 찾기 — 목록이 아직 안 왔으면 올 때까지 기다리고, 없으면 한 번 더 새로 받아본다.
+async function formsFindMember(mid){
+  function find(list){return (list||[]).find(function(m){return String(m['ID']).trim()===String(mid).trim();});}
+  var m=find(_formsMemberCache)||find(_formsMemberAll);if(m)return m;
+  await loadFormsMemberDropdown();
+  return find(_formsMemberCache)||find(_formsMemberAll)||null;
 }
 
 function filterFormsMembers(){
@@ -50,7 +64,7 @@ function filterFormsMembers(){
 }
 
 function selectFormsMember(mid){
-  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);})||_formsMemberAll.find(function(m){return String(m['ID'])===String(mid);});
   if(!member)return;
   _selectedFormsMember=member;
   document.getElementById('forms-search').value=member['한글이름'];

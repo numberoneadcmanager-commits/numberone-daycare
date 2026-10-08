@@ -24,8 +24,10 @@ async function showDocumentHistory(mid,name,type){
   if(_docPending&&!window.confirm('저장 결과를 확인하지 못했습니다. 서버 목록을 다시 확인하시겠습니까?'))return;
   _docPending=null;_docActive=null;_docReview=null;_formLoads={};docHideForms();
   document.getElementById('document-history').style.display='none';document.getElementById('forms-hub').style.display='block';
-  var member=_formsMemberCache.find(function(m){return String(m.ID)===String(mid);});
-  if(member){_selectedFormsMember=member;document.getElementById('forms-selected').style.display='block';document.getElementById('forms-empty-msg').style.display='none';document.getElementById('forms-selected-name').textContent=name;}
+  var member=_formsMemberCache.find(function(m){return String(m.ID)===String(mid);})||(typeof _formsMemberAll!=='undefined'?_formsMemberAll:[]).find(function(m){return String(m.ID)===String(mid);});
+  if(member)_selectedFormsMember=member;
+  // 멤버 캐시 여부와 관계없이 문서 목록 영역은 항상 보여준다 (숨겨진 영역에 그려져 빈 화면이 되던 문제).
+  document.getElementById('forms-selected').style.display='block';document.getElementById('forms-empty-msg').style.display='none';document.getElementById('forms-member-result').style.display='none';document.getElementById('forms-selected-name').textContent=name||(member&&member['한글이름'])||String(mid);
   if(!_docMember||_docMember.mid!==String(mid)){_docExpanded={};_docTrash={};}
   _docMember={mid:String(mid),name:name||''};if(type)_docExpanded[type]=true;docChoose(type||'PCSP');
   var serial=++_docListSerial;_docRows=[];renderDocumentHistory('loading');
@@ -98,7 +100,7 @@ async function docChange(i,restore){var d=_docRows[i],c=_docContext;
   try{docResult(await apiCall({action:'documentState',documentId:d.id,memberId:c.mid,fileType:c.type,expectedRevision:d.revision||0,reason:reason,restore:restore,actor:_currentUser&&_currentUser.email||''}));await showDocumentHistory(c.mid,c.name,c.type);}catch(e){alert(e.message);}
 }
 function docNew(){var c=_docContext;if(!c)return;_docReview=null;docHideForms();_docActive={id:'doc_'+crypto.randomUUID(),mid:c.mid,type:c.type,revision:0,isNew:true,signed:false};_docPending=null;document.getElementById('document-history').style.display='none';
-  if(c.type==='PCSP'){var m=_formsMemberCache.find(function(m){return String(m.ID)===c.mid;});selectPCSPMember(m);}
+  if(c.type==='PCSP'){formsFindMember(c.mid).then(function(m){if(!m)throw new Error('멤버 정보를 찾을 수 없습니다. 멤버 시트를 확인해주세요.');return selectPCSPMember(m);}).catch(function(e){alert('❌ 새 PCSP를 열지 못했습니다: '+(e.message||e));showDocumentHistory(c.mid,c.name,'PCSP');});}
   else if(c.type==='Nutrition')openNutritionForMember(c.mid,c.name);
   else if(c.type==='Assessment')openAssessmentForMember(c.mid,c.name);
   else if(c.type==='MemberRights')openMemberRightsForMember(c.mid,c.name);

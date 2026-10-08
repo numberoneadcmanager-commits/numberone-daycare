@@ -72,12 +72,13 @@ function openIncModal(id = null) {
   document.getElementById('inc-wit').value    = inc ? inc['목격자'] : '';
   document.getElementById('inc-doh').value    = inc ? inc['DOH보고']: '미보고';
   document.getElementById('inc-writer').value = inc ? inc['작성자'] : '';
-  if (inc) { const sel = document.getElementById('inc-msel'); for (const o of sel.options) if (o.value === String(inc['멤버ID'])) o.selected = true; }
+  resetMSel('inc', inc ? String(inc['멤버ID'] || '') : '');
   openOv('ov-inc');
 }
 
 async function saveIncident() {
-  const mid = document.getElementById('inc-msel').value;
+  const mid = getMSel('inc');
+  if (!mid && !confirm('멤버가 선택되지 않았습니다.\n특정 멤버와 관계없는 센터 Incident로 저장할까요?\n(멤버 관련이면 취소 후 목록에서 이름을 눌러주세요)')) return;
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
     '날짜': gv('inc-date'), '시간': gv('inc-time'), '멤버ID': mid, '한글이름': mem.kr || '',
@@ -142,12 +143,13 @@ function openActModal(id = null) {
   document.getElementById('act-part').value   = act ? act['참여도']  : 'Active — 적극 참여';
   document.getElementById('act-memo').value   = act ? act['메모']    : '';
   document.getElementById('act-writer').value = act ? act['작성자']  : '';
-  if (act) { const sel = document.getElementById('act-msel'); for (const o of sel.options) if (o.value === String(act['멤버ID'])) o.selected = true; }
+  resetMSel('act', act ? String(act['멤버ID'] || '') : '');
   openOv('ov-act');
 }
 
 async function saveActivity() {
-  const mid = document.getElementById('act-msel').value;
+  const mid = getMSel('act');
+  if (!mid) { alert('멤버를 선택해주세요. (검색 후 목록에서 이름을 눌러주세요)'); return; }
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
     '날짜': gv('act-date'), '멤버ID': mid, '한글이름': mem.kr || '',
@@ -219,12 +221,13 @@ function openCaseModal(id = null) {
   document.getElementById('case-status').value  = c ? c['상태']      : '진행 중';
   document.getElementById('case-result').value  = c ? c['결과']      : '';
   document.getElementById('case-writer').value  = c ? c['작성자']    : '';
-  if (c) { const sel = document.getElementById('case-msel'); for (const o of sel.options) if (o.value === String(c['멤버ID'])) o.selected = true; }
+  resetMSel('case', c ? String(c['멤버ID'] || '') : '');
   openOv('ov-case');
 }
 
 async function saveCase() {
-  const mid = document.getElementById('case-msel').value;
+  const mid = getMSel('case');
+  if (!mid) { alert('멤버를 선택해주세요. (검색 후 목록에서 이름을 눌러주세요)'); return; }
   const mem = MEMBERS.find(m => m.id === mid) || {};
   const data = {
     '날짜': gv('case-date'), '멤버ID': mid, '한글이름': mem.kr || '',

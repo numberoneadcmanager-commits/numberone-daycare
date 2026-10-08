@@ -143,13 +143,74 @@ function closeModal() {
 }
 
 // ── 멤버 select 필터링 ────────────────────────────────────────
-function filterMSel(px) {
-  const q   = document.getElementById(px + '-msearch').value.toLowerCase();
+// 로그(Incident / Activity / Case) 멤버 선택 상태.
+// select 목록이 새로 그려져도(검색, 자동 새로고침) 고른 멤버가 풀리지 않도록 따로 기억한다.
+var MSEL_PICKED = { inc: '', act: '', case: '' };
+function _mselEsc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function renderMSel(px) {
+  const input = document.getElementById(px + '-msearch');
   const sel = document.getElementById(px + '-msel');
-  sel.innerHTML = MEMBERS
-    .filter(m => !q || m.kr.includes(q) || m.en.toLowerCase().includes(q))
-    .map(m => `<option value="${m.id}">${m.kr} (${m.en})</option>`)
-    .join('');
+  if (!sel) return;
+  const q = ((input && input.value) || '').trim().toLowerCase();
+  const picked = MSEL_PICKED[px] || '';
+  const pickedM = MEMBERS.find(m => String(m.id) === String(picked));
+  const pickedLabel = pickedM ? (pickedM.kr + ' (' + pickedM.en + ')').toLowerCase() : '';
+  // 검색칸에 고른 멤버 이름이 그대로 있으면 전체 목록을 보여준다
+  const useQ = q && q !== pickedLabel && !(pickedM && q === String(pickedM.kr).toLowerCase());
+  let list = MEMBERS.filter(m => !useQ || String(m.kr || '').toLowerCase().includes(q) || String(m.en || '').toLowerCase().includes(q));
+  if (pickedM && !list.includes(pickedM)) list = [pickedM].concat(list);
+  sel.innerHTML = list.map(m => `<option value="${_mselEsc(m.id)}"${String(m.id) === String(picked) ? ' selected' : ''}>${_mselEsc(m.kr)} (${_mselEsc(m.en)})</option>`).join('');
+  // 검색 결과가 딱 한 명이면 자동 선택
+  if (useQ && list.length === 1 && !picked) { pickMSel(px, list[0].id); return; }
+  _renderMSelPicked(px);
+}
+function filterMSel(px) {
+  const input = document.getElementById(px + '-msearch');
+  const picked = MEMBERS.find(m => String(m.id) === String(MSEL_PICKED[px]));
+  // 검색어를 바꾸기 시작하면 이전 선택은 해제 (다른 멤버를 찾는 중)
+  if (picked && input && input.value.trim() !== String(picked.kr)) MSEL_PICKED[px] = '';
+  renderMSel(px);
+}
+function pickMSel(px, mid) {
+  MSEL_PICKED[px] = mid ? String(mid) : '';
+  const m = MEMBERS.find(x => String(x.id) === MSEL_PICKED[px]);
+  const input = document.getElementById(px + '-msearch');
+  if (input && m) input.value = m.kr;
+  renderMSel(px);
+}
+function _renderMSelPicked(px) {
+  const sel = document.getElementById(px + '-msel');
+  if (!sel) return;
+  let chip = document.getElementById(px + '-mpicked');
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.id = px + '-mpicked';
+    chip.style.cssText = 'font-size:12px;font-weight:600;margin-top:4px';
+    sel.insertAdjacentElement('afterend', chip);
+  }
+  const m = MEMBERS.find(x => String(x.id) === String(MSEL_PICKED[px]));
+  chip.style.color = m ? '#34C759' : '#FF9500';
+  chip.textContent = m ? '✓ 선택됨: ' + m.kr + ' (' + m.en + ')' : '멤버를 목록에서 눌러 선택해주세요';
+}
+function resetMSel(px, mid) {
+  const input = document.getElementById(px + '-msearch');
+  if (input) input.value = '';
+  MSEL_PICKED[px] = '';
+  if (mid) pickMSel(px, mid); else renderMSel(px);
+}
+function getMSel(px) {
+  const mid = MSEL_PICKED[px] || ((document.getElementById(px + '-msel') || {}).value) || '';
+  return MEMBERS.some(m => String(m.id) === String(mid)) ? String(mid) : '';
+}
+function refreshAllMSel() { ['inc', 'act', 'case'].forEach(renderMSel); }
+function bindMSel(px) {
+  const sel = document.getElementById(px + '-msel');
+  if (!sel || sel._mselBound) return;
+  sel._mselBound = true;
+  const take = () => { if (sel.value) pickMSel(px, sel.value); };
+  sel.addEventListener('change', take);
+  sel.addEventListener('click', take);
+  sel.addEventListener('dblclick', take);
 }
 
 // ── 캔버스 서명 공통 초기화 ───────────────────────────────────
