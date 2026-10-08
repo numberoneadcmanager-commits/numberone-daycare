@@ -14,15 +14,30 @@ const SheetsAPI = {
   isConnected() { return this._connected; },
 
   // ── 기본 호출 ──────────────────────────────────────────────
+  // 같은 조회가 동시에 여러 곳에서 요청되면 서버에는 한 번만 보내고 결과를 나눠 쓴다.
+  // (그 사이에 저장이 시작됐으면 공유하지 않고 새로 요청 — 오래된 결과를 최신으로 착각하지 않게)
+  _inflight: new Map(),
   async get(params) {
     const stamp=WriteGuard.readStart();
     const qs  = new URLSearchParams(params).toString();
-    const res = await fetch(this.URL + '?' + qs, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
-    if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
-    return WriteGuard.remember(params,data,stamp);
+    let shared = this._inflight.get(qs);
+    if (!shared || shared.epoch !== stamp.epoch) {
+      const url = this.URL + '?' + qs;
+      shared = { epoch: stamp.epoch, promise: (async () => {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+        if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
+        return data;
+      })() };
+      this._inflight.set(qs, shared);
+      const entry = shared;
+      entry.promise.then(() => {}, () => {}).then(() => { if (this._inflight.get(qs) === entry) this._inflight.delete(qs); });
+    }
+    const data = await shared.promise;
+    // 호출한 곳마다 독립된 사본을 돌려준다 (한 곳에서 고쳐도 다른 곳에 영향 없음)
+    return WriteGuard.remember(params, JSON.parse(JSON.stringify(data)), stamp);
   },
 
   async post(body) {

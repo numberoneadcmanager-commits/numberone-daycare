@@ -53,20 +53,7 @@ function selectApp(type) {
   // 앱 화면 진입 시 Sheets 데이터 로드 (타이밍 보장)
   if (!window._sheetsLoadedOnce) {
     window._sheetsLoadedOnce = true;
-    SheetsAPI.ping().then(function(ok) {
-      SheetsAPI.setStatusPill(ok);
-      if (ok) {
-        loadFromSheets().then(function(ok2) {
-          if (ok2) {
-            renderDash(); filterM(); renderStaff();
-            renderIncidents(); renderActivities(); renderCases();
-            renderAuthList(); renderVisitorList(); renderCouncilList();
-            refreshAllMSel();
-            loadAttFromSheets(toISO(curDate));
-          }
-        });
-      }
-    });
+    startSheetsLoad();
   }
 
   const pill = document.getElementById('api-pill');
@@ -183,11 +170,37 @@ async function loadAllData() {
   } catch (e) { console.log('loadAllData error:', e); }
 }
 
+// 연결 확인(ping)을 따로 기다리지 않고 바로 데이터를 불러온다. 성공 여부가 곧 연결 상태.
+function startSheetsLoad() {
+  loadFromSheets().then(function(ok2) {
+    SheetsAPI._connected = !!ok2;
+    SheetsAPI.setStatusPill(!!ok2);
+    if (ok2) {
+      renderDash(); filterM(); renderStaff();
+      renderIncidents(); renderActivities(); renderCases();
+      renderAuthList(); renderVisitorList(); renderCouncilList();
+      refreshAllMSel();
+      loadAttFromSheets(toISO(curDate));
+      loadSecondaryFromSheets();
+    }
+  });
+}
+// 화면을 연 뒤 뒤에서 불러오는 것: 멤버 사진 (끝나면 멤버 카드만 다시 그림).
+var _secondaryLoading = null;
+function loadSecondaryFromSheets() {
+  if (_secondaryLoading) return _secondaryLoading;
+  _secondaryLoading = Promise.resolve(restorePhotosFromDrive(true)).catch(function(e){ console.log('사진 로드 실패:', e); })
+    .finally(function(){ _secondaryLoading = null; });
+  return _secondaryLoading;
+}
+
 async function loadFromSheets() {
   try {
     showLoadingOverlay('Google Sheets에서 데이터 로드 중...');
 
     // ★ 서로 의존관계 없는 요청들을 병렬로 실행 (순차 실행하면 각 왕복시간이 그대로 쌓여서 느려짐)
+    // 운영시간·차량 설정(settings)도 같은 시점에 병렬로 요청 (출석 기본 시간 등에 쓰이므로 화면 열기 전에 받음)
+    const settingsReady = Promise.all([loadDaycareHoursFromSheets(), loadVehicleFleetFromSheets()]).catch(function(e){ console.log('설정 로드 실패:', e); });
     const [members, staff, all] = await Promise.all([
       SheetsAPI.loadMembers(),
       SheetsAPI.loadStaff(),
@@ -210,7 +223,8 @@ async function loadFromSheets() {
     if (all.councilList) COUNCIL_LIST = all.councilList;
 
     });
-    await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets(),restorePhotosFromDrive(true)]);
+    await settingsReady;
+    // 사진은 화면을 연 뒤 loadSecondaryFromSheets()에서 불러온다 (로딩 화면 대기 시간 단축)
     hideLoadingOverlay();
     return true;
   } catch (e) { hideLoadingOverlay(); console.log('Sheets load error:', e); return false; }
@@ -517,23 +531,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // Sheets 연결 후 데이터 로드 + 출결 로드 (앱 화면 진입 시에도 selectApp에서 한번 더 보장)
   // ★ selectApp()에서 이미 ping+load를 실행했다면 여기서 또 요청 보내지 않음 (중복 요청 방지)
   if (!window._sheetsLoadedOnce) {
-    SheetsAPI.ping().then(ok => {
-      SheetsAPI.setStatusPill(ok);
-      if (ok && !window._sheetsLoadedOnce) {
-        window._sheetsLoadedOnce = true;
-        loadFromSheets().then(ok2 => {
-          if (ok2) {
-            renderDash(); filterM(); renderStaff();
-            renderIncidents(); renderActivities(); renderCases();
-            renderAuthList(); renderVisitorList(); renderCouncilList();
-            // 멤버 select 업데이트
-            refreshAllMSel();
-            // 출결은 Sheets에서 직접 로드
-            loadAttFromSheets(toISO(curDate));
-          }
-        });
-      }
-    });
+    window._sheetsLoadedOnce = true;
+    startSheetsLoad();
   }
 });
 
@@ -669,7 +668,8 @@ async function refreshCentralLists(){
   _centralRefreshRunning=true;
   try{
     await loadAllData();
-    await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets(),restorePhotosFromDrive(true)]);
+    await Promise.all([loadDaycareHoursFromSheets(),loadVehicleFleetFromSheets()]);
+    loadSecondaryFromSheets(); // 사진은 기다리지 않음
     if(typeof loadDocStatusMaps==='function')await loadDocStatusMaps(true);
     if(typeof loadAttFromSheets==='function')await loadAttFromSheets(toISO(curDate));
   }finally{_centralRefreshRunning=false;}

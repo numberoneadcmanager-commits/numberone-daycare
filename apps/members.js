@@ -799,18 +799,25 @@ async function restorePhotosFromDrive(silent) {
 
     if (!targets.length) { if(msgEl) msgEl.textContent='✅ 복원할 사진 없음 (모두 최신)'; return; }
 
-    var done = 0;
-    for (var i = 0; i < targets.length; i++) {
-      var t = targets[i];
-      try {
-        var res = await SheetsAPI.loadJSON(t.mid, t.name, 'Photo');
-        if (res.ok && res.data && res.data.found && res.data.data && res.data.data.photo) {
-          var m = MEMBERS.find(function(x){ return x.id === t.mid; });
-          if (m) { m.photo = res.data.data.photo; mp[t.mid] = res.data.data.photo; done++; }
-        }
-      } catch(e) {}
-      if (msgEl) msgEl.textContent = '⏳ 사진 복원 중... ' + (i+1) + '/' + targets.length;
+    // 한 명씩 차례로 받으면 사진 수만큼 기다리게 되므로, 동시에 4장씩 받는다.
+    var done = 0, finished = 0, next = 0;
+    async function worker() {
+      while (next < targets.length) {
+        var t = targets[next++];
+        try {
+          var res = await SheetsAPI.loadJSON(t.mid, t.name, 'Photo');
+          if (res.ok && res.data && res.data.found && res.data.data && res.data.data.photo) {
+            var m = MEMBERS.find(function(x){ return x.id === t.mid; });
+            if (m) { m.photo = res.data.data.photo; mp[t.mid] = res.data.data.photo; done++; }
+          }
+        } catch(e) {}
+        finished++;
+        if (msgEl) msgEl.textContent = '⏳ 사진 복원 중... ' + finished + '/' + targets.length;
+      }
     }
+    var workers = [];
+    for (var w = 0; w < Math.min(4, targets.length); w++) workers.push(worker());
+    await Promise.all(workers);
 
     saveToStorage();
     renderMG();
