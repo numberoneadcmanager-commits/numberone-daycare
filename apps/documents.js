@@ -8,6 +8,9 @@ function docPCSPNotice(html){
   el.style.display=html?'block':'none';el.innerHTML=html||'';
 }
 function docPCSPEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+// 기록 ID가 없는 PCSP(예전 방식 파일)는 편집 대신 드라이브 원본을 연다
+function docPCSPNoId(d){return !!d&&d.type==='PCSP'&&!d.recordId;}
+function docOpenDriveFile(fileId){if(fileId)window.open('https://drive.google.com/file/d/'+encodeURIComponent(fileId)+'/view','_blank','noopener');}
 function docPCSPBack(){docPCSPNotice('');var c=_docContext;if(c)showDocumentHistory(c.mid,c.name,'PCSP');else{var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';}}
 function docHideForms(){docPCSPNotice('');['forms-hub','frm-assessment','frm-nutrition','frm-member-rights','frm-incident','pcsp-list-view','pcsp-member-select','pcsp-form-view'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}
 var _docMember=null,_docExpanded={},_docTrash={},_docReview=null;
@@ -74,7 +77,7 @@ function renderDocumentHistory(state,error){
     var body=document.createElement('div');body.className='doc-records';body.id='doc-history-'+type;body.hidden=!_docExpanded[type];wrap.appendChild(body);
     if(state==='error'){docButton('다시 불러오기',function(){showDocumentHistory(_docMember.mid,_docMember.name,type);},quick);var err=document.createElement('small');err.className='doc-error';err.textContent=error;body.appendChild(err);return;}
     if(state==='loading')return;
-    var latest=rows[0];docButton(latest?(latest.d.pdfUrl?'파일 보기':latest.d.signed?'문서 확인':latest.d.status==='서명대기'?'이어서 작성 / 서명':'이어서 작성'):isUpload?'＋ 업로드':'＋ 새로 작성',function(){docChoose(type);if(!latest)docNew();else if(latest.d.pdfUrl)window.open(latest.d.pdfUrl,'_blank','noopener');else if(latest.d.signed&&type==='PCSP'){_docExpanded[type]=true;renderDocumentHistory();}else docOpen(latest.i);},quick);
+    var latest=rows[0];docButton(latest?(latest.d.pdfUrl?'파일 보기':latest.d.signed?'문서 확인':docPCSPNoId(latest.d)?'원본 파일 보기':latest.d.status==='서명대기'?'이어서 작성 / 서명':'이어서 작성'):isUpload?'＋ 업로드':'＋ 새로 작성',function(){docChoose(type);if(!latest)docNew();else if(latest.d.pdfUrl)window.open(latest.d.pdfUrl,'_blank','noopener');else if(latest.d.signed&&type==='PCSP'){_docExpanded[type]=true;renderDocumentHistory();}else docOpen(latest.i);},quick);
     if(!_docExpanded[type])return;
     var toolbar=document.createElement('div');toolbar.className='doc-history-toolbar';body.appendChild(toolbar);var heading=document.createElement('span');heading.textContent=_docTrash[type]?'삭제한 문서':'문서 이력';toolbar.appendChild(heading);
     var tools=document.createElement('div');tools.className='doc-history-tools';toolbar.appendChild(tools);
@@ -91,7 +94,8 @@ function renderDocumentHistory(state,error){
       if(d.deletedAt){docButton('복구',act(function(){docChange(x.i,true);}),card);return;}
       if(d.pdfUrl)docButton('파일 보기',function(){window.open(d.pdfUrl,'_blank','noopener');},card);
       if(type==='Medication_List')docButton('✨ AI로 읽기 / 결과',function(){medicationSourceOpen(d);},card);
-      if(!d.signed&&(d.jsonFile||type==='Incident'||type==='PCSP'))docButton('이어서 작성 / 서명',act(function(){docOpen(x.i);}),card);
+      if(docPCSPNoId(d)){if(d.jsonFile)docButton('원본 파일 보기',function(){docOpenDriveFile(d.jsonFile);},card);}
+      else if(!d.signed&&(d.jsonFile||type==='Incident'||type==='PCSP'))docButton('이어서 작성 / 서명',act(function(){docOpen(x.i);}),card);
       if(d.signed&&(d.jsonFile||type==='PCSP')&&['PCSP','Assessment','Nutrition','MemberRights'].includes(type))docButton('복사해서 새로 작성',act(function(){docCopy(x.i);}),card);
       if(d.signed&&!d.pdfUrl&&(d.canGeneratePDF||type==='PCSP'))docButton('PDF 생성 재시도',act(async function(){try{if(type==='PCSP'){await loadPCSPFromSheets();await wfRetryPDF(d.recordId);}else docResult(await apiCall({action:'documentPDF',documentId:d.id,memberId:_docMember.mid}));showDocumentHistory(_docMember.mid,_docMember.name,type);}catch(e){alert(e.message);}}),card);
       var more=document.createElement('details'),summary=document.createElement('summary');summary.textContent='⋯';summary.setAttribute('aria-label',docDateLabel(d)+' '+t[1]+' 문서 관리');more.appendChild(summary);card.appendChild(more);
@@ -120,14 +124,18 @@ async function docOpen(i){var d=_docRows[i],c=_docContext;docHideForms();_docRev
   if(d.type==='PCSP'){
     if(d.signed){if(d.pdfUrl){window.open(d.pdfUrl,'_blank','noopener');document.getElementById('forms-hub').style.display='block';}else{alert('서명된 원본은 편집할 수 없습니다. PDF 생성 재시도를 사용해주세요.');document.getElementById('forms-hub').style.display='block';}return;}
     // 누른 기록을 ID와 멤버로 바로 연다 (PCSP 목록 전체를 다시 읽고 찾지 않음 → 목록에 없어도 열리고, 더 빠름)
+    if(docPCSPNoId(d)){
+      if(d.jsonFile){docOpenDriveFile(d.jsonFile);document.getElementById('document-history').style.display='none';var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';return;}
+    }
     docPCSPNotice('⏳ PCSP 불러오는 중… 서버 응답에 시간이 걸릴 수 있습니다.');
     try{
-      if(!d.recordId)throw new Error('이 문서에 PCSP 기록 ID가 없습니다.');
+      if(!d.recordId)throw new Error('이 PCSP는 예전 방식으로 저장되어 기록 ID가 없습니다. 원본 파일을 확인해주세요.');
       var full=await loadPCSPRecord(d.recordId,c.mid,c.name);
       if(full.signed||full.status==='완료'||full.status==='서명완료·PDF대기')throw new Error('서명된 기록입니다. 문서 목록에서 PDF 보기 또는 새 PCSP 생성을 이용해주세요.');
       docPCSPNotice('');cachePCSPRecord(full);openPCSPForm(full.id);
     }catch(e){
-      docPCSPNotice('<div style="color:#FF3B30;font-weight:600">❌ PCSP를 열지 못했습니다</div><div style="margin:6px 0 10px">'+docPCSPEsc(e&&e.message||e)+'</div><button type="button" class="btn-sm" onclick="docPCSPBack()">← 문서 목록으로</button>');
+      docPCSPNotice('<div style="color:#FF3B30;font-weight:600">❌ PCSP를 열지 못했습니다</div><div style="margin:6px 0 10px">'+docPCSPEsc(e&&e.message||e)+'</div><button type="button" class="btn-sm" onclick="docPCSPBack()">← 문서 목록으로</button>'
+        +(d.jsonFile?' <button type="button" class="btn-sm" onclick="docOpenDriveFile(\''+String(d.jsonFile).replace(/[^\w-]/g,'')+'\')">원본 파일 보기</button>':''));
     }
     return;
   }
