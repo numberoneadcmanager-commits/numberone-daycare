@@ -1,7 +1,15 @@
 // One document at a time. No browser-persistent state or signature copying.
 var _docContext=null,_docRows=[],_docActive=null,_docBusy=false,_docPending=null,_docListSerial=0;
 function docResult(res){if(!res||!res.ok||!res.data||res.data.success===false)throw new Error(res&&res.data&&res.data.error||'서버 응답을 확인하지 못했습니다.');return res.data;}
-function docHideForms(){['forms-hub','frm-assessment','frm-nutrition','frm-member-rights','frm-incident','pcsp-list-view','pcsp-member-select','pcsp-form-view'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}
+// PCSP를 여는 동안/실패했을 때 보여주는 안내 (빈 화면 방지)
+function docPCSPNotice(html){
+  var el=document.getElementById('doc-pcsp-notice');
+  if(!el){if(!html)return;var panel=document.getElementById('panel-forms');if(!panel)return;el=document.createElement('div');el.id='doc-pcsp-notice';el.setAttribute('role','status');el.style.cssText='background:#fff;border-radius:13px;padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);font-size:13px;line-height:1.5';panel.insertBefore(el,panel.firstChild);}
+  el.style.display=html?'block':'none';el.innerHTML=html||'';
+}
+function docPCSPEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function docPCSPBack(){docPCSPNotice('');var c=_docContext;if(c)showDocumentHistory(c.mid,c.name,'PCSP');else{var hub=document.getElementById('forms-hub');if(hub)hub.style.display='block';}}
+function docHideForms(){docPCSPNotice('');['forms-hub','frm-assessment','frm-nutrition','frm-member-rights','frm-incident','pcsp-list-view','pcsp-member-select','pcsp-form-view'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});}
 var _docMember=null,_docExpanded={},_docTrash={},_docReview=null;
 var DOC_TYPES=[['PCSP','PCSP'],['Assessment','Assessment'],['Nutrition','Nutrition Screening'],['MemberRights','Member Rights'],['HIPAA','HIPAA Authorization'],['Incident','Incident Log'],['Medicaid_Card','Medicaid Card'],['Medicare_Card','Medicare Card'],['Photo_ID','Photo ID'],['Medication_List','약 리스트 원본']];
 function docButton(label,fn,parent){
@@ -111,7 +119,17 @@ function docNew(){var c=_docContext;if(!c)return;_docReview=null;docHideForms();
 async function docOpen(i){var d=_docRows[i],c=_docContext;docHideForms();_docReview=null;_docActive=Object.assign({},d);_docPending=null;document.getElementById('document-history').style.display='none';
   if(d.type==='PCSP'){
     if(d.signed){if(d.pdfUrl){window.open(d.pdfUrl,'_blank','noopener');document.getElementById('forms-hub').style.display='block';}else{alert('서명된 원본은 편집할 수 없습니다. PDF 생성 재시도를 사용해주세요.');document.getElementById('forms-hub').style.display='block';}return;}
-    await loadPCSPFromSheets();await editPCSP(d.recordId);return;
+    // 누른 기록을 ID와 멤버로 바로 연다 (PCSP 목록 전체를 다시 읽고 찾지 않음 → 목록에 없어도 열리고, 더 빠름)
+    docPCSPNotice('⏳ PCSP 불러오는 중… 서버 응답에 시간이 걸릴 수 있습니다.');
+    try{
+      if(!d.recordId)throw new Error('이 문서에 PCSP 기록 ID가 없습니다.');
+      var full=await loadPCSPRecord(d.recordId,c.mid,c.name);
+      if(full.signed||full.status==='완료'||full.status==='서명완료·PDF대기')throw new Error('서명된 기록입니다. 문서 목록에서 PDF 보기 또는 새 PCSP 생성을 이용해주세요.');
+      docPCSPNotice('');cachePCSPRecord(full);openPCSPForm(full.id);
+    }catch(e){
+      docPCSPNotice('<div style="color:#FF3B30;font-weight:600">❌ PCSP를 열지 못했습니다</div><div style="margin:6px 0 10px">'+docPCSPEsc(e&&e.message||e)+'</div><button type="button" class="btn-sm" onclick="docPCSPBack()">← 문서 목록으로</button>');
+    }
+    return;
   }
   if(d.type==='Nutrition')openNutritionForMember(c.mid,c.name);
   else if(d.type==='Assessment')openAssessmentForMember(c.mid,c.name);

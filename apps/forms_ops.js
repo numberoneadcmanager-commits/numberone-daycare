@@ -35,7 +35,12 @@ function filterFormsMembers(){
   var emptyMsg = document.getElementById('forms-empty-msg');
   var selectedDiv = document.getElementById('forms-selected');
   if(clearBtn) clearBtn.style.display = q ? 'block' : 'none';
-  if(_selectedFormsMember){ return; }
+  // 멤버가 선택된 상태에서 다른 이름을 입력하면 선택을 풀고 다시 검색한다
+  if(_selectedFormsMember){
+    if(q === String(_selectedFormsMember['한글이름']||'').toLowerCase()) return;
+    _selectedFormsMember=null;
+    if(selectedDiv) selectedDiv.style.display='none';
+  }
   if(!q){
     if(resultDiv) resultDiv.style.display='none';
     if(emptyMsg) emptyMsg.style.display='block';

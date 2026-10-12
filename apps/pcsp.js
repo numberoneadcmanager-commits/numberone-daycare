@@ -633,7 +633,7 @@ async function signPCSP(id,memberId,memberName){
   }catch(e){alert('❌ 서명대기 PCSP를 불러오지 못했습니다: '+e.message);}
 }
 async function editPCSP(id){
-  var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p)return;
+  var p=PCSP_LIST.find(function(x){return x.id===id;});if(!p){alert('❌ PCSP 목록에서 이 기록을 찾지 못했습니다 (ID: '+id+'). 문서 이력에서 열어주세요.');return;}
   if(p.status==='완료'){await wfRevise(id);return;}
   if(p.status==='서명완료·PDF대기'){await wfRetryPDF(id);return;}
   try{
