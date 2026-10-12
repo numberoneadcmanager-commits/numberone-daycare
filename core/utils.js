@@ -160,8 +160,7 @@ function renderMSel(px) {
   let list = MEMBERS.filter(m => !useQ || String(m.kr || '').toLowerCase().includes(q) || String(m.en || '').toLowerCase().includes(q));
   if (pickedM && !list.includes(pickedM)) list = [pickedM].concat(list);
   sel.innerHTML = list.map(m => `<option value="${_mselEsc(m.id)}"${String(m.id) === String(picked) ? ' selected' : ''}>${_mselEsc(m.kr)} (${_mselEsc(m.en)})</option>`).join('');
-  // 검색 결과가 딱 한 명이면 자동 선택
-  if (useQ && list.length === 1 && !picked) { pickMSel(px, list[0].id); return; }
+  // 자동 선택은 하지 않는다 (입력 중에 이름이 바뀌어 지울 수 없게 되던 문제). 결과가 한 명이면 Enter로 선택.
   _renderMSelPicked(px);
 }
 function filterMSel(px) {
@@ -190,7 +189,7 @@ function _renderMSelPicked(px) {
   }
   const m = MEMBERS.find(x => String(x.id) === String(MSEL_PICKED[px]));
   chip.style.color = m ? '#34C759' : '#FF9500';
-  chip.textContent = m ? '✓ 선택됨: ' + m.kr + ' (' + m.en + ')' : '멤버를 목록에서 눌러 선택해주세요';
+  chip.textContent = m ? '✓ 선택됨: ' + m.kr + ' (' + m.en + ')' : '멤버를 목록에서 눌러 선택해주세요 (한 명이면 Enter)';
 }
 function resetMSel(px, mid) {
   const input = document.getElementById(px + '-msearch');
@@ -211,6 +210,13 @@ function bindMSel(px) {
   sel.addEventListener('change', take);
   sel.addEventListener('click', take);
   sel.addEventListener('dblclick', take);
+  // 검색칸에서 Enter: 결과가 한 명이면 그 멤버 선택
+  const input = document.getElementById(px + '-msearch');
+  if (input) input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    if (sel.options.length === 1) pickMSel(px, sel.options[0].value);
+  });
 }
 
 // ── 캔버스 서명 공통 초기화 ───────────────────────────────────
