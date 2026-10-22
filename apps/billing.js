@@ -159,10 +159,14 @@ function _attSheetStyles() {
     + '.att-tbl th{text-align:center;background:#d8d8d8 !important;font-weight:900;font-size:13px;padding:6px 5px;}'
     + '.c-num{width:34px;text-align:center;font-weight:900;font-size:14px;}'
     + '.c-day{width:44px;text-align:center;font-weight:800;}'
-    + '.c-act{width:170px;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;}'
-    + '.c-timein{width:114px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
-    + '.c-timeout{width:86px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
+    + '.c-act{width:168px;text-align:center;font-weight:700;white-space:nowrap;}'
+    // 표 공통 글자 크기(13px)보다 우선 적용 — 'SDC TRANSPORTATION O'가 잘리지 않게
+    + '.att-tbl td.c-act{font-size:11px;padding:4px 2px;}'
+    + '.c-timein{width:158px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
+    + '.c-timeout{width:126px;text-align:center;font-size:12px;padding:2px 3px;font-weight:700;}'
     + '.c-sign{text-align:center;}'
+    // 체크 시간 외 실제 시간을 손으로 적는 밑줄 빈칸
+    + '.t-blank{display:inline-block;width:40px;border-bottom:1.2px solid #333;margin-left:2px;}'
     // 일요일 회색
     + '.sun-row,.sun-row td{background:#C0C0C0 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}'
     // 페이지 번호 푸터 — 훨씬 크고 눈에 띄게
@@ -270,8 +274,8 @@ function _attSheetMemberPage(m, year, month, daysInMonth, type, pageNum) {
       + '<td class="c-num">' + day + '</td>'
       + '<td class="c-day">' + DAY_NAMES[dow] + '</td>'
       + '<td class="c-act">' + actText + '</td>'
-      + '<td class="c-timein">7&nbsp;&#9744;&nbsp; 8&nbsp;&#9744;&nbsp; 9&nbsp;&#9744;</td>'
-      + '<td class="c-timeout">12&nbsp;&#9744;&nbsp; 1&nbsp;&#9744;</td>'
+      + '<td class="c-timein">7&nbsp;&#9744;&nbsp; 8&nbsp;&#9744;&nbsp; 9&nbsp;&#9744;&nbsp;<span class="t-blank">&nbsp;</span></td>'
+      + '<td class="c-timeout">12&nbsp;&#9744;&nbsp; 1&nbsp;&#9744;&nbsp;<span class="t-blank">&nbsp;</span></td>'
       + '<td class="c-sign"></td>'
       + '</tr>';
   }
