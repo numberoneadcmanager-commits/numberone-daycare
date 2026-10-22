@@ -261,7 +261,37 @@ function saveAssessment(){
     else alert('❌ Drive 저장 실패');
   }).catch(function(){alert('❌ 네트워크 오류');});
 }
-function goToFormsAndOpenPCSP(){closeFrmBack();setTimeout(function(){prefillPCSPFromMember(_asmt.mid);},300);}
+// "이 Assessment로 PCSP 작성": Assessment를 먼저 저장 → 항상 새 PCSP를 열고 → 방금 저장한 평가 내용을 빈 칸에 자동 반영.
+var _asmtToPcspBusy=false;
+async function goToFormsAndOpenPCSP(){
+  if(_asmtToPcspBusy)return;
+  if(!operationalFormReady('frm-assessment'))return;
+  var mid=_asmt.mid;if(!mid){alert('멤버가 선택되지 않았습니다');return;}
+  var member=_formsMemberCache.find(function(m){return String(m['ID'])===String(mid);});
+  var mName=member?(member['한글이름']||''):'';
+  var btn=document.querySelector('#as-pcsp-btn button');
+  _asmtToPcspBusy=true;if(btn){btn.disabled=true;btn.textContent='⏳ Assessment 저장 중…';}
+  try{
+    // 1) Assessment 저장. 실패하면 화면에 그대로 남겨서 작성 내용을 잃지 않는다.
+    try{
+      var res=await docSaveForm(mid,mName,'Assessment',collectAssessmentData());
+      if(!(res&&res.ok&&res.data&&res.data.success))throw new Error('서버에서 저장 완료를 확인하지 못했습니다.');
+    }catch(e){alert('❌ Assessment를 저장하지 못해 PCSP로 넘어가지 않았습니다.\n'+(e&&e.message||e)+'\n작성한 내용은 화면에 그대로 있습니다.');return;}
+    // 2) 새 PCSP 열기
+    docHideForms();var hist=document.getElementById('document-history');if(hist)hist.style.display='none';
+    docPCSPNotice('✅ Assessment 저장 완료<br>⏳ 새 PCSP 준비 중… 서버 응답에 시간이 걸릴 수 있습니다.');
+    try{
+      var row=await formsFindMember(mid);if(!row)throw new Error('멤버 정보를 찾을 수 없습니다.');
+      if(typeof _docContext!=='undefined'&&_docContext)_docContext=Object.assign({},_docContext,{type:'PCSP'});
+      await selectPCSPMember(row);
+      docPCSPNotice('');
+      // 3) 방금 저장한 Assessment(+Nutrition) 내용을 빈 칸에 자동 반영 (약 목록은 비교 화면에서 선택)
+      await wfImportSources({auto:true});
+    }catch(e){
+      docPCSPNotice('<div style="color:#FF3B30;font-weight:600">❌ 새 PCSP를 열지 못했습니다</div><div style="margin:6px 0 10px">Assessment는 저장되었습니다. '+docPCSPEsc(e&&e.message||e)+'</div><button type="button" class="btn-sm" onclick="docPCSPBack()">← 문서 목록으로</button>');
+    }
+  }finally{_asmtToPcspBusy=false;if(btn){btn.disabled=false;btn.textContent='📋 이 Assessment로 PCSP 작성 →';}}
+}
 
 function openNutritionForMember(mid,mName){
   _nsMid = mid;

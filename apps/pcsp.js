@@ -303,6 +303,7 @@ async function selectPCSPMember(m){
   if(_wfBusy||_wfPending){alert('진행 중인 저장을 먼저 완료해주세요.');return;}
   var list=document.getElementById('pcsp-list-view'),sel=document.getElementById('pcsp-member-select'),form=document.getElementById('pcsp-form-view');
   if(list)list.style.display='none';if(sel)sel.style.display='none';if(form)form.style.display='block';
+  pcspShowFormOnly();
   resetPCSPState();clearPCSPFormFields();
   _pcspMemberId=String(m['ID']||'');
   pcspSet('p-member-id',_pcspMemberId);pcspSet('pcsp-edit-id','');
@@ -517,9 +518,15 @@ function initPCSPSignatureCanvas(){
 }
 function clearPCSPSig(){clearSigCanvas('pcsp-sig-canvas','pcsp-sig-empty');_pcspSig=null;}
 
+// PCSP 작성 화면만 보이게: 위에 남아 있던 문서 목록/검색 화면을 숨기고 맨 위로 이동
+function pcspShowFormOnly(){
+  ['forms-hub','document-history','frm-assessment','frm-nutrition','frm-member-rights','frm-incident'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+  try{window.scrollTo(0,0);var c=document.querySelector('.content');if(c)c.scrollTop=0;}catch(e){}
+}
 function openPCSPForm(id){
   if(_wfBusy||_wfPending){alert('진행 중인 저장을 먼저 완료해주세요.');return;}
   var list=document.getElementById('pcsp-list-view'),sel=document.getElementById('pcsp-member-select'),form=document.getElementById('pcsp-form-view');if(list)list.style.display='none';if(sel)sel.style.display='none';if(form)form.style.display='block';
+  pcspShowFormOnly();
   resetPCSPState();clearPCSPFormFields();pcspSet('pcsp-edit-id',id||'');
   pcspSet('p-writer',_currentUser?(_currentUser.name||''):'');pcspSet('p-wdate',pcspToday());pcspSet('p-nextdate',pcspOneYearFromToday());pcspSet('p-type','Initial');pcspSet('p-sigdate',pcspToday());
   var p=id?PCSP_LIST.find(function(x){return x.id===id;}):null;
@@ -861,7 +868,8 @@ async function wfRevise(id){
     var i=_docRows.findIndex(function(d){return d.type==='PCSP'&&String(d.recordId)===String(id);});if(i<0)throw new Error('원본 문서를 찾을 수 없습니다.');await docCopy(i);
   }catch(e){alert(e.message);}
 }
-async function wfImportSources(){
+async function wfImportSources(opts){
+  var auto=!!(opts&&opts.auto);
   if(_pcspSig||_wfBusy||_wfPending){alert('서명 또는 저장 중인 문서에는 반영할 수 없습니다.');return;}
   var id=pcspVal('pcsp-edit-id'),mid=_pcspMemberId,name=gp('kr')||gp('last');if(!mid)return;
   try{
@@ -870,8 +878,8 @@ async function wfImportSources(){
     results.forEach(function(r){if(!r||!r.ok||!r.data||r.data.success===false||typeof r.data.found!=='boolean')throw new Error('평가 조회 응답을 확인하지 못했습니다.');});
     var a=results[0].data.found?results[0].data.data:null,n=results[1].data.found?results[1].data.data:null;
     var sources=[];if(a)sources.push({type:'Assessment',date:a.date||'',savedAt:a.savedAt||'',adl:a.adl||{},healthComments:(a.formFields||{})['health-comments']||'',adlComments:(a.formFields||{})['adl-comments']||''});if(n)sources.push({type:'Nutrition',date:n.date||'',savedAt:n.savedAt||'',assessment:n.assessment||'',diet:n.diet||{},allergy:n.allergy||'',allergySpec:n.allergySpec||''});
-    if(!sources.length){alert('저장된 Assessment/Nutrition이 없습니다.');return;}
-    if(!confirm(sources.map(function(s){return s.type+' · 평가일 '+(s.date||'미기재');}).join('\n')+'\n약 목록은 비교 후 선택합니다. 다른 정보는 빈 항목에만 적용합니다.'))return;
+    if(!sources.length){if(!auto)alert('저장된 Assessment/Nutrition이 없습니다.');return;}
+    if(!auto&&!confirm(sources.map(function(s){return s.type+' · 평가일 '+(s.date||'미기재');}).join('\n')+'\n약 목록은 비교 후 선택합니다. 다른 정보는 빈 항목에만 적용합니다.'))return;
     function empty(field,value){if(value&&!pcspVal(field))pcspSet(field,value);}
     if(a){empty('p-pcpname',a.pcp);}
     if(n){empty('p-allergy',n.allergySpec);var diet=n.diet||{};empty('p-diet',[diet.na?'Sodium restricted':'',diet.lf?'Low fat':'',diet.carb?'Carbohydrate controlled':'',diet.renal?'Renal diet':'',diet.other?diet.otherText:''].filter(Boolean).join('; '));}
