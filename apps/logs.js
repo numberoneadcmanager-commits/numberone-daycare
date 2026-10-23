@@ -551,6 +551,9 @@ async function generateDispatchPlan() {
 
   var iso = document.getElementById('disp-date').value || todayISO;
   var dow = (typeof dowKey === 'function') ? dowKey(iso) : null;
+  // 등원: 원거리 1차 → 근거리 2차~ / 하원: 근거리 1차~ → 원거리 최종
+  var direction = (document.getElementById('disp-direction') || {}).value || '등원';
+  var isReturn = direction === '하원';
   var statusEl = document.getElementById('disp-status');
   var resultEl = document.getElementById('disp-result');
   var VEHICLES = getVehicleFleet(); // 설정 화면에서 관리하는 차량 목록
@@ -666,7 +669,9 @@ async function generateDispatchPlan() {
     function _closeFarChunk() {
       if (curChunk && curChunk.members.length) {
         if (curChunk.members.length <= 5) {
-          _pushAsTaxis(curChunk.members); // 5명 이하는 차량 대신 택시로 — 4명 넘으면 자동으로 여러 대 분리
+          // 5명 이하는 차량 대신 택시로. 이 그룹에 잡아뒀던 차량은 반납해서 다음 그룹이 쓸 수 있게 한다.
+          if (curChunk.mode === 'vehicle' && farVehicleCounter > 0) farVehicleCounter--;
+          _pushAsTaxis(curChunk.members);
         } else {
           farAssignments.push(curChunk);
         }
@@ -689,7 +694,7 @@ async function generateDispatchPlan() {
           }
           var vh = VEHICLES[farVehicleCounter];
           farVehicleCounter++;
-          curChunk = { members: [], mode: 'vehicle', label: vh.label, cities: [] };
+          curChunk = { members: [], mode: 'vehicle', label: isReturn ? '최종 (' + vh.label + ')' : vh.label, cities: [] };
           curLeft = vh.cap;
           curSector = clusterSector;
         }
@@ -727,7 +732,7 @@ async function generateDispatchPlan() {
       while (remaining.length) {
         if (!curBatch) {
           var vh = VEHICLES[batches.length % VEHICLES.length];
-          curBatch = { label: (batches.length + 2) + '차 (' + vh.label + ')', members: [], cap: vh.cap, cities: [] };
+          curBatch = { label: (batches.length + 2) + '차 (' + vh.label + ')', vehicle: vh.label, members: [], cap: vh.cap, cities: [] };
           curLeft = vh.cap;
         }
         var take = remaining.splice(0, curLeft);
@@ -739,8 +744,14 @@ async function generateDispatchPlan() {
     });
     closeBatch();
   })();
+  // 하원: 가까운 배치부터 1차, 2차 … (각 배치의 차량·정원은 그대로 유지)
+  if (isReturn) {
+    batches.forEach(function(b) { b._avg = b.members.reduce(function(s, m) { return s + m._dist; }, 0) / (b.members.length || 1); });
+    batches.sort(function(a, b) { return a._avg - b._avg; });
+    batches.forEach(function(b, i) { b.label = (i + 1) + '차 (' + b.vehicle + ')'; });
+  }
 
-  window._dispatchPlan = { baseline: baseline, iso: iso, farAssignments: farAssignments, nearBatches: batches, unassigned: [] };
+  window._dispatchPlan = { baseline: baseline, iso: iso, direction: direction, farAssignments: farAssignments, nearBatches: batches, unassigned: [] };
   if (noCoord.length) window._dispatchPlan.unassigned = window._dispatchPlan.unassigned.concat(noCoord);
 
   resultEl.innerHTML = '<div id="disp-editable"></div>'
@@ -771,10 +782,13 @@ function _renderDispatchGroups() {
       + '<option value="">+ 미배정 멤버 추가...</option>' + opts + '</select>';
   }
 
+  var isReturn = plan.direction === '하원';
   var html = '';
+  html += '<div style="font-size:12px;font-weight:700;color:' + (isReturn ? '#5856D6' : '#D85A30') + ';margin:6px 0 4px">'
+    + (isReturn ? '🌆 하원 순서: 근거리 1차 → 2차 … → 원거리 최종' : '🌅 등원 순서: 원거리 1차 → 근거리 2차 …') + '</div>';
 
   // ── 원거리 그룹 ──
-  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:10px 0 6px">🚕 원거리 (그룹을 직접 조정할 수 있어요)</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:10px 0 6px">🚕 원거리' + (isReturn ? ' — 최종' : ' — 1차') + ' (그룹을 직접 조정할 수 있어요)</div>';
   plan.farAssignments.forEach(function(g, i) {
     var badge = g.mode === 'taxi'
       ? '<span class="badge b-blue">🚕 ' + g.label + '</span>'
@@ -798,8 +812,9 @@ function _renderDispatchGroups() {
   }
   html += '</div>';
 
+  var farHtml = html; html = '';
   // ── 근거리 배치 ──
-  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리 (그룹을 직접 조정할 수 있어요)</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin:16px 0 6px">🚐 근거리' + (isReturn ? ' — 1차부터' : ' — 2차부터') + ' (그룹을 직접 조정할 수 있어요)</div>';
   plan.nearBatches.forEach(function(b, i) {
     html += '<div class="log-card">'
       + '<div class="log-top">'
@@ -818,6 +833,9 @@ function _renderDispatchGroups() {
     html += '<button class="btn-sm" style="background:#EDE9FE;color:#5856D6" onclick="_dispatchMergeChecked(\'near\')">☑️ 체크한 그룹 합치기</button>';
   }
   html += '</div>';
+  var nearHtml = html;
+  // 하원은 근거리(1차~)를 먼저, 원거리(최종)를 나중에 보여준다
+  html = isReturn ? farHtml.replace(/^(<div[^>]*>🌆[^<]*<\/div>)/, '$1' + nearHtml) : farHtml + nearHtml;
 
   // ── 미배정 멤버 풀 ──
   if (plan.unassigned.length) {
@@ -872,12 +890,13 @@ function _dispatchAddNewGroup(groupType, mode) {
   var plan = window._dispatchPlan;
   if (groupType === 'far') {
     var taxiCount = plan.farAssignments.filter(function(g) { return g.mode === 'taxi'; }).length;
-    var label = mode === 'taxi' ? '택시' + (taxiCount + 1) : '차량(직접추가)';
+    var label = mode === 'taxi' ? '택시' + (taxiCount + 1) : (plan.direction === '하원' ? '최종 (차량, 직접추가)' : '차량(직접추가)');
     plan.farAssignments.push({ members: [], mode: mode, label: label, cities: [] });
   } else {
     var fleet = getVehicleFleet();
     var vh = fleet[plan.nearBatches.length % fleet.length];
-    plan.nearBatches.push({ label: (plan.nearBatches.length + 2) + '차 (' + vh.label + ', 직접추가)', members: [], cap: vh.cap, cities: [] });
+    var roundNo = plan.nearBatches.length + (plan.direction === '하원' ? 1 : 2);
+    plan.nearBatches.push({ label: roundNo + '차 (' + vh.label + ', 직접추가)', vehicle: vh.label, members: [], cap: vh.cap, cities: [] });
   }
   _renderDispatchGroups();
 }
@@ -934,7 +953,10 @@ async function saveDispatchToLog() {
   if (!plan) { alert('먼저 배차 계획을 생성해주세요'); return; }
   var writer = (document.getElementById('disp-writer') || {}).value.trim();
   var iso = plan.iso;
-  var direction = (document.getElementById('disp-direction') || {}).value || '등원';
+  // 계획을 만든 방향으로 저장 (선택칸만 바꾸고 저장해서 순서가 뒤바뀌는 것 방지)
+  var direction = plan.direction || (document.getElementById('disp-direction') || {}).value || '등원';
+  var selDir = (document.getElementById('disp-direction') || {}).value;
+  if (selDir && selDir !== direction) { alert('방향을 바꾼 뒤 배차 계획이 다시 만들어지지 않았습니다. 배차 계획을 다시 생성해주세요.'); return; }
   var entries = [];
 
   plan.farAssignments.forEach(function(g, i) {
@@ -1121,4 +1143,17 @@ function renderTransportLog() {
           + '</div>';
       }).join('')
     : '<div class="empty-msg">기록 없음</div>';
+}
+
+
+// 방향(등원/하원)을 바꾸면, 이미 만든 배차 계획을 그 방향 순서로 다시 계산
+function onDispatchDirectionChange(){
+  var plan = window._dispatchPlan;
+  if (!plan || _dispatchBusy) return;
+  var dir = (document.getElementById('disp-direction') || {}).value || '등원';
+  if (plan.direction === dir) return;
+  if (!confirm(dir + ' 순서로 배차 계획을 다시 만들까요? (화면에서 직접 바꾼 내용은 초기화됩니다)')) {
+    var sel = document.getElementById('disp-direction'); if (sel) sel.value = plan.direction; return;
+  }
+  generateDispatchPlan();
 }
