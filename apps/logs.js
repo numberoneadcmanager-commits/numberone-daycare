@@ -669,9 +669,7 @@ async function generateDispatchPlan() {
     function _closeFarChunk() {
       if (curChunk && curChunk.members.length) {
         if (curChunk.members.length <= 5) {
-          // 5명 이하는 차량 대신 택시로. 이 그룹에 잡아뒀던 차량은 반납해서 다음 그룹이 쓸 수 있게 한다.
-          if (curChunk.mode === 'vehicle' && farVehicleCounter > 0) farVehicleCounter--;
-          _pushAsTaxis(curChunk.members);
+          _pushAsTaxis(curChunk.members); // 5명 이하는 차량 대신 택시로 — 4명 넘으면 자동으로 여러 대 분리
         } else {
           farAssignments.push(curChunk);
         }
