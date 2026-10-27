@@ -294,18 +294,29 @@ async function loadDailyActivityAttendees() {
   }
 
   const recs = (typeof getRec === 'function') ? getRec(iso) : {};
+  let excl = {};
+  try { excl = await loadAttendanceExclusions(iso); }
+  catch (e) { statusEl.textContent = '⚠️ 결석/부재 정보를 불러오지 못했습니다: ' + e.message; window._dailyActAttendees = []; return; }
+  // 출석 확인(출석/지각 표시) + 기본출석 예정(그날 출석 요일이고 결석·부재 표시가 없는 사람)
+  const confirmed = new Set();
   const attendees = MEMBERS.filter(m => {
     const r = recs[m.id];
-    return r && (r.status === 'in' || r.status === 'late');
+    if (r && (r.status === 'in' || r.status === 'late')) { confirmed.add(m.id); return true; }
+    if (r && r.status) return false;          // 결석·부재 등 다른 표시가 있으면 제외
+    if (excl[m.id]) return false;             // 그 날짜에 진행 중인 부재 / 결석
+    return scheduledOn(m, iso);               // 기본출석 예정
   });
+  window._dailyActConfirmed = confirmed;
 
   if (!attendees.length) {
-    statusEl.textContent = '⚠️ 해당 날짜에 출석 기록이 없어요 (출결 탭에서 먼저 체크해주세요)';
+    statusEl.textContent = '⚠️ 해당 날짜에 출석 예정인 멤버가 없어요 (요일·결석·부재 표시를 확인해주세요)';
     window._dailyActAttendees = [];
     return;
   }
 
-  statusEl.textContent = attendees.length + '명 출석 확인됨';
+  const defaultCount = attendees.filter(m => !confirmed.has(m.id)).length;
+  statusEl.textContent = '총 ' + attendees.length + '명 · 출석 확인 ' + (attendees.length - defaultCount) + '명 + 기본출석 예정 ' + defaultCount + '명'
+    + (defaultCount ? ' — 오늘 결석자는 출석 탭에 먼저 표시해주세요' : '');
   window._dailyActAttendees = attendees.map(m => m.id);
 
   const catBtns = [
@@ -319,7 +330,7 @@ async function loadDailyActivityAttendees() {
 
   listEl.innerHTML = attendees.map(m => `
     <div class="log-card" style="padding:10px 12px;margin-bottom:6px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${m.kr}</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">${m.kr}${confirmed.has(m.id) ? '' : '<span style="font-size:9px;color:#8E8E93;background:#F2F2F7;border-radius:8px;padding:1px 6px;margin-left:6px;font-weight:600">기본출석 예정</span>'}</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">
         ${catBtns.map(c => `
           <label style="display:flex;align-items:center;gap:3px;font-size:11px;background:#F2F2F7;border-radius:6px;padding:4px 8px;cursor:pointer">
@@ -427,6 +438,11 @@ async function saveDailyActivityLog() {
   });
 
   if (!entries.length) { alert('선택된 항목이 없어요'); return; }
+  const confirmedSet = window._dailyActConfirmed || new Set();
+  const people = new Set(entries.map(e => e['멤버ID']));
+  const nConfirmed = [...people].filter(id => confirmedSet.has(id)).length, nDefault = people.size - nConfirmed;
+  if (!confirm('출석 확인 ' + nConfirmed + '명 + 기본출석 예정 ' + nDefault + '명, 총 ' + people.size + '명에게 ' + entries.length + '건을 기록합니다.'
+    + (nDefault ? '\n\n오늘 결석자를 출석 탭에 모두 표시하셨나요?' : ''))) return;
 
   _dailyActivityPending={iso:iso,saved:0,items:entries.map(function(row){return {action:'upsert',key:'ID',value:row.ID,data:row,expectedToken:null};})};
   return finishDailyActivityBatch();
@@ -572,15 +588,24 @@ async function generateDispatchPlan() {
     WriteGuard.adopt(baseResponse,function(){TRANSPORT_LOG=TRANSPORT_LOG.filter(function(r){return String(r['날짜']).slice(0,10)!==iso;}).concat(baseline);});renderTransportLog();
   }catch(e){statusEl.textContent='기존 배차를 확인하지 못해 계획을 만들지 않았습니다: '+e.message;return;}
 
-  // 오늘 부재(여행/입원/휴가) 예약된 멤버는 자동 제외
-  var absenceMap = (typeof ABSENCE_MAP !== 'undefined') ? ABSENCE_MAP : {};
+  // 배차 날짜 기준으로 제외: 그 날짜에 진행 중인 여행·입원·휴가, 그 날짜 결석 표시, 디스엔롤(날짜 반영)
+  var excl;
+  try { excl = await loadAttendanceExclusions(iso); if(generation!==_dispatchGeneration)return; }
+  catch(e){ statusEl.textContent='결석/부재 정보를 확인하지 못해 계획을 만들지 않았습니다: '+e.message; return; }
 
+  var excluded = { absence: [], absent: [], disenrolled: [] };
   var todayMembers = MEMBERS.filter(function(m) {
-    if (!isActive(m)) return false;
     if (!dow || !(m.days || []).includes(dow)) return false;
-    if (absenceMap[m.id]) return false; // 부재 예약자 제외
+    if (m.status === 'disenrolled' && !isAttendanceTarget(m, iso)) { excluded.disenrolled.push(m); return false; }
+    if (!scheduledOn(m, iso)) return false;
+    var x = excl[m.id];
+    if (x) { (x.status === 'absent' ? excluded.absent : excluded.absence).push({ m: m, x: x }); return false; }
     return true;
   });
+  var exclText = [];
+  if (excluded.absence.length) exclText.push('부재 ' + excluded.absence.length + '명(' + excluded.absence.map(function(e){ return e.m.kr + '·' + (_ATT_EXCL_LABEL[e.x.status] || e.x.status); }).join(', ') + ')');
+  if (excluded.absent.length) exclText.push('결석 ' + excluded.absent.length + '명(' + excluded.absent.map(function(e){ return e.m.kr; }).join(', ') + ')');
+  if (excluded.disenrolled.length) exclText.push('디스엔롤 ' + excluded.disenrolled.length + '명');
 
   if (!todayMembers.length) {
     statusEl.textContent = '⚠️ 해당 요일에 출석 예정인 멤버가 없어요';
@@ -596,6 +621,7 @@ async function generateDispatchPlan() {
   });
 
   statusEl.textContent = '총 ' + todayMembers.length + '명 출석 예정'
+    + (exclText.length ? ' · 제외: ' + exclText.join(' / ') : '')
     + (noCoord.length ? ' · ⚠️ 좌표없음 ' + noCoord.length + '명은 배차 그룹에서 빠짐' : '');
 
   var farMembers  = withCoord.filter(function(m) { return m._dist > FAR_DISTANCE_MILES; });
@@ -1012,25 +1038,11 @@ async function saveDispatchToLog() {
 // ══════════════════════════════════════════════════════════════
 // 🚫 당일 캔슬 — 배차됐지만 아침에 못 나오는 경우 (예외만 기록해서 용량 최소화)
 // ══════════════════════════════════════════════════════════════
-function filterCancelMemberList() {
-  var q = (document.getElementById('cancel-msearch').value || '').toLowerCase();
-  var sel = document.getElementById('cancel-msel');
-  if (!sel) return;
-  sel.innerHTML = '';
-  MEMBERS.filter(function(m) {
-    return m.status !== 'disenrolled' && (!q || (m.kr || '').includes(q) || (m.en || '').toLowerCase().includes(q));
-  }).forEach(function(m) {
-    var opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = m.kr + ' ' + (m.en || '');
-    sel.appendChild(opt);
-  });
-}
+function filterCancelMemberList() { filterMSel('cancel'); }
 
 async function saveCancelLog() {
-  var sel = document.getElementById('cancel-msel');
-  var mid = sel && sel.value;
-  if (!mid) { alert('멤버를 선택해주세요'); return; }
+  var mid = getMSel('cancel');
+  if (!mid) { alert('멤버를 선택해주세요. (검색 후 목록에서 이름을 눌러주세요)'); return; }
   var m = MEMBERS.find(function(x) { return x.id === mid; });
   var reason = (document.getElementById('cancel-reason') || {}).value.trim();
   var iso = document.getElementById('disp-date').value || todayISO;
@@ -1046,9 +1058,8 @@ async function saveCancelLog() {
   try {
     await SheetsAPI.post({ action: 'append', sheet: 'transportation', data: entry });
     alert('✅ ' + (m ? m.kr : mid) + ' 당일 캔슬 기록됨');
-    document.getElementById('cancel-msearch').value = '';
     document.getElementById('cancel-reason').value = '';
-    filterCancelMemberList();
+    resetMSel('cancel');
     loadTransportFromSheets();
   } catch(e) {
     alert('❌ 저장 실패: ' + e.message);

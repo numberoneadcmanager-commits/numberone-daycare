@@ -145,11 +145,28 @@ function closeModal() {
 // ── 멤버 select 필터링 ────────────────────────────────────────
 // 로그(Incident / Activity / Case) 멤버 선택 상태.
 // select 목록이 새로 그려져도(검색, 자동 새로고침) 고른 멤버가 풀리지 않도록 따로 기억한다.
-var MSEL_PICKED = { inc: '', act: '', case: '' };
+var MSEL_PICKED = { inc: '', act: '', case: '', ab: '', auth: '', cancel: '' };
+// 멤버 선택 칸 목록: 검색칸 id, 목록 id, 디스엔롤 제외 여부, 선택 시 추가 동작
+var MSEL_CONF = {
+  inc:    { s: 'inc-msearch',        l: 'inc-msel' },
+  act:    { s: 'act-msearch',        l: 'act-msel' },
+  case:   { s: 'case-msearch',       l: 'case-msel' },
+  ab:     { s: 'ab-member-search',   l: 'ab-member-sel',   activeOnly: true },
+  auth:   { s: 'auth-member-search', l: 'auth-member-sel', activeOnly: true, onPick: function(m){ if (typeof authApplyMemberDays === 'function') authApplyMemberDays(m); } },
+  cancel: { s: 'cancel-msearch',     l: 'cancel-msel',     activeOnly: true },
+};
+function _mselIn(px){ return document.getElementById((MSEL_CONF[px] || {}).s || (px + '-msearch')); }
+function _mselList(px){ return document.getElementById((MSEL_CONF[px] || {}).l || (px + '-msel')); }
+// 내부 ID 또는 (예전 기록의) Medicaid 번호 → 멤버
+function findMemberByAnyId(id){
+  var v = String(id == null ? '' : id).trim(); if (!v) return null;
+  return MEMBERS.find(function(m){ return String(m.id) === v; })
+      || MEMBERS.find(function(m){ return m.medicaid && String(m.medicaid).trim().toUpperCase() === v.toUpperCase(); }) || null;
+}
 function _mselEsc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function renderMSel(px) {
-  const input = document.getElementById(px + '-msearch');
-  const sel = document.getElementById(px + '-msel');
+  const input = _mselIn(px);
+  const sel = _mselList(px);
   if (!sel) return;
   const q = ((input && input.value) || '').trim().toLowerCase();
   const picked = MSEL_PICKED[px] || '';
@@ -157,28 +174,32 @@ function renderMSel(px) {
   const pickedLabel = pickedM ? (pickedM.kr + ' (' + pickedM.en + ')').toLowerCase() : '';
   // 검색칸에 고른 멤버 이름이 그대로 있으면 전체 목록을 보여준다
   const useQ = q && q !== pickedLabel && !(pickedM && q === String(pickedM.kr).toLowerCase());
-  let list = MEMBERS.filter(m => !useQ || String(m.kr || '').toLowerCase().includes(q) || String(m.en || '').toLowerCase().includes(q));
+  const conf = MSEL_CONF[px] || {};
+  let list = MEMBERS.filter(m => (!conf.activeOnly || m.status !== 'disenrolled') && (!useQ || String(m.kr || '').toLowerCase().includes(q) || String(m.en || '').toLowerCase().includes(q) || String(m.medicaid || '').toLowerCase().includes(q)));
   if (pickedM && !list.includes(pickedM)) list = [pickedM].concat(list);
   sel.innerHTML = list.map(m => `<option value="${_mselEsc(m.id)}"${String(m.id) === String(picked) ? ' selected' : ''}>${_mselEsc(m.kr)} (${_mselEsc(m.en)})</option>`).join('');
   // 자동 선택은 하지 않는다 (입력 중에 이름이 바뀌어 지울 수 없게 되던 문제). 결과가 한 명이면 Enter로 선택.
   _renderMSelPicked(px);
 }
 function filterMSel(px) {
-  const input = document.getElementById(px + '-msearch');
+  const input = _mselIn(px);
   const picked = MEMBERS.find(m => String(m.id) === String(MSEL_PICKED[px]));
   // 검색어를 바꾸기 시작하면 이전 선택은 해제 (다른 멤버를 찾는 중)
   if (picked && input && input.value.trim() !== String(picked.kr)) MSEL_PICKED[px] = '';
   renderMSel(px);
 }
-function pickMSel(px, mid) {
-  MSEL_PICKED[px] = mid ? String(mid) : '';
-  const m = MEMBERS.find(x => String(x.id) === MSEL_PICKED[px]);
-  const input = document.getElementById(px + '-msearch');
+function pickMSel(px, mid, silent) {
+  const found = mid ? findMemberByAnyId(mid) : null;   // 예전 Medicaid 번호로 저장된 기록도 내부 ID로 맞춤
+  MSEL_PICKED[px] = found ? String(found.id) : '';
+  const m = found;
+  const input = _mselIn(px);
   if (input && m) input.value = m.kr;
   renderMSel(px);
+  const conf = MSEL_CONF[px] || {};
+  if (m && conf.onPick && !silent) conf.onPick(m);
 }
 function _renderMSelPicked(px) {
-  const sel = document.getElementById(px + '-msel');
+  const sel = _mselList(px);
   if (!sel) return;
   let chip = document.getElementById(px + '-mpicked');
   if (!chip) {
@@ -191,19 +212,20 @@ function _renderMSelPicked(px) {
   chip.style.color = m ? '#34C759' : '#FF9500';
   chip.textContent = m ? '✓ 선택됨: ' + m.kr + ' (' + m.en + ')' : '멤버를 목록에서 눌러 선택해주세요 (한 명이면 Enter)';
 }
-function resetMSel(px, mid) {
-  const input = document.getElementById(px + '-msearch');
+function resetMSel(px, mid, silent) {
+  const input = _mselIn(px);
   if (input) input.value = '';
   MSEL_PICKED[px] = '';
-  if (mid) pickMSel(px, mid); else renderMSel(px);
+  if (mid) pickMSel(px, mid, silent); else renderMSel(px);
 }
 function getMSel(px) {
-  const mid = MSEL_PICKED[px] || ((document.getElementById(px + '-msel') || {}).value) || '';
-  return MEMBERS.some(m => String(m.id) === String(mid)) ? String(mid) : '';
+  const mid = MSEL_PICKED[px] || ((_mselList(px) || {}).value) || '';
+  const m = findMemberByAnyId(mid);
+  return m ? String(m.id) : '';
 }
-function refreshAllMSel() { ['inc', 'act', 'case'].forEach(renderMSel); }
+function refreshAllMSel() { Object.keys(MSEL_CONF).forEach(renderMSel); }
 function bindMSel(px) {
-  const sel = document.getElementById(px + '-msel');
+  const sel = _mselList(px);
   if (!sel || sel._mselBound) return;
   sel._mselBound = true;
   const take = () => { if (sel.value) pickMSel(px, sel.value); };
@@ -211,7 +233,7 @@ function bindMSel(px) {
   sel.addEventListener('click', take);
   sel.addEventListener('dblclick', take);
   // 검색칸에서 Enter: 결과가 한 명이면 그 멤버 선택
-  const input = document.getElementById(px + '-msearch');
+  const input = _mselIn(px);
   if (input) input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing) return;
     e.preventDefault();

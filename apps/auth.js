@@ -200,7 +200,6 @@ async function changeAuthStatus(id) {
 function openAuthModal(id) {
   document.getElementById('auth-modal-title').textContent = id ? '✏️ Auth 수정' : '➕ Auth 추가';
   document.getElementById('auth-edit-id').value = id || '';
-  document.getElementById('auth-member-search').value = '';
   document.getElementById('auth-number').value     = '';
   document.getElementById('auth-start').value      = '';
   document.getElementById('auth-end').value        = '';
@@ -214,7 +213,8 @@ function openAuthModal(id) {
   ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
     var el = document.getElementById('auth-day-'+d.toLowerCase()); if(el) el.value = '0';
   });
-  filterAuthMemberList();
+  resetMSel('auth');
+  var oldSel = document.getElementById('auth-member-selected'); if (oldSel) oldSel.style.display = 'none';
 
   if (id) {
     var a = AUTH_LIST.find(function(x){ return x.id === id; });
@@ -238,10 +238,9 @@ function openAuthModal(id) {
         var el = document.getElementById('auth-day-'+d.toLowerCase());
         if(el) el.value = a['day'+d] || '0';
       });
-      filterAuthMemberList();
-      document.getElementById('auth-member-sel').value = a.memberId;
-      var selEl = document.getElementById('auth-member-selected');
-      if (selEl) { selEl.style.display='block'; selEl.textContent='✅ ' + (MEMBERS.find(function(x){return x.id===a.memberId;})||{kr:a.memberId}).kr; }
+      // 예전에 Medicaid 번호로 저장된 Auth도 내부 ID 멤버로 선택 (요일은 이 Auth에 저장된 값 유지)
+      resetMSel('auth', a.memberId, true);
+      if (!getMSel('auth')) alert('이 Auth의 멤버(' + a.memberId + ')를 멤버 목록에서 찾지 못했습니다. 멤버를 다시 선택해주세요.');
     }
   }
   openOv('ov-auth');
@@ -250,49 +249,19 @@ function openAuthModal(id) {
 // 멤버 카드에서 "Auth 추가"를 누르면 그 멤버가 미리 선택된 채로 새 Auth 모달을 엶
 function openAuthModalForMember(mid) {
   openAuthModal(); // 새 Auth 모달 초기화(빈 값)
-  var sel = document.getElementById('auth-member-sel');
-  if (sel) {
-    sel.value = mid;
-    var m = MEMBERS.find(function(x){ return x.id === mid; });
-    var selEl = document.getElementById('auth-member-selected');
-    if (selEl && m) { selEl.style.display = 'block'; selEl.textContent = '✅ ' + m.kr + ' ' + m.en; }
-    // 멤버 출석요일 자동 반영
-    if (m && m.days) {
-      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
-        var el = document.getElementById('auth-day-'+d.toLowerCase());
-        if (el) el.value = m.days.includes(d) ? '1' : '0';
-      });
-    }
-  }
+  pickMSel('auth', mid); // 선택 + 멤버 출석요일 자동 반영
 }
 
-function filterAuthMemberList() {
-  var q   = ((document.getElementById('auth-member-search') || {}).value || '').toLowerCase();
-  var sel = document.getElementById('auth-member-sel');
-  if (!sel) return;
-  sel.innerHTML = '';
-  MEMBERS.filter(function(m){ return m.status !== 'disenrolled' && (!q || (m.kr||'').includes(q) || (m.en||'').toLowerCase().includes(q)); })
-    .forEach(function(m) {
-      var opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = (m.kr||'') + ' ' + (m.en||'');
-      sel.appendChild(opt);
-    });
-  sel.onchange = function() {
-    var selEl = document.getElementById('auth-member-selected');
-    var selected = sel.options[sel.selectedIndex];
-    if (selEl && selected) { selEl.style.display='block'; selEl.textContent='✅ '+selected.textContent; }
-    // 멤버 출석요일 자동 반영
-    var m = MEMBERS.find(function(x){ return x.id===sel.value; });
-    if (m && m.days) {
-      ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
-        var el = document.getElementById('auth-day-'+d.toLowerCase());
-        if (el) el.value = m.days.includes(d) ? '1' : '0';
-      });
-    }
-  };
-  var selEl = document.getElementById('auth-member-selected'); if (selEl) selEl.style.display='none';
+// 멤버를 고르면 그 멤버의 출석요일을 Auth 요일 칸에 반영
+function authApplyMemberDays(m) {
+  if (!m || !m.days) return;
+  ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){
+    var el = document.getElementById('auth-day-'+d.toLowerCase());
+    if (el) el.value = m.days.includes(d) ? '1' : '0';
+  });
 }
+
+function filterAuthMemberList() { filterMSel('auth'); }
 
 // ── PDF 업로드 → Drive ────────────────────────────────────────
 async function uploadAuthPDF() {
@@ -303,7 +272,7 @@ async function uploadAuthPDF() {
   var file = fileInput.files[0];
   if (!file.name.toLowerCase().endsWith('.pdf')) { alert('PDF 파일만 업로드 가능해요'); return; }
 
-  var selVal  = (document.getElementById('auth-member-sel') || {}).value || '';
+  var selVal  = getMSel('auth');
   var m       = MEMBERS.find(function(x){ return x.id===selVal; });
   var mName   = m ? m.kr : 'Unknown';
   var authNo  = (document.getElementById('auth-number') || {}).value || 'AUTH';
@@ -442,10 +411,7 @@ async function aiReadAuthPDF() {
     if (data.medicaidId) {
       var matched = MEMBERS.find(function(x){ return (x.medicaid||'').toUpperCase() === data.medicaidId.toUpperCase(); });
       if (matched) {
-        filterAuthMemberList();
-        document.getElementById('auth-member-sel').value = matched.id;
-        var selEl = document.getElementById('auth-member-selected');
-        if (selEl) { selEl.style.display='block'; selEl.textContent='✅ '+matched.kr+' (자동매칭)'; }
+        pickMSel('auth', matched.id); // 자동매칭 (선택 표시 + 요일 반영)
       }
     }
 
@@ -458,13 +424,12 @@ async function aiReadAuthPDF() {
 
 // ── 저장 ─────────────────────────────────────────────────────
 async function saveAuth() {
-  var sel      = document.getElementById('auth-member-sel');
-  var memberId = sel && sel.value ? sel.value : '';
+  var memberId = getMSel('auth');
   var authNo   = (document.getElementById('auth-number')    || {}).value.trim();
   var startRaw = (document.getElementById('auth-start')     || {}).value.trim();
   var endRaw   = (document.getElementById('auth-end')       || {}).value.trim();
 
-  if (!memberId) { alert('멤버를 선택해주세요'); return; }
+  if (!memberId) { alert('멤버를 선택해주세요. (검색 후 목록에서 이름을 눌러주세요)'); return; }
   if (!authNo)   { alert('Auth# 을 입력해주세요'); return; }
   if (!startRaw || !endRaw) { alert('시작일과 종료일을 입력해주세요'); return; }
 
@@ -544,8 +509,7 @@ function updateAuthAlert(soon, expired) {
 
 // ── 요일 자동채우기 ───────────────────────────────────────────
 function autoFillAuthDays(mode) {
-  var sel = document.getElementById('auth-member-sel');
-  var mid = sel ? sel.value : '';
+  var mid = getMSel('auth');
   var m   = mid ? MEMBERS.find(function(x){ return x.id===mid; }) : null;
   var days = m ? (m.days || []) : [];
 

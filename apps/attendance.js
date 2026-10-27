@@ -10,9 +10,11 @@ var _attCache   = {}; // { 'YYYY-MM-DD': { mid: {...} } } — 메모리 캐시�
 
 // ── 출결 대상 목록 ────────────────────────────────────────────
 function getList(iso) {
-  const q   = (document.getElementById('asearch') || {}).value || '';
+  const q   = ((document.getElementById('asearch') || {}).value || '').trim().toLowerCase();
   const dow = dowKey(iso);
-  return MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso) && (!q || m.kr.includes(q)));
+  // 한글 이름 · 영문 이름 · Medicaid 번호로 검색
+  return MEMBERS.filter(m => m.days.includes(dow) && isAttendanceTarget(m, iso) && (!q
+    || String(m.kr || '').toLowerCase().includes(q) || String(m.en || '').toLowerCase().includes(q) || String(m.medicaid || '').toLowerCase().includes(q)));
 }
 
 // ── 캐시 접근 ─────────────────────────────────────────────────
@@ -350,6 +352,43 @@ async function clearAttModal(){
 // memberId -> { status, start, end, memo } (오늘 기준 "현재 부재중"인 것만)
 var ABSENCE_MAP = {};
 
+// 특정 날짜에 빠지는 멤버: { mid: {status:'travel'|'hospital'|'leave'|'absent', start, end} }
+// - 여행/입원/휴가: 그 날짜에 실제로 진행 중인 것만 (지난/예정 부재는 제외 안 함)
+// - 결석: 그 날짜 출석 탭에 결석으로 표시된 경우
+var _ATT_EXCL_STATUSES = ['travel', 'hospital', 'leave'];
+async function loadAttendanceExclusions(iso) {
+  // 부재 탭과 같은 범위(최근 90일 안에 시작한 부재)를 확인
+  const res = await SheetsAPI.readByRange('출결', _addDaysISO(iso, -90), iso);
+  if (!res || !res.ok || !Array.isArray(res.data)) throw new Error('출결(부재) 조회 실패');
+  const out = {};
+  res.data.forEach(r => {
+    const mid = String(r['멤버ID'] || ''); if (!mid) return;
+    const st = String(r['상태'] || ''), day = String(r['날짜'] || '').slice(0, 10);
+    if (_ATT_EXCL_STATUSES.includes(st)) {
+      const start = String(r['시작일'] || day).slice(0, 10);
+      let end = String(r['종료일'] || '').slice(0, 10);
+      if (end && end < start) end = '';
+      if (start <= iso && (!end || end >= iso)) out[mid] = { status: st, start, end };
+    } else if (st === 'absent' && day === iso && !out[mid]) {
+      out[mid] = { status: 'absent' };
+    }
+  });
+  // 화면에서 방금 표시한(캐시) 그 날짜 기록도 반영
+  const recs = getRec(iso);
+  Object.keys(recs).forEach(mid => {
+    const s = recs[mid] && recs[mid].status;
+    if (s === 'absent' || _ATT_EXCL_STATUSES.includes(s)) { if (!out[mid]) out[mid] = { status: s }; }
+    else if ((s === 'in' || s === 'late') && out[mid] && out[mid].status === 'absent') delete out[mid];
+  });
+  return out;
+}
+// 그 날짜 출석 예정 여부 (요일 + 디스엔롤 날짜 반영)
+function scheduledOn(m, iso) {
+  const dow = dowKey(iso);
+  return (isActive(m) || m.status === 'disenrolled') && isAttendanceTarget(m, iso) && (m.days || []).includes(dow);
+}
+const _ATT_EXCL_LABEL = { travel: '여행', hospital: '입원', leave: '휴가', absent: '결석' };
+
 async function loadAbsenceMap() {
   const iso = todayISO;
   const map = {};
@@ -435,8 +474,7 @@ function _addDaysISO(iso, days) {
 // ── 부재 직접 등록 (출결 탭을 거치지 않고 바로 등록) ────────────
 function openAbsenceModal(mid) {
   window._abEditOriginal = null;
-  document.getElementById('ab-member-search').value = '';
-  filterAbsenceMemberList();
+  resetMSel('ab', (mid && ABSENCE_MAP[mid]) ? mid : '');
 
   if (mid && ABSENCE_MAP[mid]) {
     // 수정 모드: 기존 값 채우기 + 원래 시작일 기억(변경 시 옛 행 정리용)
@@ -446,8 +484,6 @@ function openAbsenceModal(mid) {
     document.getElementById('ab-start').value = r.start  || todayISO;
     document.getElementById('ab-end').value    = r.end    || '';
     document.getElementById('ab-memo').value   = r.memo   || '';
-    const sel = document.getElementById('ab-member-sel');
-    if (sel) sel.value = mid;
   } else {
     document.getElementById('ab-type').value = 'travel';
     document.getElementById('ab-start').value = todayISO;
@@ -457,24 +493,11 @@ function openAbsenceModal(mid) {
   openOv('ov-absence');
 }
 
-function filterAbsenceMemberList() {
-  const q = (document.getElementById('ab-member-search').value || '').toLowerCase();
-  const sel = document.getElementById('ab-member-sel');
-  if (!sel) return;
-  sel.innerHTML = '';
-  MEMBERS.filter(m => m.status !== 'disenrolled' && (!q || (m.kr||'').includes(q) || (m.en||'').toLowerCase().includes(q)))
-    .forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = (m.kr||'') + ' ' + (m.en||'');
-      sel.appendChild(opt);
-    });
-}
+function filterAbsenceMemberList() { filterMSel('ab'); }
 
 async function saveAbsence() {
-  const sel = document.getElementById('ab-member-sel');
-  const mid = sel && sel.value;
-  if (!mid) { alert('멤버를 선택해주세요'); return; }
+  const mid = getMSel('ab');
+  if (!mid) { alert('멤버를 선택해주세요. (검색 후 목록에서 이름을 눌러주세요)'); return; }
   const type  = document.getElementById('ab-type').value;
   const start = document.getElementById('ab-start').value;
   const end   = document.getElementById('ab-end').value;

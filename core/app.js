@@ -474,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>`).join('');
 
   // 멤버 select는 MEMBERS 로드 후 채워짐 (loadAllData에서 처리)
-  ['inc','act','case'].forEach(bindMSel);
+  Object.keys(MSEL_CONF).forEach(bindMSel);
   if (MEMBERS && MEMBERS.length) refreshAllMSel();
 
   ['inc','act','case'].forEach(px => {
