@@ -1180,7 +1180,7 @@ function renderTransportLog() {
 // 🖨️ 감사용 영문 차량 로그 (Transportation Log — Audit Print)
 // - 시작일~종료일의 차량 기록을 영어 표 하나로 인쇄 / PDF 저장
 // - 멤버 영문 이름 · Member ID · Medicaid ID · 차량 번호판 · 운전자 영문 이름
-// - 출결과 맞춰서 결석/캔슬은 표시하고 이동 횟수에서 제외
+// - 출결과 교차 검증하지 않음. 당일 캔슬만 표시하고 횟수에서 제외
 // ══════════════════════════════════════════════════════════════
 function trpEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function trpISO(v){var s=String(v==null?'':v).trim();var m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:'';}
@@ -1197,6 +1197,14 @@ function trpDriverName(d){
   return s&&s.name?s.name:d;
 }
 function trpDOB(m){var v=trpISO(m&&m.dob);if(!v)return '—';var p=v.split('-');return p[1]+'/'+p[2]+'/'+p[0];}
+// 예전 형식 "10차 (Van1 (SEO,HYO HAN))" → 차량 Van1 · 운전자 SEO, HYO HAN
+function trpVehicleInfo(label,driver){
+  var raw=String(label||'').trim(),norm=raw.replace(/\s+/g,'').toLowerCase(),base='';
+  VEHICLE_FLEET.forEach(function(v){var k=String(v.label||'').replace(/\s+/g,'').toLowerCase();if(k&&norm.indexOf(k)>=0&&k.length>base.replace(/\s+/g,'').length)base=v.label;});
+  if(!driver){var m=raw.match(/\(([^()]*[A-Za-z][^()]*)\)\)?\s*$/);if(m&&!/^(van|minivan)/i.test(m[1].trim()))driver=m[1].replace(/\s*,\s*/g,', ').trim();}
+  var num=raw.match(/^(\d+)\s*차/),shown=base?(base+(num?' · Run '+num[1]:'')):raw.replace(/^택시\s*/,'Taxi ').replace(/^(\d+)\s*차/,'Run $1');
+  return {label:shown,base:base||raw,driver:driver||''};
+}
 function trpGroupLabel(g){return String(g||'').replace(/^원거리-?/,'Far · ').replace(/^근거리-?/,'Near · ');}
 
 async function printTransportAudit(){
@@ -1208,45 +1216,48 @@ async function printTransportAudit(){
   if(!w){alert('팝업 차단을 해제해주세요.');return;}
   w.document.write('<p style="font:14px Arial;padding:20px">Loading transportation log…</p>');
   try{
-    var res=await Promise.all([SheetsAPI.readByRange('transportation',from,to),SheetsAPI.loadAttendanceRange(from,to),loadVehicleFleetFromSheets()]);
+    var res=await Promise.all([SheetsAPI.readByRange('transportation',from,to),loadVehicleFleetFromSheets()]);
     if(!res[0]||!res[0].ok||!Array.isArray(res[0].data))throw new Error('차량 기록을 불러오지 못했습니다.');
-    var html=trpAuditHTML(from,to,res[0].data,res[1]||{});
+    var html=trpAuditHTML(from,to,res[0].data);
     if(w.closed)return;
     w.document.open();w.document.write(html);w.document.close();
   }catch(e){if(!w.closed)w.document.body.innerHTML='<p style="font:14px Arial;padding:20px;color:#c00">'+trpEsc(e.message||e)+'</p>';}
 }
 
-function trpAuditHTML(from,to,records,att){
+// 탑승 멤버 목록: ID 목록이 숫자로 깨진 예전 기록(예: 1.13e+35)은 이름 목록으로 멤버를 찾음
+function trpRiders(t){
+  var rawIds=String(t['멤버ID목록']==null?'':t['멤버ID목록']).split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var names=String(t['멤버명단']||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var idsOk=rawIds.length&&rawIds.every(function(x){return /^[A-Za-z0-9_-]+$/.test(x)&&!!findMemberByAnyId(x);})&&(!names.length||rawIds.length===names.length);
+  if(idsOk)return rawIds.map(function(id,i){var m=findMemberByAnyId(id);return {id:m.id,m:m,name:names[i]||id};});
+  if(names.length)return names.map(function(n){var u=n.toUpperCase(),m=MEMBERS.find(function(x){return x.kr===n;})||MEMBERS.find(function(x){return x.en&&x.en.toUpperCase()===u;});return {id:m?m.id:n,m:m||null,name:n};});
+  return rawIds.map(function(id){var m=findMemberByAnyId(id);return {id:m?m.id:id,m:m,name:id};});
+}
+function trpAuditHTML(from,to,records){
   // 당일 캔슬 (날짜+멤버)
   var cancels={};
-  records.forEach(function(t){if(t['그룹']!=='캔슬')return;var d=trpISO(t['날짜']);String(t['멤버ID목록']||'').split(',').forEach(function(id){id=id.trim();if(!id)return;var m=findMemberByAnyId(id);cancels[d+'|'+(m?m.id:id)]=t['메모']||'';});});
+  records.forEach(function(t){if(t['그룹']!=='캔슬')return;var d=trpISO(t['날짜']);trpRiders(t).forEach(function(r){cancels[d+'|'+r.id]=t['메모']||'';});});
   var trips=records.filter(function(t){return t['그룹']!=='캔슬'&&trpISO(t['날짜'])>=from&&trpISO(t['날짜'])<=to;});
   trips.sort(function(a,b){return trpISO(a['날짜']).localeCompare(trpISO(b['날짜']))||((a['방향']==='등원'?0:1)-(b['방향']==='등원'?0:1))||String(a['차량']||'').localeCompare(String(b['차량']||''));});
   var runs=[],summary={},totalTrips=0,notCounted=0,vehicles={};
   trips.forEach(function(t){
-    var d=trpISO(t['날짜']),pick=t['방향']!=='하원',veh=String(t['차량']||''),run={d:d,pick:pick,veh:veh,plate:vehiclePlateOn(veh,d),driver:trpDriverName(t['운전자']),people:[],present:0};
-    var ids=String(t['멤버ID목록']||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
-    var names=String(t['멤버명단']||'').split(',').map(function(x){return x.trim();});
-    if(veh)vehicles[veh]=1;
-    ids.forEach(function(id,i){
-      var m=findMemberByAnyId(id),mid=m?m.id:id,a=(att[d]||{})[mid]||{},st=String(a.status||''),status='',counted=false;
-      if(cancels[d+'|'+mid]!==undefined){status='Cancelled'+(cancels[d+'|'+mid]?' – '+cancels[d+'|'+mid]:'');}
-      else if(st==='in'||st==='late'){counted=true;}
-      else if(st==='absent'){status='Absent – not transported';}
-      else if(st==='disenrolled'){status='Disenrolled – not transported';}
-      else status='Attendance not recorded';
+    var d=trpISO(t['날짜']),pick=t['방향']!=='하원',vi=trpVehicleInfo(t['차량'],trpDriverName(t['운전자'])),veh=vi.base,run={d:d,pick:pick,veh:vi.label,plate:vehiclePlateOn(vi.base,d),driver:vi.driver,people:[],present:0};
+    if(veh&&VEHICLE_FLEET.some(function(x){return x.label===veh;}))vehicles[veh]=1;
+    trpRiders(t).forEach(function(rd){
+      // 출결과 교차 검증하지 않음: 차량 기록 그대로. 당일 캔슬(차량 기록)만 제외
+      var m=rd.m,id=rd.id,mid=rd.id,status='',counted=true;
+      if(cancels[d+'|'+mid]!==undefined){status='Cancelled'+(cancels[d+'|'+mid]?' – '+cancels[d+'|'+mid]:'');counted=false;}
       if(counted){totalTrips++;run.present++;summary[mid]=summary[mid]||{m:m,id:id,pick:0,drop:0};summary[mid][pick?'pick':'drop']++;}else notCounted++;
-      run.people.push({name:trpMemberName(m,names[i]||id),dob:trpDOB(m),chart:m?(m.chartNo||m.id):id,medicaid:m?m.medicaid:'',status:status,counted:counted});
+      run.people.push({name:trpMemberName(m,rd.name),dob:trpDOB(m),chart:m?(m.chartNo||m.id):'—',medicaid:m?m.medicaid:'',status:status+(m?'':(status?' · ':'')+'member not matched'),counted:counted});
     });
     runs.push(run);
   });
   // 날짜별 표: 한 줄 = 운행 1건 (날짜 칸은 그날 첫 줄에 한 번만)
-  var dayCount={};runs.forEach(function(r){dayCount[r.d]=(dayCount[r.d]||0)+1;});
   var lastDate='',body=runs.map(function(r){
     var newDate=r.d!==lastDate;lastDate=r.d;
     var ppl=r.people.map(function(x,i){return '<div class="p'+(x.counted?'':' nc')+'"><span class="n">'+(i+1)+'.</span> <b>'+trpEsc(x.name)+'</b> <span class="id">DOB '+trpEsc(x.dob)+' · ID '+trpEsc(x.chart)+' · Medicaid '+trpEsc(x.medicaid||'—')+'</span>'+(x.status?' <i>('+trpEsc(x.status)+')</i>':'')+'</div>';}).join('');
     return '<tr class="'+(newDate?'nd':'')+'">'
-      +(newDate?'<td rowspan="'+dayCount[r.d]+'" class="dt"><b>'+trpEsc(trpUSDate(r.d))+'</b></td>':'')
+      +'<td class="dt">'+(newDate?'<b>'+trpEsc(trpUSDate(r.d))+'</b>':'')+'</td>'
       +'<td>'+(r.pick?'<b>Pick-up</b><br><small>Home → Center</small>':'<b>Drop-off</b><br><small>Center → Home</small>')+'</td>'
       +'<td><b>'+trpEsc(r.veh||'—')+'</b>'+(r.plate?'<br><small>Plate '+trpEsc(r.plate)+'</small>':'')+'</td>'
       +'<td>'+trpEsc(r.driver||'—')+'</td>'
@@ -1274,10 +1285,10 @@ function trpAuditHTML(from,to,records,att){
     +'<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>'
     +'<div class="hd"><div><h1>Transportation Log</h1><div class="sub">'+trpEsc(C.providerName)+' · '+trpEsc(C.providerAddr)+(C.NPI?' · NPI '+trpEsc(C.NPI):'')+'</div></div>'
     +'<div class="r"><b>Period: '+trpEsc(trpUSDate(from))+' – '+trpEsc(trpUSDate(to))+'</b><br>Printed '+trpEsc(stamp)+(who?' by '+trpEsc(who):'')+'</div></div>'
-    +'<div class="stats"><span>Vehicle runs: <b>'+runs.length+'</b></span><span>Participant trips counted (present): <b>'+totalTrips+'</b></span><span>Listed but not counted (absent/cancelled/unrecorded): <b>'+notCounted+'</b></span><span>Participants transported: <b>'+sum.length+'</b></span></div>'
+    +'<div class="stats"><span>Vehicle runs: <b>'+runs.length+'</b></span><span>Participant trips: <b>'+totalTrips+'</b></span><span>Cancelled same day: <b>'+notCounted+'</b></span><span>Participants transported: <b>'+sum.length+'</b></span></div>'
     +(runs.length?'<table><thead><tr><th style="width:11%">Date</th><th style="width:9%">Trip</th><th style="width:10%">Vehicle</th><th style="width:11%">Driver</th><th class="c" style="width:7%">Riders</th><th>Participants (name · DOB · Member ID · Medicaid ID)</th></tr></thead><tbody>'+body+'</tbody></table>':'<p>No transportation records in this period.</p>')
-    +(sum.length?'<h2>Summary by Participant (present days only)</h2><table><thead><tr><th>Participant</th><th>DOB</th><th>Member ID</th><th>Medicaid ID</th><th class="c">Pick-up trips</th><th class="c">Drop-off trips</th><th class="c">Total trips</th></tr></thead><tbody>'+sumRows+'<tr><td colspan="6" style="text-align:right"><b>Total</b></td><td class="c"><b>'+totalTrips+'</b></td></tr></tbody></table>':'')
-    +'<p class="note">Vehicles: '+(fleetRows||'—')+'.<br>Source: daily transportation (dispatch) records reconciled with the daily attendance record. Only trips for participants marked present (in / late) are counted; participants listed on a run but marked absent, cancelled, or without an attendance entry are shown in grey and are not counted.</p>'
+    +(sum.length?'<h2>Summary by Participant</h2><table><thead><tr><th>Participant</th><th>DOB</th><th>Member ID</th><th>Medicaid ID</th><th class="c">Pick-up trips</th><th class="c">Drop-off trips</th><th class="c">Total trips</th></tr></thead><tbody>'+sumRows+'<tr><td colspan="6" style="text-align:right"><b>Total</b></td><td class="c"><b>'+totalTrips+'</b></td></tr></tbody></table>':'')
+    +'<p class="note">Vehicles: '+(fleetRows||'—')+'.<br>Source: daily transportation (dispatch) records. Participants cancelled on the day are shown struck through and are not counted.</p>'
     +'<div class="sign"><div>Prepared by (name / signature / date)</div><div>Reviewed by — Administrator (name / signature / date)</div></div>'
     +'</body></html>';
 }
