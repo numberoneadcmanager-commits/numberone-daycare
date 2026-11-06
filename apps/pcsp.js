@@ -699,7 +699,7 @@ function pcspFactsForAI(){var e=collectPCSPEntry();return {
   capacity:e.functional,selectedSadcActivities:e.sadcActivities,communityActivities:e.communityActivities,planning:e.planning,workInterest:e.workVolunteer.interest,
   existingPersonCentered:e.personCentered
 };}
-function pcspAiBaseInstruction(){return 'Use ONLY the documented facts, selected options, selected AUTH snapshot, and staff-entered hints supplied. Existing narrative drafts are not independently confirmed facts; do not turn their assumptions into new factual claims. Never invent names, diagnoses, past events, risks, rights restrictions, religion, culture, housing choices, employment interests, or planning attendees. IMPORTANT: do not answer every field with CONFIRM WITH PARTICIPANT. For objective/support narrative, synthesize a useful draft from the documented facts and selected Yes/No/activity choices. Use CONFIRM WITH PARTICIPANT only when the field truly requires a personal choice or preference and there is no documented clue. If an objective field has no usable facts, return an empty string rather than inventing information. Write professional plain English, person-centered and concise.';}
+function pcspAiBaseInstruction(){return 'Refer to the person only as "the participant"; never write a name, date of birth, ID number, phone number or address. Use ONLY the documented facts, selected options, selected AUTH snapshot, and staff-entered hints supplied. Existing narrative drafts are not independently confirmed facts; do not turn their assumptions into new factual claims. Never invent names, diagnoses, past events, risks, rights restrictions, religion, culture, housing choices, employment interests, or planning attendees. IMPORTANT: do not answer every field with CONFIRM WITH PARTICIPANT. For objective/support narrative, synthesize a useful draft from the documented facts and selected Yes/No/activity choices. Use CONFIRM WITH PARTICIPANT only when the field truly requires a personal choice or preference and there is no documented clue. If an objective field has no usable facts, return an empty string rather than inventing information. Write professional plain English, person-centered and concise.';}
 function pcspAIFieldInstruction(targetId,label){
   var preferenceIds=['p-pc-importantTo','p-pc-personalPreferences','p-pc-servicePreferences','p-pc-staffPreferences','p-pc-settingPreferences','p-pc-housingPreferences','p-pc-culturalNeeds'];
   var isPreference=preferenceIds.indexOf(targetId)>=0;
@@ -806,8 +806,30 @@ pcspFactsForAI=function(){
   facts['SELECTED SADC ACTIVITIES']=e.sadcActivities;
   facts['STAFF / PARTICIPANT CONFIRMED FACTS']={planningParticipation:e.planning.participantParticipated,meetingDate:e.planning.meetingDate,meetingLocation:e.planning.meetingLocation,workInterest:e.workVolunteer.interest,rightsSelections:e.rights.map(function(r){return {right:r.right,modified:r.modified};})};
   facts['EXISTING NARRATIVE DRAFTS']={personCentered:e.personCentered,risks:e.risks,goals:e.goals,planning:e.planning,workVolunteer:e.workVolunteer};
-  return facts;
+  return pcspDeidentify(facts,e);
 };
+
+// AI로 보내기 전 개인 식별 정보 제거 (이름·생년월일·번호·연락처·주소·보호자·케어매니저 이름).
+// 서버에서도 멤버 이름·번호를 한 번 더 걸러 냅니다. 문장 작성에 필요한 진단·기능·선호·목표는 그대로 보냅니다.
+function pcspAgeFromDob(dob){var d=new Date(String(dob||'').slice(0,10)+'T12:00:00');if(isNaN(d.getTime()))return '';var t=new Date(),a=t.getFullYear()-d.getFullYear();if(t.getMonth()<d.getMonth()||(t.getMonth()===d.getMonth()&&t.getDate()<d.getDate()))a--;return a>89?'90+':String(a);}
+var PCSP_AI_DROP_KEYS=['memberId','nameLast','nameFirst','nameKr','name','dob','medicaid','ins2id','phone','email','addr','address','livewithname','cm1name','cm1phone','cm1email','cm2name','cm2phone','cm2email','pcpname','pcpphone','pcpemail','authNo','careManager','pdfLink','note','sig','signature','writer','lastEditedBy','lastEditedByEmail','createdBy','id','recordId','documentId'];
+function pcspDeidentify(facts,e){
+  function clean(list){return list.map(function(v){return String(v||'').trim();}).filter(function(v){return v.length>=2;}).sort(function(x,y){return y.length-x.length;});}
+  var names=clean([e&&e.nameFirst,e&&e.nameLast,e&&e.nameKr]),others=clean(((e&&e.contacts)||[]).map(function(c){return c&&c.name;}).concat([e&&e.livewithname,e&&e.cm1name,e&&e.cm2name,e&&e.pcpname]));
+  function scrubText(v){var out=String(v);others.forEach(function(n){out=out.split(n).join('[contact]');});names.forEach(function(n){out=out.split(n).join('the participant');});return out;}
+  function walk(v,key){
+    if(Array.isArray(v))return v.map(function(x){return walk(x,key);});
+    if(v&&typeof v==='object'){var o={};Object.keys(v).forEach(function(k){
+      if(PCSP_AI_DROP_KEYS.indexOf(k)>=0&&!(k==='name'&&key==='activity'))return;
+      if(/contacts?$/i.test(k))return;
+      o[k]=walk(v[k],k);});return o;}
+    return typeof v==='string'?scrubText(v):v;
+  }
+  var out=walk(facts,'');
+  out.participant={age:pcspAgeFromDob(e&&e.dob),gender:e&&e.gender||'',language:e&&e.lang||''};
+  if(out['MEMBER FACTS'])out['MEMBER FACTS'].age=out.participant.age;
+  return out;
+}
 
 // Central draft autosave and per-record revisions; no browser persistence.
 var _wfSavedExit=false;
@@ -891,7 +913,7 @@ async function wfImportSources(opts){
 function wfBegin(p){_wfSavedExit=false;_wfPaused=false;_wfFingerprint='';if(p)_wfMeta[p.id]={revision:p._revision||0,previousId:p.previousId||'',importSources:p.importSources||[],renewalReview:p.renewalReview||null};if(typeof docRenderReview==='function')docRenderReview('pcsp-form-view',p&&p.renewalReview);wfNotice('초안 변경은 20초 간격으로 서버에 저장됩니다.');document.getElementById('pcsp-keep-json').checked=true;}
 setInterval(function(){
   var form=document.getElementById('pcsp-form-view');
-  if(!form||form.style.display==='none'||!_pcspMemberId||_wfBusy||_wfPaused||(_pcspSig&&_pcspSig.length>100))return;
+  if(!form||form.style.display==='none'||!_pcspMemberId||!ADCSession.getToken()||_wfBusy||_wfPaused||(_pcspSig&&_pcspSig.length>100))return;
   var p=wfEntry();if(_wfFingerprint===wfFingerprint(p)&&!_wfPending)return;
   wfPersist('draft').catch(function(){});
 },20000);

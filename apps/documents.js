@@ -253,6 +253,6 @@ async function docCopy(i){
     docNew();_docReview=review;_docActive.seed=seed;
   }catch(e){alert('복사 실패: '+e.message);}finally{_docBusy=false;}
 }
-function docRefreshVisible(){var hub=document.getElementById('forms-hub');if(_docMember&&_selectedFormsMember&&String(_selectedFormsMember.ID)===_docMember.mid&&hub&&hub.style.display!=='none'&&!_docBusy&&!_docActive)showDocumentHistory(_docMember.mid,_docMember.name);}
+function docRefreshVisible(){var hub=document.getElementById('forms-hub');if(window.ADCSession&&ADCSession.getToken()&&_docMember&&_selectedFormsMember&&String(_selectedFormsMember.ID)===_docMember.mid&&hub&&hub.style.display!=='none'&&!_docBusy&&!_docActive)showDocumentHistory(_docMember.mid,_docMember.name);}
 window.addEventListener('pageshow',function(e){if(e.persisted)docRefreshVisible();});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')docRefreshVisible();});

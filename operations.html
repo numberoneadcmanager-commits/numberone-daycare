@@ -2,7 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<script src="core/config.js?v=20260930cleanup4"></script>
+<script src="core/config.js?v=20261028sec1"></script>
+<script src="core/session.js?v=20261028sec1"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>넘버원 업무 관리</title>
 <link rel="icon" href="data:,">
@@ -1278,17 +1279,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script src="apps/billing.js?v=20261021sheet1"></script>
   <script src="apps/attachments.js?v=20260929"></script>
   <script src="apps/medications.js?v=20260930cleanup4"></script>
-<script src="apps/pcsp.js?v=20261022asmt1"></script>
+<script src="apps/pcsp.js?v=20261028sec1"></script>
   <script src="apps/staff_ops.js?v=20260929accuracy1"></script>
   <script src="apps/forms_ops.js?v=20261022asmt1"></script>
-  <script src="apps/documents.js?v=20261012open2"></script>
+  <script src="apps/documents.js?v=20261028sec1"></script>
   <script src="apps/training_ops.js?v=20261005sadc2"></script>
+  <script src="apps/admin.js?v=20261028sec1"></script>
 <script>
 
 // ── Google 로그인 ─────────────────────────────────────────
 // 운영 데이터는 서버에서만 읽습니다. 브라우저 저장소는 사용하지 않습니다.
 
-const ALLOWED_EMAILS = ADC_CONFIG.allowedEmails;
 const CLIENT_ID = ADC_CONFIG.clientId;
 const API_URL = ADC_CONFIG.apiURL;
 var _currentUser = null;
@@ -1322,17 +1323,19 @@ function parseJwt(token){
   try{return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}catch(e){return {};}
 }
 function handleCredentialResponse(response){
-  var payload=parseJwt(response.credential);
-  if(!ALLOWED_EMAILS.includes(payload.email)){
+  // 허용 직원 확인은 서버(whoami)가 합니다.
+  ADCSession.handleCredential(response,function(user){
+    _currentUser={email:user.email,name:user.name,picture:user.picture,role:user.role};
+    showApp(_currentUser);
+  },function(msg){
     var err=document.getElementById('login-error');
-    err.style.display='block';err.textContent='❌ 접속 권한이 없습니다: '+payload.email;return;
-  }
-  _currentUser={email:payload.email,name:payload.name,picture:payload.picture};
-  showApp(_currentUser);
+    if(err){err.style.display='block';err.textContent=msg;}else alert(msg);
+  });
 }
 function showApp(user){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
+  if(typeof adminInit==='function')adminInit();
   initData();
 }
 
@@ -1423,19 +1426,24 @@ function closeOv(id){WriteGuard.endEdit(id);document.getElementById(id).classLis
 async function checkAPIResponse(r){
   if(!r.ok)throw new Error('HTTP '+r.status);
   var result=await r.json();
-  if(!result||result.ok!==true||result.data&&result.data.success===false)
-    throw new Error(result&&(result.error||result.data&&result.data.error)||'서버 작업 실패');
+  if(!result||result.ok!==true||result.data&&result.data.success===false){
+    var m=result&&(result.error||result.data&&result.data.error)||'서버 작업 실패';
+    ADCSession.onApiError(m);throw new Error(ADCSession.cleanError(m));
+  }
   return result;
 }
+// 로그인 증명(authToken)은 보내는 요청에만 붙이고, 저장 기록(WriteGuard)에는 남기지 않는다.
 async function apiCall(data){
   WriteGuard.writeStart();try{
-  data=WriteGuard.prepare(data);
-  return WriteGuard.saved(data,await checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)})));
+  data=ADCSession.deleteReason(WriteGuard.prepare(data));
+  var token=ADCSession.requireToken();
+  return WriteGuard.saved(data,await checkAPIResponse(await fetch(API_URL,{method:'POST',cache:'no-store',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({},data,{authToken:token}))})));
   }finally{WriteGuard.writeEnd();}
 }
 async function apiGet(params){
   var stamp=WriteGuard.readStart();
-  return WriteGuard.remember(params,await checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString(),{cache:'no-store'})),stamp);
+  var token=ADCSession.requireToken();
+  return WriteGuard.remember(params,await checkAPIResponse(await fetch(API_URL+'?'+new URLSearchParams(params).toString()+'&authToken='+encodeURIComponent(token),{cache:'no-store'})),stamp);
 }
 // ── Drive JSON 저장/로드 ──────────────────────────────────
 async function saveJSONtoDrive(memberId,memberName,fileType,jsonData){
@@ -2348,7 +2356,7 @@ async function deleteAct(id){
 var _opsRefreshRunning=false;
 async function refreshOperationsLists(){
   var form=document.getElementById('pcsp-form-view');
-  if(!_currentUser||document.hidden||_opsRefreshRunning||document.querySelector('.open')||(form&&form.style.display==='block'))return;
+  if(!_currentUser||!ADCSession.getToken()||document.hidden||_opsRefreshRunning||document.querySelector('.open')||(form&&form.style.display==='block'))return;
   _opsRefreshRunning=true;
   try{await Promise.all([loadAuditFromSheets(),loadAuditGeneratedPDFs(true),loadPCSPFromSheets()]);loadOpStaffFromSheets();loadGRfromSheets();loadFDfromSheets();loadTempfromSheets();loadDocsfromSheets();loadActfromSheets();}
   catch(e){console.log('목록 새로고침 실패:',e);}finally{_opsRefreshRunning=false;}

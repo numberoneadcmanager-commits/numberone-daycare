@@ -25,15 +25,14 @@ function initGoogleAuth() {
 }
 
 function handleCredentialResponse(response) {
-  const payload = parseJwt(response.credential);
-  const email   = payload.email;
-  if (!ALLOWED_EMAILS.includes(email)) {
+  // 허용 직원 확인은 서버가 합니다 (whoami). 화면 코드에는 이메일 목록이 없습니다.
+  ADCSession.handleCredential(response, function (user) {
+    _currentUser = { email: user.email, name: user.name, picture: user.picture, role: user.role };
+    showApp(_currentUser);
+  }, function (msg) {
     const err = document.getElementById('login-error');
-    if (err) { err.style.display = 'block'; err.textContent = '❌ 접속 권한이 없습니다: ' + email; }
-    return;
-  }
-  _currentUser = { email, name: payload.name, picture: payload.picture };
-  showApp(_currentUser);
+    if (err) { err.style.display = 'block'; err.textContent = msg; } else alert(msg);
+  });
 }
 
 function showApp(user) {
@@ -528,12 +527,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('rpt-from').value = weekAgoISO;
   document.getElementById('rpt-to').value   = todayISO;
 
-  // Sheets 연결 후 데이터 로드 + 출결 로드 (앱 화면 진입 시에도 selectApp에서 한번 더 보장)
-  // ★ selectApp()에서 이미 ping+load를 실행했다면 여기서 또 요청 보내지 않음 (중복 요청 방지)
-  if (!window._sheetsLoadedOnce) {
-    window._sheetsLoadedOnce = true;
-    startSheetsLoad();
-  }
+  // 데이터는 로그인 확인 뒤 selectApp()에서 불러옵니다 (서버가 로그인 증명을 요구함).
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -664,7 +658,7 @@ function clearMRSig() {
 // Returning from another PC/tablet work session refreshes central lists; never overwrite an open editor.
 var _centralRefreshRunning=false;
 async function refreshCentralLists(){
-  if(!_currentUser||_centralRefreshRunning||document.hidden||document.querySelector('.open'))return;
+  if(!_currentUser||!ADCSession.getToken()||_centralRefreshRunning||document.hidden||document.querySelector('.open'))return;
   _centralRefreshRunning=true;
   try{
     await loadAllData();

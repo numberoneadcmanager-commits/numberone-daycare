@@ -318,22 +318,23 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
 .doc-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:.5px solid #F2F2F7;transition:background .15s;}
 .doc-row[onclick]:hover{background:#F2F2F7;}
 </style>
-<script src="core/config.js?v=20260930cleanup4" defer></script>
+<script src="core/config.js?v=20261028sec1" defer></script>
+<script src="core/session.js?v=20261028sec1" defer></script>
 <script src="core/write_guard.js?v=20260930batch3" defer></script>
-<script src="core/api.js?v=20261008speed1" defer></script>
+<script src="core/api.js?v=20261028sec1" defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="core/state.js?v=20260930cleanup4" defer></script>
+<script src="core/state.js?v=20261028sec1" defer></script>
 <script src="core/utils.js?v=20261027pick1" defer></script>
 <script src="data/members.js" defer></script>
 <script src="apps/dashboard.js?v=20260916design" defer></script>
 <script src="apps/attendance.js?v=20261027pick1" defer></script>
 <script src="apps/members.js?v=20261008speed1" defer></script>
-<script src="apps/logs.js?v=20261027pick1" defer></script>
+<script src="apps/logs.js?v=20261106trp1" defer></script>
 <script src="apps/auth.js?v=20261027pick1" defer></script>
 <script src="apps/visitor.js?v=20260921" defer></script>
 <script src="apps/billing.js?v=20261021sheet1" defer></script>
 <script src="apps/workflow.js?v=20260916design" defer></script>
-<script src="core/app.js?v=20261027pick1" defer></script>
+<script src="core/app.js?v=20261028sec1" defer></script>
 <link rel="stylesheet" href="apps/dashboard.css?v=20260916design">
 <link rel="stylesheet" href="apps/council_tools.css?v=20260921">
 <script src="core/pdf-lib.min.js?v=1.17.1" defer></script>
@@ -700,6 +701,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Ne
           <button id="trp-view-group" class="fpill active" onclick="setTrpViewMode('group')">🚐 차량별</button>
           <button id="trp-view-person" class="fpill" onclick="setTrpViewMode('person')">👤 개인별 (Audit용)</button>
         </div>
+        <button class="btn-full" style="background:#1C1C1E;color:#fff;border:none;border-radius:12px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px" onclick="printTransportAudit()">🖨️ 감사용 영문 차량 로그 인쇄 / PDF (위 기간)</button>
         <div id="trp-list"></div>
       </div>
     </div>

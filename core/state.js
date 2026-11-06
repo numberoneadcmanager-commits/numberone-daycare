@@ -4,7 +4,6 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── 상수 ─────────────────────────────────────────────────────
-const ALLOWED_EMAILS = ADC_CONFIG.allowedEmails;
 const CLIENT_ID = ADC_CONFIG.clientId;
 
 const DKR  = {Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'};

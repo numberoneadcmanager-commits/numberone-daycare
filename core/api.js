@@ -20,14 +20,17 @@ const SheetsAPI = {
   async get(params) {
     const stamp=WriteGuard.readStart();
     const qs  = new URLSearchParams(params).toString();
+    const needAuth = params && params.action !== 'ping';
+    // 로그인 증명은 주소에만 붙이고, 중복 요청 구분용 키(qs)와 params에는 넣지 않는다.
+    const token = needAuth ? ADCSession.requireToken() : '';
     let shared = this._inflight.get(qs);
     if (!shared || shared.epoch !== stamp.epoch) {
-      const url = this.URL + '?' + qs;
+      const url = this.URL + '?' + qs + (needAuth ? '&authToken=' + encodeURIComponent(token) : '');
       shared = { epoch: stamp.epoch, promise: (async () => {
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+        if (!data || data.ok !== true) { const m=(data && (data.error || (data.data && data.data.error))) || 'API error'; ADCSession.onApiError(m); throw new Error(ADCSession.cleanError(m)); }
         if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
         return data;
       })() };
@@ -43,16 +46,17 @@ const SheetsAPI = {
   async post(body) {
     WriteGuard.writeStart();
     try{
-    body=WriteGuard.prepare(body);
+    body=ADCSession.deleteReason(WriteGuard.prepare(body));
+    const token=ADCSession.requireToken();
     const res = await fetch(this.URL, {
       method: 'POST',
       cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(Object.assign({}, body, { authToken: token })),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data || data.ok !== true) throw new Error((data && (data.error || (data.data && data.data.error))) || 'API error');
+    if (!data || data.ok !== true) { const m=(data && (data.error || (data.data && data.data.error))) || 'API error'; ADCSession.onApiError(m); throw new Error(ADCSession.cleanError(m)); }
     if (data.data && data.data.success === false) throw new Error(data.data.error || 'Server operation failed');
     return WriteGuard.saved(body,data);
     }finally{WriteGuard.writeEnd();}

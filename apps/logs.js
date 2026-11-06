@@ -460,12 +460,20 @@ var SECTOR_NAMES = ['N','NE','E','SE','S','SW','W','NW'];
 
 // ── 차량 목록 관리 — Google Sheets settings가 단일 원본 ──
 var VEHICLE_FLEET=[{label:'Van1',cap:14},{label:'Van2',cap:14},{label:'Minivan1',cap:7}];
-function getVehicleFleet(){return VEHICLE_FLEET.map(function(v){return {label:v.label,cap:v.cap};});}
+function _fleetCopy(v){return {label:v.label,cap:v.cap,plate:String(v.plate||''),plateHistory:Array.isArray(v.plateHistory)?v.plateHistory.map(function(h){return {plate:String(h.plate||''),since:String(h.since||'')};}):[]};}
+function getVehicleFleet(){return VEHICLE_FLEET.map(_fleetCopy);}
+// 운행 날짜에 쓰던 번호판 (번호판을 바꿔도 예전 기록은 그때 번호판으로 인쇄)
+function vehiclePlateOn(label,iso){
+  var v=VEHICLE_FLEET.find(function(x){return String(x.label)===String(label);});if(!v)return '';
+  var h=(v.plateHistory||[]).filter(function(x){return x.plate;}).slice().sort(function(a,b){return String(a.since).localeCompare(String(b.since));});
+  var hit='';h.forEach(function(x){if(!x.since||x.since<=iso)hit=x.plate;});
+  return hit||(h.length?h[0].plate:String(v.plate||''));
+}
 async function loadVehicleFleetFromSheets(){
   try{var res=await SheetsAPI.read('settings');var rows=(res&&res.ok&&res.data)?res.data:[];var row=rows.find(function(r){return String(r['Key']||'')==='fleet_vehicles';});if(row&&row['Value']){var arr=JSON.parse(String(row['Value']));if(Array.isArray(arr))WriteGuard.adopt(WriteGuard.select(res,[row]),function(){VEHICLE_FLEET=arr;});}}catch(e){console.log('차량 설정 로드 실패:',e);}renderVehicleFleetSettings();
 }
 async function saveVehicleFleet(fleet){
-  await SheetsAPI.upsert('settings','Key','fleet_vehicles',{'Key':'fleet_vehicles','Value':JSON.stringify(fleet),'수정시각':new Date().toISOString()});VEHICLE_FLEET=fleet.map(function(v){return {label:v.label,cap:v.cap};});
+  await SheetsAPI.upsert('settings','Key','fleet_vehicles',{'Key':'fleet_vehicles','Value':JSON.stringify(fleet),'수정시각':new Date().toISOString()});VEHICLE_FLEET=fleet.map(_fleetCopy);
 }
 function renderVehicleFleetSettings() {
   var fleet = getVehicleFleet();
@@ -475,6 +483,7 @@ function renderVehicleFleetSettings() {
     return '<div class="frow" style="margin-bottom:6px;align-items:center">'
       + '<input class="fi" value="' + v.label + '" onchange="_fleetUpdate(' + i + ',\'label\',this.value)" style="font-size:12px">'
       + '<input class="fi" type="number" value="' + v.cap + '" onchange="_fleetUpdate(' + i + ',\'cap\',parseInt(this.value)||1)" style="font-size:12px;width:70px" placeholder="정원">'
+      + '<input class="fi" value="' + String(v.plate||'').replace(/"/g,'&quot;') + '" onchange="_fleetUpdate(' + i + ',\'plate\',this.value)" style="font-size:12px;width:110px" placeholder="번호판 (Plate)">'
       + '<button onclick="_fleetRemove(' + i + ')" style="background:#FFEBEE;color:#FF3B30;border:none;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">삭제</button>'
       + '</div>';
   }).join('');
@@ -482,8 +491,18 @@ function renderVehicleFleetSettings() {
 
 async function _fleetUpdate(idx, field, value) {
   var fleet = getVehicleFleet();
+  if (field === 'plate') {
+    // 번호판 변경 이력 보관: 감사용 차량 로그는 운행 날짜의 번호판으로 인쇄
+    value = String(value || '').trim().toUpperCase();
+    var v = fleet[idx], today = (typeof todayISO !== 'undefined' && todayISO) || new Date().toISOString().slice(0, 10);
+    if (value === v.plate) return;
+    if (!v.plateHistory.length && v.plate) v.plateHistory.push({ plate: v.plate, since: '' });
+    if (v.plate && !confirm(v.label + ' 번호판을 ' + v.plate + ' → ' + (value || '(없음)') + '(으)로 바꿀까요?\n오늘(' + today + ') 이전 운행 기록은 예전 번호판으로 인쇄됩니다.')) { renderVehicleFleetSettings(); return; }
+    v.plateHistory = v.plateHistory.filter(function (h) { return h.since !== today; });
+    v.plateHistory.push({ plate: value, since: v.plateHistory.length ? today : '' });
+  }
   fleet[idx][field] = value;
-  try{await saveVehicleFleet(fleet);}catch(e){alert('❌ 차량 설정 저장 실패: '+e.message);}
+  try{await saveVehicleFleet(fleet);renderVehicleFleetSettings();}catch(e){alert('❌ 차량 설정 저장 실패: '+e.message);}
 }
 
 async function _fleetRemove(idx) {
@@ -1156,6 +1175,112 @@ function renderTransportLog() {
     : '<div class="empty-msg">기록 없음</div>';
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// 🖨️ 감사용 영문 차량 로그 (Transportation Log — Audit Print)
+// - 시작일~종료일의 차량 기록을 영어 표 하나로 인쇄 / PDF 저장
+// - 멤버 영문 이름 · Member ID · Medicaid ID · 차량 번호판 · 운전자 영문 이름
+// - 출결과 맞춰서 결석/캔슬은 표시하고 이동 횟수에서 제외
+// ══════════════════════════════════════════════════════════════
+function trpEsc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function trpISO(v){var s=String(v==null?'':v).trim();var m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:'';}
+function trpUSDate(iso){var p=iso.split('-');if(p.length!==3)return iso;var d=new Date(+p[0],+p[1]-1,+p[2]);return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+p[1]+'/'+p[2]+'/'+p[0];}
+function trpMemberName(m,fallback){
+  if(!m)return fallback||'';
+  if(m.lastName||m.firstName)return (String(m.lastName||'').toUpperCase()+(m.firstName?', '+m.firstName:'')+(m.middleName?' '+String(m.middleName).charAt(0)+'.':'')).trim();
+  return m.en||m.kr||fallback||'';
+}
+function trpDriverName(d){
+  d=String(d||'').trim();if(!d)return '';
+  var list=(typeof STAFF!=='undefined'&&Array.isArray(STAFF))?STAFF:[];
+  var s=list.find(function(x){return x.nameKr===d||x.name===d||String(x.name||'').toUpperCase()===d.toUpperCase();});
+  return s&&s.name?s.name:d;
+}
+function trpDOB(m){var v=trpISO(m&&m.dob);if(!v)return '—';var p=v.split('-');return p[1]+'/'+p[2]+'/'+p[0];}
+function trpGroupLabel(g){return String(g||'').replace(/^원거리-?/,'Far · ').replace(/^근거리-?/,'Near · ');}
+
+async function printTransportAudit(){
+  var from=(document.getElementById('trp-from')||{}).value,to=(document.getElementById('trp-to')||{}).value;
+  if(!from||!to){alert('시작일과 종료일을 먼저 선택해주세요.');return;}
+  if(from>to){alert('시작일이 종료일보다 늦습니다.');return;}
+  if((new Date(to)-new Date(from))/864e5>366){alert('한 번에 최대 1년까지 인쇄할 수 있습니다.');return;}
+  var w=window.open('','_blank');
+  if(!w){alert('팝업 차단을 해제해주세요.');return;}
+  w.document.write('<p style="font:14px Arial;padding:20px">Loading transportation log…</p>');
+  try{
+    var res=await Promise.all([SheetsAPI.readByRange('transportation',from,to),SheetsAPI.loadAttendanceRange(from,to),loadVehicleFleetFromSheets()]);
+    if(!res[0]||!res[0].ok||!Array.isArray(res[0].data))throw new Error('차량 기록을 불러오지 못했습니다.');
+    var html=trpAuditHTML(from,to,res[0].data,res[1]||{});
+    if(w.closed)return;
+    w.document.open();w.document.write(html);w.document.close();
+  }catch(e){if(!w.closed)w.document.body.innerHTML='<p style="font:14px Arial;padding:20px;color:#c00">'+trpEsc(e.message||e)+'</p>';}
+}
+
+function trpAuditHTML(from,to,records,att){
+  // 당일 캔슬 (날짜+멤버)
+  var cancels={};
+  records.forEach(function(t){if(t['그룹']!=='캔슬')return;var d=trpISO(t['날짜']);String(t['멤버ID목록']||'').split(',').forEach(function(id){id=id.trim();if(!id)return;var m=findMemberByAnyId(id);cancels[d+'|'+(m?m.id:id)]=t['메모']||'';});});
+  var trips=records.filter(function(t){return t['그룹']!=='캔슬'&&trpISO(t['날짜'])>=from&&trpISO(t['날짜'])<=to;});
+  trips.sort(function(a,b){return trpISO(a['날짜']).localeCompare(trpISO(b['날짜']))||((a['방향']==='등원'?0:1)-(b['방향']==='등원'?0:1))||String(a['차량']||'').localeCompare(String(b['차량']||''));});
+  var runs=[],summary={},totalTrips=0,notCounted=0,vehicles={};
+  trips.forEach(function(t){
+    var d=trpISO(t['날짜']),pick=t['방향']!=='하원',veh=String(t['차량']||''),run={d:d,pick:pick,veh:veh,plate:vehiclePlateOn(veh,d),driver:trpDriverName(t['운전자']),people:[],present:0};
+    var ids=String(t['멤버ID목록']||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+    var names=String(t['멤버명단']||'').split(',').map(function(x){return x.trim();});
+    if(veh)vehicles[veh]=1;
+    ids.forEach(function(id,i){
+      var m=findMemberByAnyId(id),mid=m?m.id:id,a=(att[d]||{})[mid]||{},st=String(a.status||''),status='',counted=false;
+      if(cancels[d+'|'+mid]!==undefined){status='Cancelled'+(cancels[d+'|'+mid]?' – '+cancels[d+'|'+mid]:'');}
+      else if(st==='in'||st==='late'){counted=true;}
+      else if(st==='absent'){status='Absent – not transported';}
+      else if(st==='disenrolled'){status='Disenrolled – not transported';}
+      else status='Attendance not recorded';
+      if(counted){totalTrips++;run.present++;summary[mid]=summary[mid]||{m:m,id:id,pick:0,drop:0};summary[mid][pick?'pick':'drop']++;}else notCounted++;
+      run.people.push({name:trpMemberName(m,names[i]||id),dob:trpDOB(m),chart:m?(m.chartNo||m.id):id,medicaid:m?m.medicaid:'',status:status,counted:counted});
+    });
+    runs.push(run);
+  });
+  // 날짜별 표: 한 줄 = 운행 1건 (날짜 칸은 그날 첫 줄에 한 번만)
+  var dayCount={};runs.forEach(function(r){dayCount[r.d]=(dayCount[r.d]||0)+1;});
+  var lastDate='',body=runs.map(function(r){
+    var newDate=r.d!==lastDate;lastDate=r.d;
+    var ppl=r.people.map(function(x,i){return '<div class="p'+(x.counted?'':' nc')+'"><span class="n">'+(i+1)+'.</span> <b>'+trpEsc(x.name)+'</b> <span class="id">DOB '+trpEsc(x.dob)+' · ID '+trpEsc(x.chart)+' · Medicaid '+trpEsc(x.medicaid||'—')+'</span>'+(x.status?' <i>('+trpEsc(x.status)+')</i>':'')+'</div>';}).join('');
+    return '<tr class="'+(newDate?'nd':'')+'">'
+      +(newDate?'<td rowspan="'+dayCount[r.d]+'" class="dt"><b>'+trpEsc(trpUSDate(r.d))+'</b></td>':'')
+      +'<td>'+(r.pick?'<b>Pick-up</b><br><small>Home → Center</small>':'<b>Drop-off</b><br><small>Center → Home</small>')+'</td>'
+      +'<td><b>'+trpEsc(r.veh||'—')+'</b>'+(r.plate?'<br><small>Plate '+trpEsc(r.plate)+'</small>':'')+'</td>'
+      +'<td>'+trpEsc(r.driver||'—')+'</td>'
+      +'<td class="c"><b>'+r.present+'</b>'+(r.present!==r.people.length?'<br><small>of '+r.people.length+' listed</small>':'')+'</td>'
+      +'<td>'+ppl+'</td></tr>';
+  }).join('');
+  var sum=Object.keys(summary).map(function(k){return summary[k];}).sort(function(a,b){return trpMemberName(a.m,a.id).localeCompare(trpMemberName(b.m,b.id));});
+  var sumRows=sum.map(function(x){return '<tr><td><b>'+trpEsc(trpMemberName(x.m,x.id))+'</b></td><td>'+trpEsc(trpDOB(x.m))+'</td><td>'+trpEsc(x.m?(x.m.chartNo||x.m.id):x.id)+'</td><td>'+trpEsc(x.m?x.m.medicaid:'')+'</td><td class="c">'+x.pick+'</td><td class="c">'+x.drop+'</td><td class="c"><b>'+(x.pick+x.drop)+'</b></td></tr>';}).join('');
+  var fleetRows=Object.keys(vehicles).sort().map(function(v){var f=VEHICLE_FLEET.find(function(x){return x.label===v;});var plates=[];((f&&f.plateHistory)||[]).forEach(function(h){if(h.plate&&plates.indexOf(h.plate)<0)plates.push(h.plate);});if(!plates.length&&f&&f.plate)plates.push(f.plate);return trpEsc(v)+': '+(plates.length?trpEsc(plates.join(' / ')):'plate not set');}).join(' · ');
+  var who=(window.ADCSession&&ADCSession.userName())||'';
+  var C=(typeof BILLING_CONFIG!=='undefined')?BILLING_CONFIG:{providerName:'NUMBER ONE ADULT DAYCARE',providerAddr:'',NPI:''};
+  var now=new Date(),stamp=(now.getMonth()+1)+'/'+now.getDate()+'/'+now.getFullYear()+' '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  return '<!doctype html><html><head><meta charset="utf-8"><title>Transportation Log '+from+' to '+to+'</title><style>'
+    +'@page{size:letter landscape;margin:10mm}body{font:10.5px Arial,Helvetica,sans-serif;color:#111;margin:0}@media screen{body{padding:12px 18px}}'
+    +'.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px}'
+    +'.hd h1{font-size:17px;margin:0}.hd .sub{font-size:10.5px;color:#333;margin-top:2px}.hd .r{text-align:right;font-size:10.5px}'
+    +'.stats{display:flex;gap:18px;font-size:10.5px;margin:0 0 8px}.stats b{font-size:12px}'
+    +'table{border-collapse:collapse;width:100%}th,td{border:1px solid #9a9a9a;padding:3px 5px;vertical-align:top;text-align:left}'
+    +'th{background:#e9e9e9;font-size:10px}thead{display:table-header-group}tr{break-inside:avoid}small{color:#444;font-size:9px}'
+    +'.c{text-align:center}tr.nd td{border-top:2px solid #111}td.dt{background:#f6f6f6}.p{padding:1px 0}.p .n{display:inline-block;width:16px;color:#555}.p .id{color:#333;font-size:9.5px}.p.nc{color:#888}.p.nc b{font-weight:normal;text-decoration:line-through}'
+    +'h2{font-size:13px;margin:16px 0 6px;break-after:avoid}.note{font-size:9.5px;color:#333;margin:8px 0}'
+    +'.sign{display:flex;gap:40px;margin-top:26px;font-size:10.5px}.sign div{flex:1;border-top:1px solid #111;padding-top:3px}'
+    +'.bar{position:sticky;top:0;background:#fff;padding:8px 0;text-align:right}.bar button{font:13px Arial;padding:7px 16px;cursor:pointer}'
+    +'@media print{.bar{display:none}}</style></head><body>'
+    +'<div class="bar"><button onclick="window.print()">Print / Save as PDF</button></div>'
+    +'<div class="hd"><div><h1>Transportation Log</h1><div class="sub">'+trpEsc(C.providerName)+' · '+trpEsc(C.providerAddr)+(C.NPI?' · NPI '+trpEsc(C.NPI):'')+'</div></div>'
+    +'<div class="r"><b>Period: '+trpEsc(trpUSDate(from))+' – '+trpEsc(trpUSDate(to))+'</b><br>Printed '+trpEsc(stamp)+(who?' by '+trpEsc(who):'')+'</div></div>'
+    +'<div class="stats"><span>Vehicle runs: <b>'+runs.length+'</b></span><span>Participant trips counted (present): <b>'+totalTrips+'</b></span><span>Listed but not counted (absent/cancelled/unrecorded): <b>'+notCounted+'</b></span><span>Participants transported: <b>'+sum.length+'</b></span></div>'
+    +(runs.length?'<table><thead><tr><th style="width:11%">Date</th><th style="width:9%">Trip</th><th style="width:10%">Vehicle</th><th style="width:11%">Driver</th><th class="c" style="width:7%">Riders</th><th>Participants (name · DOB · Member ID · Medicaid ID)</th></tr></thead><tbody>'+body+'</tbody></table>':'<p>No transportation records in this period.</p>')
+    +(sum.length?'<h2>Summary by Participant (present days only)</h2><table><thead><tr><th>Participant</th><th>DOB</th><th>Member ID</th><th>Medicaid ID</th><th class="c">Pick-up trips</th><th class="c">Drop-off trips</th><th class="c">Total trips</th></tr></thead><tbody>'+sumRows+'<tr><td colspan="6" style="text-align:right"><b>Total</b></td><td class="c"><b>'+totalTrips+'</b></td></tr></tbody></table>':'')
+    +'<p class="note">Vehicles: '+(fleetRows||'—')+'.<br>Source: daily transportation (dispatch) records reconciled with the daily attendance record. Only trips for participants marked present (in / late) are counted; participants listed on a run but marked absent, cancelled, or without an attendance entry are shown in grey and are not counted.</p>'
+    +'<div class="sign"><div>Prepared by (name / signature / date)</div><div>Reviewed by — Administrator (name / signature / date)</div></div>'
+    +'</body></html>';
+}
 
 // 방향(등원/하원)을 바꾸면, 이미 만든 배차 계획을 그 방향 순서로 다시 계산
 function onDispatchDirectionChange(){
